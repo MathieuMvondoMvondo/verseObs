@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VerseObs - Control Panel</title>
+  <link rel="stylesheet" href="assets/css/control.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="cp-header">
+    <span class="cp-header-title">VerseObs</span>
+    <div class="cp-connection">
+      <span id="connection-text">Disconnected</span>
+      <span class="cp-connection-dot" id="connection-dot"></span>
+    </div>
+  </div>
+
+  <!-- Tab Bar -->
+  <div class="cp-tabs">
+    <div class="cp-tab active" data-tab="0">Bible</div>
+    <div class="cp-tab" data-tab="1">Texte libre</div>
+    <div class="cp-tab" data-tab="2">Historique</div>
+    <div class="cp-tab" data-tab="3">Paramètres</div>
+  </div>
+
+  <!-- Panel Body -->
+  <div class="cp-panel">
+
+    <!-- ======== Bible Tab ======== -->
+    <div class="cp-tab-content active" id="tab-bible">
+
+      <!-- Version Selector -->
+      <div class="cp-section">
+        <div class="cp-version-row">
+          <select class="cp-select cp-version-select" id="version-select">
+            <option value="">Chargement...</option>
+          </select>
+          <span class="cp-version-indicator local" id="version-indicator">local</span>
+        </div>
+      </div>
+
+      <!-- Search -->
+      <div class="cp-section">
+        <div class="cp-search-wrap">
+          <span class="cp-search-icon">&#128269;</span>
+          <input type="text" class="cp-search-input" id="search-input"
+                 placeholder="Jean 3:16 ou recherche texte..."
+                 autocomplete="off" spellcheck="false">
+          <span class="cp-search-hint">Ctrl+F</span>
+        </div>
+        <div class="cp-search-results" id="search-results"></div>
+      </div>
+
+      <!-- Book / Chapter / Verse Dropdowns -->
+      <div class="cp-section">
+        <span class="cp-section-label">Navigation</span>
+        <!-- Book / Chapter / Verse Dropdowns -->
+        <div class="cp-nav-row">
+          <select class="cp-select book-select" id="book-select">
+            <option value="">--</option>
+          </select>
+          <select class="cp-select" id="chapter-select">
+            <option value="">--</option>
+          </select>
+          <select class="cp-select" id="verse-select">
+            <option value="">--</option>
+          </select>
+        </div>
+
+        <!-- Prev / Next Buttons -->
+        <div class="cp-nav-buttons">
+          <button class="cp-btn-nav" id="btn-prev-chapter" title="Chapitre précédent">&laquo; Ch.</button>
+          <button class="cp-btn-nav" id="btn-prev" title="Verset précédent">&lsaquo; Verset<span class="shortcut">Ctrl+&larr;</span></button>
+          <button class="cp-btn-nav" id="btn-next" title="Verset suivant">Verset &rsaquo;<span class="shortcut">Ctrl+&rarr;</span></button>
+          <button class="cp-btn-nav" id="btn-next-chapter" title="Chapitre suivant">Ch. &raquo;</button>
+        </div>
+      </div>
+
+      <!-- Verse Preview -->
+      <div class="cp-section">
+        <span class="cp-section-label">Aperçu</span>
+        <div class="cp-preview">
+          <div class="cp-preview-text cp-preview-empty" id="preview-text">Sélectionnez un verset</div>
+          <div class="cp-preview-ref" id="preview-ref" style="display:none"></div>
+        </div>
+      </div>
+
+      <!-- Show / Hide Buttons -->
+      <div class="cp-actions">
+        <button class="cp-btn cp-btn-show" id="btn-show">Afficher<span class="shortcut">Ctrl+Enter</span></button>
+        <button class="cp-btn cp-btn-hide" id="btn-hide">Masquer<span class="shortcut">Esc</span></button>
+      </div>
+
+    </div>
+
+    <!-- ======== Free Text Tab ======== -->
+    <div class="cp-tab-content" id="tab-freetext">
+
+      <div class="cp-section">
+        <span class="cp-section-label">Texte libre / Paroles / Annonces</span>
+        <textarea class="cp-textarea cp-freetext-area" id="freetext-area"
+                  placeholder="Saisissez votre texte ici...&#10;Paroles de chants, annonces, prières..."
+                  spellcheck="false"></textarea>
+      </div>
+
+      <div class="cp-actions">
+        <button class="cp-btn cp-btn-show" id="btn-free-show">Afficher<span class="shortcut">Ctrl+Enter</span></button>
+        <button class="cp-btn cp-btn-hide" id="btn-free-hide">Masquer<span class="shortcut">Esc</span></button>
+      </div>
+
+    </div>
+
+    <!-- ======== History Tab ======== -->
+    <div class="cp-tab-content" id="tab-history">
+
+      <div class="cp-section">
+        <span class="cp-section-label">Versets récents</span>
+        <div id="history-container"></div>
+      </div>
+
+      <button class="cp-btn-clear" id="btn-clear-history">Effacer l'historique</button>
+
+    </div>
+
+    <!-- ======== Settings Tab ======== -->
+    <div class="cp-tab-content" id="tab-settings">
+      <div id="settings-container">
+
+        <!-- Layout -->
+        <div class="cp-setting-group">
+          <div class="cp-setting-group-title">Disposition</div>
+
+          <div class="cp-setting-row">
+            <span class="cp-setting-label">Position</span>
+            <div class="cp-setting-control">
+              <select class="cp-select" data-setting="position">
+                <option value="lower-third">Lower Third</option>
+                <option value="upper-third">Upper Third</option>
+                <option value="center">Centre</option>
+                <option value="fullscreen">Plein écran</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="cp-setting-row">
+            <span class="cp-setting-label">Largeur max</span>
+            <div class="cp-setting-control">
+              <input type="range" data-setting="maxWidth" min="30" max="100" step="5">
+              <span class="cp-setting-value">80%</span>
+            </div>
+          </div>
+
+          <div class="cp-setting-row">
+            <span class="cp-setting-label">Padding</span>
+            <div class="cp-setting-control">
+              <input type="range" data-setting="padding" min="5" max="60" step="1">
+              <span class="cp-setting-value">20px</span>
+            </div>
+          </div>
+
+          <div class="cp-setting-row">
+            <span class="cp-setting-label">Rayon bordure</span>
+            <div class="cp-setting-control">
+              <input type="range" data-setting="borderRadius" min="0" max="30" step="1">
+              <span class="cp-setting-value">8px</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Animation -->
+        <div class="cp-setting-group">
+          <div class="cp-setting-group-title">Animation</div>
+
+          <div class="cp-setting-row">
+            <span class="cp-setting-label">Type</span>
+            <!-- Animation type -->
+            <div class="cp-setting-control">
+              <select class="cp-select" data-setting="animation">
+                <option value="fade">Fade</option>
+                <option value="slide">Slide</option>
+                <option value="typewriter">Typewriter</option>
+                <option value="none">Aucune</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="cp-setting-row">
+            <span class="cp-setting-label">Durée</span>
+            <div class="cp-setting-control">
+              <input type="range" data-setting="animationDuration" min="100" max="2000" step="100">
+              <span class="cp-setting-value">500ms</span>
+            </div>
+          </div>
+
+          <div class="cp-setting-row">
+            <span class="cp-setting-label">Auto-masquer</span>
+            <div class="cp-setting-control">
+              <select class="cp-select" data-setting="autoHide">
+                <option value="0">Désactivé</option>
+                <option value="5000">5 secondes</option>
+                <option value="10000">10 secondes</option>
+                <option value="15000">15 secondes</option>
+                <option value="30000">30 secondes</option>
+                <option value="60000">60 secondes</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Typography -->
+        <div class="cp-setting-group">
+          <div class="cp-setting-group-title">Typographie</div>
+
+          <div class="cp-setting-row">
+            <span class="cp-setting-label">Police</span>
+            <div class="cp-setting-control">
+              <input type="text" class="cp-input" data-setting="fontFamily"
+                     placeholder="'Segoe UI', Calibri, sans-serif" style="width:100%">
+            </div>
+          </div>
+
+          <div class="cp-setting-row">
+            <span class="cp-setting-label">Taille texte</span>
+            <div class="cp-setting-control">
+              <input type="range" data-setting="fontSize" min="14" max="72" step="1">
+              <span class="cp-setting-value">32px</span>
+            </div>
+          </div>
+
+          <div class="cp-setting-row">
+            <span class="cp-setting-label">Couleur texte</span>
+            <div class="cp-setting-control">
+              <input type="color" data-setting="textColor" value="#1a1a1a">
+            </div>
+          </div>
+
+          <div class="cp-setting-row">
+            <span class="cp-setting-label">Taille réf.</span>
+            <div class="cp-setting-control">
+              <input type="range" data-setting="refFontSize" min="10" max="48" step="1">
+              <span class="cp-setting-value">20px</span>
+            </div>
+          </div>
+
+          <div class="cp-setting-row">
+            <span class="cp-setting-label">Couleur réf.</span>
+            <div class="cp-setting-control">
+              <input type="color" data-setting="refColor" value="#ffffff">
+            </div>
+          </div>
+        </div>
+
+        <!-- Background -->
+        <div class="cp-setting-group">
+          <div class="cp-setting-group-title">Arrière-plan</div>
+
+          <div class="cp-setting-row">
+            <span class="cp-setting-label">Couleur fond</span>
+            <div class="cp-setting-control">
+              <input type="color" data-setting="bgColor" value="#ffffff">
+            </div>
+          </div>
+
+          <div class="cp-setting-row">
+            <span class="cp-setting-label">Opacité fond</span>
+            <div class="cp-setting-control">
+              <input type="range" data-setting="bgOpacity" min="0" max="1" step="0.05">
+              <span class="cp-setting-value">70%</span>
+            </div>
+          </div>
+
+          <div class="cp-setting-row">
+            <span class="cp-setting-label">Ombre</span>
+            <div class="cp-setting-control">
+              <label class="cp-toggle">
+                <input type="checkbox" data-setting="shadow" checked>
+                <span class="cp-toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reset -->
+        <button class="cp-reset-btn" id="btn-reset-settings">Réinitialiser les paramètres</button>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Scripts: shared first, then control modules, then app -->
+  <script src="assets/js/shared/constants.js"></script>
+  <script src="assets/js/shared/books.js"></script>
+  <script src="assets/js/shared/channel.js"></script>
+  <script src="assets/js/control/bible-loader.js"></script>
+  <script src="assets/js/control/search.js"></script>
+  <script src="assets/js/control/navigation.js"></script>
+  <script src="assets/js/control/settings.js"></script>
+  <script src="assets/js/control/history.js"></script>
+  <script src="assets/js/control/freetext.js"></script>
+  <script src="assets/js/control/app.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,222 @@
+/* VerseObs - OBS Browser Source Overlay Styles */
+
+:root {
+  --text-color: #1a1a1a;
+  --bg-color: 255, 255, 255;
+  --bg-opacity: 0.92;
+  --font-size: 28px;
+  --font-family: 'Segoe UI', Calibri, 'Helvetica Neue', Arial, sans-serif;
+  --padding: 24px 30px;
+  --border-radius: 14px;
+  --max-width: 85%;
+  --ref-color: #ffffff;
+  --ref-bg: rgba(30, 30, 30, 0.85);
+  --ref-font-size: 15px;
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+  --border-color: rgba(80, 200, 200, 0.5);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: transparent;
+  overflow: hidden;
+  font-family: var(--font-family);
+}
+
+/* Main container - fills viewport */
+.verse-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/* Position classes */
+.verse-container.lower-third {
+  align-items: flex-end;
+  padding-bottom: 4%;
+}
+
+.verse-container.upper-third {
+  align-items: flex-start;
+  padding-top: 4%;
+}
+
+.verse-container.center {
+  align-items: center;
+}
+
+.verse-container.fullscreen {
+  align-items: center;
+  padding: 5%;
+}
+
+.verse-container.fullscreen .verse-card {
+  max-width: 100%;
+  width: 100%;
+  min-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Verse card wrapper - contains ref pill + text card */
+.verse-card {
+  max-width: var(--max-width);
+  width: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: auto;
+}
+
+/* Reference pill - sits on top */
+.verse-reference {
+  background: var(--ref-bg);
+  color: var(--ref-color);
+  font-size: var(--ref-font-size);
+  font-family: var(--font-family);
+  font-weight: 600;
+  padding: 5px 18px;
+  border-radius: 20px;
+  margin-bottom: -12px;
+  z-index: 1;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+/* Text body */
+.verse-body {
+  background: rgba(var(--bg-color), var(--bg-opacity));
+  border-radius: var(--border-radius);
+  padding: var(--padding);
+  text-align: left;
+  box-shadow: var(--shadow);
+  border: 2px solid var(--border-color);
+  width: 100%;
+}
+
+/* Verse text */
+.verse-text {
+  color: var(--text-color);
+  font-size: var(--font-size);
+  font-family: var(--font-family);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* Superscript verse number */
+.verse-text .verse-num {
+  font-size: 0.6em;
+  vertical-align: super;
+  font-weight: 700;
+  margin-right: 2px;
+  opacity: 0.6;
+}
+
+/* Hidden state */
+.verse-card.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Smooth default transition */
+.verse-card {
+  transition: opacity 0.5s ease;
+}
+
+/* ---- Animation Keyframes ---- */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+@keyframes slideUpIn {
+  from {
+    opacity: 0;
+    transform: translateY(60px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUpOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-60px);
+  }
+}
+
+@keyframes slideDownIn {
+  from {
+    opacity: 0;
+    transform: translateY(-60px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDownOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(60px);
+  }
+}
+
+/* Animation utility classes */
+.anim-fade-in {
+  animation: fadeIn 0.5s ease forwards;
+}
+
+.anim-fade-out {
+  animation: fadeOut 0.5s ease forwards;
+}
+
+.anim-slide-up-in {
+  animation: slideUpIn 0.5s ease forwards;
+}
+
+.anim-slide-up-out {
+  animation: slideUpOut 0.5s ease forwards;
+}
+
+.anim-slide-down-in {
+  animation: slideDownIn 0.5s ease forwards;
+}
+
+.anim-slide-down-out {
+  animation: slideDownOut 0.5s ease forwards;
+}
+
+/* Typewriter: characters revealed via JS, this just ensures smooth appearance */
+.anim-typewriter .verse-text {
+  overflow: hidden;
+}

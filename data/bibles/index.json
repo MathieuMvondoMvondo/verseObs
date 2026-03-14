@@ -1,0 +1,16 @@
+{
+  "versions": [
+    { "id": "lsg", "name": "Louis Segond 1910", "abbr": "LSG", "lang": "fr", "local": true, "file": "lsg.json" },
+    { "id": "nbs", "name": "Nouvelle Bible Segond", "abbr": "NBS", "lang": "fr", "local": true, "file": "nbs.json" },
+    { "id": "sem", "name": "Bible du Semeur", "abbr": "SEM", "lang": "fr", "local": true, "file": "sem.json" },
+    { "id": "mar", "name": "Martin 1744", "abbr": "MAR", "lang": "fr", "local": true, "file": "mar.json" },
+    { "id": "drb", "name": "Darby Français", "abbr": "DRB", "lang": "fr", "local": true, "file": "drb.json" },
+    { "id": "cra", "name": "Crampon 1923", "abbr": "CRA", "lang": "fr", "local": true, "file": "cra.json" },
+    { "id": "pgr", "name": "Perret-Gentil et Rilliet", "abbr": "PGR", "lang": "fr", "local": true, "file": "pgr.json" },
+    { "id": "olt", "name": "Oltramare 1874", "abbr": "OLT", "lang": "fr", "local": true, "file": "olt.json" },
+    { "id": "gen", "name": "Genève 1669", "abbr": "GEN", "lang": "fr", "local": true, "file": "gen.json" },
+    { "id": "kjv", "name": "King James Version", "abbr": "KJV", "lang": "en", "local": true, "file": "kjv.json" },
+    { "id": "dby", "name": "Darby English", "abbr": "DBY", "lang": "en", "local": true, "file": "dby.json" },
+    { "id": "amp", "name": "Amplified Bible", "abbr": "AMP", "lang": "en", "local": true, "file": "amp.json" }
+  ]
+}
