@@ -37,57 +37,63 @@ Extension OBS pour afficher des versets bibliques en overlay (lower-third) penda
 | Darby English | DBY |
 | Amplified Bible | AMP |
 
-## Installation
+## Installation (2 minutes)
 
 ### Prérequis
 
 - [OBS Studio](https://obsproject.com/) (25.0+)
-- [Node.js](https://nodejs.org/) (16+) — uniquement pour le serveur local et la génération des données
+- C'est tout ! Aucune installation supplémentaire nécessaire.
 
-### Étape 1 : Cloner le projet
-
-```bash
-git clone https://github.com/VOTRE_USER/verseObs.git
-cd verseObs
-```
-
-### Étape 2 : Télécharger les Bibles
-
-Les fichiers Bible ne sont pas inclus dans le dépôt (trop volumineux). Lancez cette commande pour les télécharger et les convertir automatiquement :
-
-```bash
-npm run build-data
-```
-
-Cette commande télécharge les textes bibliques depuis [scrollmapper/bible_databases](https://github.com/scrollmapper/bible_databases), [getbible.net](https://getbible.net/) et [bolls.life](https://bolls.life/) puis les convertit au format VerseObs.
-
-### Étape 3 : Lancer le serveur local
-
-```bash
-npx http-server -p 8080 -c-1 --cors
-```
-
-> Laissez cette commande tourner pendant toute votre session OBS.
-
-### Étape 4 : Configurer OBS
-
-#### Ajouter l'overlay (ce que vos spectateurs voient)
+### Étape 1 : Ajouter l'overlay (ce que vos spectateurs voient)
 
 1. Dans OBS, allez dans **Sources** → **+** → **Navigateur** (Browser Source)
 2. Nommez-le `VerseObs`
-3. URL : `http://localhost:8080/browser_source.html`
+3. URL :
+   ```
+   https://mathieumvondomvondo.github.io/verseObs/browser_source.html
+   ```
 4. Largeur : `1920` / Hauteur : `1080` (ou votre résolution de stream)
-5. Décochez "Arrêter la source quand elle n'est pas visible"
+5. **Décochez** "Arrêter la source quand elle n'est pas visible"
 6. Cliquez OK
 
-#### Ajouter le panneau de contrôle (votre interface)
+### Étape 2 : Ajouter le panneau de contrôle (votre interface)
 
 1. Menu **Docks** → **Docks de navigateur personnalisés** (Custom Browser Docks)
 2. Ajoutez une entrée :
-   - Nom : `VerseObs`
-   - URL : `http://localhost:8080/control_panel.html`
+   - Nom du dock : `VerseObs`
+   - URL :
+     ```
+     https://mathieumvondomvondo.github.io/verseObs/control_panel.html
+     ```
 3. Cliquez OK
 4. Le dock apparaît — glissez-le où vous voulez dans l'interface OBS
+
+> **C'est prêt !** Vous pouvez utiliser ces mêmes URLs sur n'importe quel ordinateur avec OBS. Aucun serveur local nécessaire.
+
+---
+
+<details>
+<summary><strong>Alternative : installation locale (optionnel)</strong></summary>
+
+Si vous préférez héberger VerseObs localement (sans connexion internet) :
+
+1. Installez [Node.js](https://nodejs.org/) (16+)
+2. Clonez le projet :
+   ```bash
+   git clone https://github.com/MathieuMvondoMvondo/verseObs.git
+   cd verseObs
+   ```
+3. Lancez le serveur local :
+   ```bash
+   npm run serve
+   ```
+4. Utilisez ces URLs dans OBS à la place :
+   - Overlay : `http://localhost:8080/browser_source.html`
+   - Panneau de contrôle : `http://localhost:8080/control_panel.html`
+
+> Laissez le serveur tourner pendant toute votre session OBS.
+
+</details>
 
 ## Utilisation
 
@@ -156,6 +162,13 @@ verseObs/
 - **Pas de modules ES** — compatible `file://`, scripts classiques avec namespace `window.VerseObs`
 - **Communication** : BroadcastChannel API avec fallback localStorage pour la communication entre le dock et l'overlay
 - **Données** : fichiers JSON locaux (~5 MB par Bible), chargés avec fetch + fallback XMLHttpRequest
+
+## Sécurité
+
+- **100% statique** : aucun serveur backend, aucune base de données
+- **Aucune donnée personnelle** collectée — pas de cookies, pas de tracking, pas d'analytics
+- **Hébergé sur GitHub Pages** : HTTPS par défaut, code source ouvert et vérifiable
+- **BroadcastChannel** : la communication entre le dock et l'overlay est limitée au même domaine — personne d'autre ne peut envoyer de commandes à votre overlay
 
 ## Licence
 
