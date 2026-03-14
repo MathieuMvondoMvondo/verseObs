@@ -92,7 +92,7 @@ window.VerseObs.TEMPLATES = {
       refPosition: 'top-right',
       refBgColor: '#111111',
       refColor: '#ffffff',
-      borderColor: 'rgba(255,255,255,0.15)',
+      borderColor: '#2a2a4a',
       bgImage: ''
     }
   },
@@ -106,9 +106,9 @@ window.VerseObs.TEMPLATES = {
       borderRadius: 4,
       padding: 20,
       refPosition: 'top-center',
-      refBgColor: 'transparent',
+      refBgColor: '#999999',
       refColor: '#666666',
-      borderColor: 'transparent',
+      borderColor: '#eeeeee',
       bgImage: ''
     }
   }

@@ -10,7 +10,6 @@
   --border-radius: 14px;
   --max-width: 85%;
   --ref-color: #ffffff;
-  --ref-bg: rgba(30, 30, 30, 0.85);
   --ref-bg-color: #2d1a3e;
   --ref-font-size: 15px;
   --shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
@@ -102,29 +101,33 @@ body {
   align-items: center;
 }
 
+/* Inline mode: hide pill, show inline bar */
 .verse-card.ref-inline .verse-reference {
   display: none;
 }
 
 .verse-card.ref-inline .verse-body {
-  position: relative;
+  border-radius: 0 0 var(--border-radius) var(--border-radius);
 }
 
-.verse-card.ref-inline .verse-inline-ref {
-  display: flex;
+/* Inline reference bar - always in DOM, shown only in inline mode */
+.verse-inline-ref {
+  display: none;
+  width: 100%;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 16px;
+  padding: 8px 18px;
   background: var(--ref-bg-color);
   color: var(--ref-color);
   font-size: var(--ref-font-size);
+  font-family: var(--font-family);
   font-weight: 600;
   border-radius: var(--border-radius) var(--border-radius) 0 0;
   letter-spacing: 0.3px;
 }
 
-.verse-inline-ref {
-  display: none;
+.verse-card.ref-inline .verse-inline-ref {
+  display: flex;
 }
 
 /* Reference pill - sits on top */

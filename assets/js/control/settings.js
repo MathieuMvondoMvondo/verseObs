@@ -11,6 +11,7 @@
     this._settings = {};
     this.onChange = null; // callback(settings)
     this._bindings = [];
+    this._templateSelect = null;
   }
 
   /**
@@ -121,6 +122,7 @@
   /**
    * Bind settings panel UI inputs to settings values.
    * Expects input elements with data-setting="key" attributes.
+   * Skips the "template" setting (handled by bindExtras).
    */
   Settings.prototype.bindUI = function (container) {
     var self = this;
@@ -132,7 +134,7 @@
     for (var i = 0; i < inputs.length; i++) {
       (function (el) {
         var key = el.getAttribute('data-setting');
-        if (!key) return;
+        if (!key || key === 'template') return;
 
         self._bindings.push({ el: el, key: key });
 
@@ -171,6 +173,10 @@
         display.textContent = _formatValue(binding.key, this._settings[binding.key]);
       }
     }
+    // Also update template select
+    if (this._templateSelect) {
+      this._templateSelect.value = this._settings.template || 'custom';
+    }
   };
 
   /**
@@ -195,12 +201,15 @@
 
   /**
    * Bind template selector + image import.
+   * Must be called AFTER bindUI.
    */
   Settings.prototype.bindExtras = function (container) {
     var self = this;
 
-    // Template selector
+    // Template selector (not bound by bindUI, handled here)
     var templateSelect = container.querySelector('[data-setting="template"]');
+    self._templateSelect = templateSelect;
+
     if (templateSelect) {
       templateSelect.value = self._settings.template || 'custom';
       templateSelect.addEventListener('change', function () {
@@ -208,6 +217,7 @@
         if (val === 'custom') {
           self._settings.template = 'custom';
           self.save();
+          self._notifyChange();
         } else {
           self.applyTemplate(val);
         }
@@ -227,8 +237,6 @@
           self.save();
           self._updateUI();
           self._notifyChange();
-          // Update template select
-          if (templateSelect) templateSelect.value = 'custom';
         };
         reader.readAsDataURL(file);
       });
@@ -240,7 +248,6 @@
         self._settings.bgImage = '';
         self.save();
         self._notifyChange();
-        var imageInput = container.querySelector('#bg-image-input');
         if (imageInput) imageInput.value = '';
       });
     }

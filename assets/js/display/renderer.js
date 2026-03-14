@@ -8,6 +8,8 @@
   var POSITIONS = window.VerseObs.POSITIONS;
   var Animations = window.VerseObs.Animations;
 
+  var REF_POSITIONS = ['ref-top-left', 'ref-top-right', 'ref-top-center', 'ref-inline'];
+
   /**
    * Renderer class - renders verses to the DOM.
    * @param {HTMLElement} container - The .verse-container element.
@@ -18,6 +20,7 @@
     this.currentPosition = DEFAULTS.position;
     this.currentAnimation = DEFAULTS.animation;
     this.animationDuration = DEFAULTS.animationDuration;
+    this._refPosition = DEFAULTS.refPosition || 'top-center';
     this._visible = false;
     this._animating = false;
   }
@@ -32,10 +35,10 @@
     card.className = 'verse-card hidden';
 
     // Apply ref position class
-    var refPos = this._refPosition || DEFAULTS.refPosition || 'top-center';
+    var refPos = this._refPosition || 'top-center';
     card.classList.add('ref-' + refPos);
 
-    // Reference pill on top
+    // Reference pill on top (hidden via CSS when inline)
     if (data.reference) {
       var refEl = document.createElement('div');
       refEl.className = 'verse-reference';
@@ -43,27 +46,24 @@
       card.appendChild(refEl);
     }
 
+    // Inline reference bar - always created, shown/hidden via CSS
+    if (data.reference) {
+      var inlineRef = document.createElement('div');
+      inlineRef.className = 'verse-inline-ref';
+      var refLeft = document.createElement('span');
+      refLeft.textContent = data.reference;
+      inlineRef.appendChild(refLeft);
+      if (data.version) {
+        var refRight = document.createElement('span');
+        refRight.textContent = data.version;
+        inlineRef.appendChild(refRight);
+      }
+      card.appendChild(inlineRef);
+    }
+
     // Text body card
     var body = document.createElement('div');
     body.className = 'verse-body';
-
-    // Inline reference bar (visible only when ref-inline)
-    if (data.reference && refPos === 'inline') {
-      var inlineRef = document.createElement('div');
-      inlineRef.className = 'verse-inline-ref';
-      // Split reference: "Jean 3:16" -> ref part, and version if available
-      var refText = data.reference;
-      var versionText = data.version || '';
-      var refLeft = document.createElement('span');
-      refLeft.textContent = refText;
-      inlineRef.appendChild(refLeft);
-      if (versionText) {
-        var refRight = document.createElement('span');
-        refRight.textContent = versionText;
-        inlineRef.appendChild(refRight);
-      }
-      body.appendChild(inlineRef);
-    }
 
     var textEl = document.createElement('div');
     textEl.className = 'verse-text';
@@ -90,6 +90,17 @@
     card.appendChild(body);
 
     return card;
+  };
+
+  /**
+   * Update the ref position class on the current card (live update).
+   */
+  Renderer.prototype._updateRefPositionClass = function () {
+    if (!this.card) return;
+    for (var i = 0; i < REF_POSITIONS.length; i++) {
+      this.card.classList.remove(REF_POSITIONS[i]);
+    }
+    this.card.classList.add('ref-' + (this._refPosition || 'top-center'));
   };
 
   /**
@@ -175,10 +186,11 @@
     }
     if (style.refPosition !== undefined) {
       this._refPosition = style.refPosition;
+      this._updateRefPositionClass();
     }
     if (style.bgImage !== undefined) {
       if (style.bgImage) {
-        root.style.setProperty('--bg-image', 'url(' + style.bgImage + ')');
+        root.style.setProperty('--bg-image', 'url("' + style.bgImage + '")');
       } else {
         root.style.setProperty('--bg-image', 'none');
       }
