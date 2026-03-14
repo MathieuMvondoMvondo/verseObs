@@ -14,7 +14,11 @@
   --ref-font-size: 15px;
   --shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
   --border-color: #50c8c8;
+  --border-width: 2px;
   --bg-image: none;
+  --text-align: left;
+  --line-height: 1.55;
+  --highlight-color: #ffff00;
 }
 
 * {
@@ -123,6 +127,8 @@ body {
   font-family: var(--font-family);
   font-weight: 600;
   border-radius: var(--border-radius) var(--border-radius) 0 0;
+  border: var(--border-width) solid var(--border-color);
+  border-bottom: none;
   letter-spacing: 0.3px;
 }
 
@@ -147,15 +153,16 @@ body {
 
 /* Text body */
 .verse-body {
-  background: rgba(var(--bg-color), var(--bg-opacity));
+  background-color: rgba(var(--bg-color), var(--bg-opacity));
   background-image: var(--bg-image);
-  background-size: cover;
+  background-size: 100% 100%;
   background-position: center;
+  background-repeat: no-repeat;
   border-radius: var(--border-radius);
   padding: var(--padding);
-  text-align: left;
+  text-align: var(--text-align);
   box-shadow: var(--shadow);
-  border: 2px solid var(--border-color);
+  border: var(--border-width) solid var(--border-color);
   width: 100%;
 }
 
@@ -164,9 +171,17 @@ body {
   color: var(--text-color);
   font-size: var(--font-size);
   font-family: var(--font-family);
-  line-height: 1.55;
+  line-height: var(--line-height);
   white-space: pre-wrap;
   word-wrap: break-word;
+}
+
+/* Formatted text styles */
+.verse-text mark {
+  background-color: var(--highlight-color);
+  color: inherit;
+  padding: 0 2px;
+  border-radius: 2px;
 }
 
 /* Superscript verse number */

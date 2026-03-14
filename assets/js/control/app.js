@@ -24,6 +24,7 @@
     _initTabs();
     _initChannel();
     _initKeyboard();
+    _initFormatToolbar();
     _loadDefaultBible();
   }
 
@@ -54,6 +55,10 @@
     dom.btnPrevChapter = document.getElementById('btn-prev-chapter');
     dom.btnNextChapter = document.getElementById('btn-next-chapter');
 
+    // Format toolbar
+    dom.formatToolbar = document.getElementById('format-toolbar');
+    dom.highlightColorInput = document.getElementById('highlight-color');
+
     // Free text tab
     dom.freeTextArea = document.getElementById('freetext-area');
     dom.btnFreeShow = document.getElementById('btn-free-show');
@@ -71,13 +76,9 @@
   // ---- Module initialization ----
 
   function _initModules() {
-    // Bible Loader
     bibleLoader = new window.VerseObs.BibleLoader();
-
-    // Search
     search = new window.VerseObs.Search();
 
-    // Navigation
     navigation = new window.VerseObs.Navigation({
       bookSelect: dom.bookSelect,
       chapterSelect: dom.chapterSelect,
@@ -85,7 +86,6 @@
       onSelectionChange: _onNavigationChange
     });
 
-    // Settings
     settings = new window.VerseObs.Settings();
     settings.load();
     settings.bindUI(dom.settingsContainer);
@@ -94,29 +94,106 @@
       _sendMessage(MSG.UPDATE_STYLE, { settings: s });
     };
 
-    // History
     history = new window.VerseObs.History();
     history.onClick = function (entry) {
       _showVerseFromHistory(entry);
     };
     history.renderList(dom.historyContainer);
 
-    // Free Text
     freeText = new window.VerseObs.FreeText({
       textarea: dom.freeTextArea,
       onSend: function (text) {
-        _sendMessage(MSG.SHOW_TEXT, { text: text });
+        _sendMessage(MSG.SHOW_TEXT, { text: text, settings: settings.getForMessage() });
       }
     });
 
-    // Wire up buttons
     _bindButtons();
-
-    // Wire up search
     _bindSearch();
-
-    // Wire up version selector
     _bindVersionSelector();
+  }
+
+  // ---- Format Toolbar ----
+
+  function _initFormatToolbar() {
+    if (!dom.formatToolbar) return;
+
+    var buttons = dom.formatToolbar.querySelectorAll('[data-format]');
+    for (var i = 0; i < buttons.length; i++) {
+      (function (btn) {
+        // Use mousedown to prevent focus loss from preview contenteditable
+        btn.addEventListener('mousedown', function (e) {
+          e.preventDefault();
+          var format = btn.getAttribute('data-format');
+          _applyFormat(format);
+        });
+      })(buttons[i]);
+    }
+  }
+
+  function _applyFormat(format) {
+    if (!dom.previewText) return;
+
+    // Ensure preview is focused
+    dom.previewText.focus();
+
+    switch (format) {
+      case 'bold':
+        document.execCommand('bold', false, null);
+        break;
+      case 'italic':
+        document.execCommand('italic', false, null);
+        break;
+      case 'underline':
+        document.execCommand('underline', false, null);
+        break;
+      case 'highlight':
+        var color = dom.highlightColorInput ? dom.highlightColorInput.value : '#ffff00';
+        var sel = window.getSelection();
+        if (sel.rangeCount > 0 && !sel.isCollapsed) {
+          var range = sel.getRangeAt(0);
+          // Check if already highlighted
+          var parent = sel.anchorNode.parentElement;
+          if (parent && parent.tagName === 'MARK') {
+            // Remove highlight: unwrap mark
+            var text = document.createTextNode(parent.textContent);
+            parent.parentNode.replaceChild(text, parent);
+          } else {
+            var mark = document.createElement('mark');
+            mark.style.backgroundColor = color;
+            try {
+              range.surroundContents(mark);
+            } catch (e) {
+              // Range crosses element boundaries, use extractContents
+              var fragment = range.extractContents();
+              mark.appendChild(fragment);
+              range.insertNode(mark);
+            }
+          }
+        }
+        break;
+      case 'clear':
+        document.execCommand('removeFormat', false, null);
+        // Also remove mark elements
+        var marks = dom.previewText.querySelectorAll('mark');
+        for (var i = 0; i < marks.length; i++) {
+          var textNode = document.createTextNode(marks[i].textContent);
+          marks[i].parentNode.replaceChild(textNode, marks[i]);
+        }
+        break;
+    }
+  }
+
+  /**
+   * Get the formatted HTML from the preview, or null if no formatting was applied.
+   */
+  function _getFormattedHtml() {
+    if (!dom.previewText) return null;
+    var html = dom.previewText.innerHTML;
+    // Check if any formatting tags exist
+    if (/<(b|i|u|strong|em|mark|span)\b/i.test(html)) {
+      return html;
+    }
+    return null;
   }
 
   // ---- Button bindings ----
@@ -171,17 +248,14 @@
         return;
       }
 
-      // Try parsing as reference first
       var ref = search.parseReference(val);
       if (ref && ref.bookId && ref.chapter) {
         _hideSearchResults();
-        // Navigate to this reference
         navigation.setSelection(ref.bookId, ref.chapter, ref.verseStart || 1);
         _updatePreview();
         return;
       }
 
-      // Otherwise do text search
       if (currentBibleData) {
         search.searchDebounced(val, currentBibleData, function (results) {
           _showSearchResults(results);
@@ -282,6 +356,7 @@
       if (dom.previewText) {
         dom.previewText.textContent = verse.text;
         dom.previewText.className = 'cp-preview-text';
+        dom.previewText.setAttribute('contenteditable', 'true');
       }
       if (dom.previewRef) {
         dom.previewRef.textContent = verse.reference;
@@ -291,6 +366,7 @@
       if (dom.previewText) {
         dom.previewText.textContent = 'No verse found';
         dom.previewText.className = 'cp-preview-text cp-preview-empty';
+        dom.previewText.setAttribute('contenteditable', 'false');
       }
       if (dom.previewRef) {
         dom.previewRef.style.display = 'none';
@@ -314,14 +390,21 @@
       versionName = opt ? opt.textContent : currentBibleId;
     }
 
-    _sendMessage(MSG.SHOW_VERSE, {
+    var msgData = {
       text: verse.text,
       reference: verse.reference,
       version: versionName,
-      settings: settings.getAll()
-    });
+      settings: settings.getForMessage()
+    };
 
-    // Add to history
+    // Include formatted HTML if user applied formatting
+    var html = _getFormattedHtml();
+    if (html) {
+      msgData.html = html;
+    }
+
+    _sendMessage(MSG.SHOW_VERSE, msgData);
+
     history.add({
       reference: verse.reference,
       text: verse.text,
@@ -338,17 +421,15 @@
     _sendMessage(MSG.SHOW_VERSE, {
       text: entry.text,
       reference: entry.reference,
-      settings: settings.getAll()
+      settings: settings.getForMessage()
     });
 
-    // Switch to Bible tab
     _switchTab(0);
   }
 
   // ---- Messaging (BroadcastChannel + localStorage fallback) ----
 
   function _initChannel() {
-    // Try BroadcastChannel
     if (typeof BroadcastChannel !== 'undefined') {
       try {
         channel = new BroadcastChannel(CHANNEL_NAME);
@@ -360,34 +441,27 @@
       }
     }
 
-    // Ping display to check connection
     _sendMessage(MSG.PING, {});
 
-    // Listen for localStorage messages (fallback)
     window.addEventListener('storage', function (e) {
       if (e.key === LS_KEY && e.newValue) {
         try {
           var msg = JSON.parse(e.newValue);
           _handleMessage(msg);
-        } catch (err) {
-          // ignore
-        }
+        } catch (err) {}
       }
     });
 
-    // Periodic ping
     setInterval(function () {
       _sendMessage(MSG.PING, {});
     }, 5000);
 
-    // Connection timeout
     _connectionTimeout();
   }
 
   var _connTimer = null;
 
   function _connectionTimeout() {
-    // If no PONG within 3s, mark disconnected
     _connTimer = setTimeout(function () {
       _setConnected(false);
     }, 3000);
@@ -399,7 +473,6 @@
     if (msg.type === MSG.PONG) {
       _setConnected(true);
       if (_connTimer) clearTimeout(_connTimer);
-      // Reset timer for next ping cycle
       _connTimer = setTimeout(function () {
         _setConnected(false);
       }, 8000);
@@ -416,25 +489,18 @@
       }
     }
 
-    // BroadcastChannel
     if (channel) {
       try {
         channel.postMessage(msg);
-      } catch (e) {
-        // fallback
-      }
+      } catch (e) {}
     }
 
-    // localStorage fallback
     try {
       localStorage.setItem(LS_KEY, JSON.stringify(msg));
-      // Clear after brief delay so next write triggers storage event
       setTimeout(function () {
         localStorage.removeItem(LS_KEY);
       }, 100);
-    } catch (e) {
-      // ignore
-    }
+    } catch (e) {}
   }
 
   function _setConnected(connected) {
@@ -470,7 +536,6 @@
       dom.tabContents[j].classList.toggle('active', j === index);
     }
 
-    // Refresh history when switching to history tab
     if (index === 2) {
       history.renderList(dom.historyContainer);
     }
@@ -480,10 +545,12 @@
 
   function _initKeyboard() {
     document.addEventListener('keydown', function (e) {
-      // Ctrl+Enter: show
+      // Don't intercept when editing in contenteditable preview
+      var active = document.activeElement;
+      var inPreview = active && active.id === 'preview-text' && active.getAttribute('contenteditable') === 'true';
+
       if (e.ctrlKey && e.key === 'Enter') {
         e.preventDefault();
-        // Check which tab is active
         var activeTab = document.querySelector('.cp-tab-content.active');
         if (activeTab && activeTab.id === 'tab-freetext') {
           freeText.send();
@@ -493,27 +560,26 @@
         return;
       }
 
-      // Escape: hide
       if (e.key === 'Escape') {
         _hideVerse();
         return;
       }
 
-      // Ctrl+Right: next verse
+      // Skip navigation shortcuts when editing in preview
+      if (inPreview) return;
+
       if (e.ctrlKey && e.key === 'ArrowRight') {
         e.preventDefault();
         navigation.goToNext();
         return;
       }
 
-      // Ctrl+Left: previous verse
       if (e.ctrlKey && e.key === 'ArrowLeft') {
         e.preventDefault();
         navigation.goToPrevious();
         return;
       }
 
-      // Ctrl+F: focus search
       if (e.ctrlKey && e.key === 'f') {
         e.preventDefault();
         _switchTab(0);
@@ -532,10 +598,8 @@
         return;
       }
 
-      // Populate version selector
       _populateVersionSelector(index);
 
-      // Find default (LSG) or first available
       var defaultId = 'lsg';
       if (index.versions && index.versions.length > 0) {
         var found = false;
@@ -574,7 +638,6 @@
   }
 
   function _loadBible(id) {
-    // Update indicator
     _updateVersionIndicator(id);
 
     bibleLoader.loadBible(id, function (err, data) {

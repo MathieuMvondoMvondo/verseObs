@@ -27,7 +27,7 @@
 
   /**
    * Create the verse card element from data.
-   * @param {object} data - { text, reference }
+   * @param {object} data - { text, html, reference, version }
    * @returns {HTMLElement}
    */
   Renderer.prototype.createVerseElement = function (data) {
@@ -68,22 +68,26 @@
     var textEl = document.createElement('div');
     textEl.className = 'verse-text';
 
-    // Add verse number as superscript if we can extract it
-    var text = data.text || '';
-    var verseNum = '';
-    if (data.reference) {
-      var match = data.reference.match(/:(\d+)/);
-      if (match) verseNum = match[1];
-    }
-
-    if (verseNum) {
-      var sup = document.createElement('sup');
-      sup.className = 'verse-num';
-      sup.textContent = verseNum;
-      textEl.appendChild(sup);
-      textEl.appendChild(document.createTextNode(text));
+    // Use formatted HTML if provided, otherwise plain text
+    if (data.html) {
+      textEl.innerHTML = data.html;
     } else {
-      textEl.textContent = text;
+      var text = data.text || '';
+      var verseNum = '';
+      if (data.reference) {
+        var match = data.reference.match(/:(\d+)/);
+        if (match) verseNum = match[1];
+      }
+
+      if (verseNum) {
+        var sup = document.createElement('sup');
+        sup.className = 'verse-num';
+        sup.textContent = verseNum;
+        textEl.appendChild(sup);
+        textEl.appendChild(document.createTextNode(text));
+      } else {
+        textEl.textContent = text;
+      }
     }
 
     body.appendChild(textEl);
@@ -132,7 +136,6 @@
       root.style.setProperty('--text-color', style.textColor);
     }
     if (style.bgColor !== undefined) {
-      // Convert hex to r, g, b for rgba usage
       var rgb = hexToRgb(style.bgColor);
       if (rgb) {
         root.style.setProperty('--bg-color', rgb.r + ', ' + rgb.g + ', ' + rgb.b);
@@ -184,9 +187,21 @@
     if (style.borderColor !== undefined) {
       root.style.setProperty('--border-color', style.borderColor);
     }
+    if (style.borderWidth !== undefined) {
+      root.style.setProperty('--border-width', style.borderWidth + 'px');
+    }
     if (style.refPosition !== undefined) {
       this._refPosition = style.refPosition;
       this._updateRefPositionClass();
+    }
+    if (style.textAlign !== undefined) {
+      root.style.setProperty('--text-align', style.textAlign);
+    }
+    if (style.lineHeight !== undefined) {
+      root.style.setProperty('--line-height', String(style.lineHeight));
+    }
+    if (style.highlightColor !== undefined) {
+      root.style.setProperty('--highlight-color', style.highlightColor);
     }
     if (style.bgImage !== undefined) {
       if (style.bgImage) {
@@ -199,8 +214,6 @@
 
   /**
    * Show a verse with animation.
-   * @param {object} data - { text, reference, position, animation, animationDuration, style }
-   * @returns {Promise}
    */
   Renderer.prototype.show = function (data) {
     var self = this;
@@ -210,12 +223,10 @@
     }
     self._animating = true;
 
-    // Apply style if provided
     if (data.style) {
       self.updateStyle(data.style);
     }
 
-    // Set position
     if (data.position) {
       self._setPosition(data.position);
     }
@@ -223,7 +234,6 @@
     var animation = data.animation || self.currentAnimation;
     var duration = data.animationDuration || self.animationDuration;
 
-    // If already visible, hide first then show new
     var hidePromise;
     if (self._visible && self.card) {
       hidePromise = Animations.animate(self.card, animation, 'out', {
@@ -239,7 +249,6 @@
     }
 
     return hidePromise.then(function () {
-      // Create new card
       self.card = self.createVerseElement(data);
       self.container.appendChild(self.card);
 
@@ -255,7 +264,6 @@
 
   /**
    * Hide the current verse with animation.
-   * @returns {Promise}
    */
   Renderer.prototype.hide = function () {
     var self = this;

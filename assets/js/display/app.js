@@ -13,9 +13,6 @@
   var channel = null;
   var autoHideTimer = null;
 
-  /**
-   * Clear any pending auto-hide timer.
-   */
   function clearAutoHide() {
     if (autoHideTimer) {
       clearTimeout(autoHideTimer);
@@ -23,9 +20,6 @@
     }
   }
 
-  /**
-   * Schedule auto-hide if duration > 0.
-   */
   function scheduleAutoHide(duration) {
     clearAutoHide();
     if (duration && duration > 0) {
@@ -37,8 +31,23 @@
   }
 
   /**
-   * Handle incoming messages from the channel.
+   * Read bgImage from localStorage (too large for broadcast channel).
    */
+  function readBgImage() {
+    try {
+      // Try dedicated key first
+      var img = localStorage.getItem('verseobs_bgimage');
+      if (img) return img;
+      // Fallback: read from settings
+      var raw = localStorage.getItem(window.VerseObs.SETTINGS_KEY);
+      if (raw) {
+        var s = JSON.parse(raw);
+        return s.bgImage || '';
+      }
+    } catch (e) {}
+    return '';
+  }
+
   function handleMessage(msg) {
     if (!msg || !msg.type) return;
 
@@ -46,18 +55,20 @@
       case MSG.SHOW_VERSE:
       case MSG.SHOW_TEXT:
         clearAutoHide();
-        // Build display data from message properties
         var displayData = {
           text: msg.text || '',
+          html: msg.html || '',
           reference: msg.reference || '',
           version: msg.version || ''
         };
-        // Apply settings if provided
         if (msg.settings) {
-          displayData.style = msg.settings;
-          displayData.position = msg.settings.position;
-          displayData.animation = msg.settings.animation;
-          displayData.animationDuration = msg.settings.animationDuration;
+          // Restore bgImage from localStorage (excluded from broadcast)
+          var settings = msg.settings;
+          settings.bgImage = readBgImage();
+          displayData.style = settings;
+          displayData.position = settings.position;
+          displayData.animation = settings.animation;
+          displayData.animationDuration = settings.animationDuration;
         }
         renderer.show(displayData).then(function () {
           var autoHide = (msg.settings && msg.settings.autoHide !== undefined)
@@ -73,7 +84,10 @@
         break;
 
       case MSG.UPDATE_STYLE:
-        renderer.updateStyle(msg.settings || {});
+        var styleSettings = msg.settings || {};
+        // Restore bgImage from localStorage
+        styleSettings.bgImage = readBgImage();
+        renderer.updateStyle(styleSettings);
         break;
 
       case MSG.PING:
@@ -84,9 +98,6 @@
     }
   }
 
-  /**
-   * Initialize the display overlay.
-   */
   function init() {
     var container = document.getElementById('verse-container');
     if (!container) {
@@ -94,31 +105,35 @@
       return;
     }
 
-    // Set default position
     container.classList.add(DEFAULTS.position);
-
-    // Create renderer
     renderer = new Renderer(container);
 
-    // Load saved settings if available
+    // Load saved settings
     try {
       var saved = localStorage.getItem(window.VerseObs.SETTINGS_KEY);
       if (saved) {
         var settings = JSON.parse(saved);
+        // bgImage might be in the settings or in dedicated key
+        if (!settings.bgImage) {
+          settings.bgImage = readBgImage();
+        }
         renderer.updateStyle(settings);
       }
-    } catch (e) {
-      // Ignore parse errors
-    }
+    } catch (e) {}
 
-    // Set up channel listener
     channel = new Channel(window.VerseObs.CHANNEL_NAME);
     channel.onMessage(handleMessage);
+
+    // Listen for bgImage changes via storage event
+    window.addEventListener('storage', function (e) {
+      if (e.key === 'verseobs_bgimage') {
+        renderer.updateStyle({ bgImage: e.newValue || '' });
+      }
+    });
 
     console.log('VerseObs display initialized');
   }
 
-  // Initialize when DOM is ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {

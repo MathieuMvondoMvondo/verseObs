@@ -56,7 +56,6 @@
       <!-- Book / Chapter / Verse Dropdowns -->
       <div class="cp-section">
         <span class="cp-section-label">Navigation</span>
-        <!-- Book / Chapter / Verse Dropdowns -->
         <div class="cp-nav-row">
           <select class="cp-select book-select" id="book-select">
             <option value="">--</option>
@@ -78,9 +77,21 @@
         </div>
       </div>
 
-      <!-- Verse Preview -->
+      <!-- Format Toolbar + Verse Preview -->
       <div class="cp-section">
         <span class="cp-section-label">Aperçu</span>
+
+        <div class="cp-format-toolbar" id="format-toolbar">
+          <button class="cp-format-btn" data-format="bold" title="Gras (Ctrl+B)"><b>G</b></button>
+          <button class="cp-format-btn" data-format="italic" title="Italique (Ctrl+I)"><i>I</i></button>
+          <button class="cp-format-btn" data-format="underline" title="Souligné (Ctrl+U)"><u>S</u></button>
+          <div class="cp-format-sep"></div>
+          <button class="cp-format-btn cp-format-highlight-btn" data-format="highlight" title="Surligner">H</button>
+          <input type="color" class="cp-format-color" id="highlight-color" value="#ffff00" title="Couleur surlignage">
+          <div class="cp-format-sep"></div>
+          <button class="cp-format-btn cp-format-clear-btn" data-format="clear" title="Effacer le formatage">&times;</button>
+        </div>
+
         <div class="cp-preview">
           <div class="cp-preview-text cp-preview-empty" id="preview-text">Sélectionnez un verset</div>
           <div class="cp-preview-ref" id="preview-ref" style="display:none"></div>
@@ -163,30 +174,6 @@
           </div>
 
           <div class="cp-setting-row">
-            <span class="cp-setting-label">Largeur max</span>
-            <div class="cp-setting-control">
-              <input type="range" data-setting="maxWidth" min="30" max="100" step="5">
-              <span class="cp-setting-value">80%</span>
-            </div>
-          </div>
-
-          <div class="cp-setting-row">
-            <span class="cp-setting-label">Padding</span>
-            <div class="cp-setting-control">
-              <input type="range" data-setting="padding" min="5" max="60" step="1">
-              <span class="cp-setting-value">20px</span>
-            </div>
-          </div>
-
-          <div class="cp-setting-row">
-            <span class="cp-setting-label">Rayon bordure</span>
-            <div class="cp-setting-control">
-              <input type="range" data-setting="borderRadius" min="0" max="30" step="1">
-              <span class="cp-setting-value">8px</span>
-            </div>
-          </div>
-
-          <div class="cp-setting-row">
             <span class="cp-setting-label">Position réf.</span>
             <div class="cp-setting-control">
               <select class="cp-select" data-setting="refPosition">
@@ -197,6 +184,38 @@
               </select>
             </div>
           </div>
+
+          <div class="cp-setting-row">
+            <span class="cp-setting-label">Largeur max</span>
+            <div class="cp-setting-control">
+              <input type="range" data-setting="maxWidth" min="30" max="100" step="5">
+              <span class="cp-setting-value">85%</span>
+            </div>
+          </div>
+
+          <div class="cp-setting-row">
+            <span class="cp-setting-label">Padding</span>
+            <div class="cp-setting-control">
+              <input type="range" data-setting="padding" min="5" max="60" step="1">
+              <span class="cp-setting-value">24px</span>
+            </div>
+          </div>
+
+          <div class="cp-setting-row">
+            <span class="cp-setting-label">Rayon bordure</span>
+            <div class="cp-setting-control">
+              <input type="range" data-setting="borderRadius" min="0" max="30" step="1">
+              <span class="cp-setting-value">14px</span>
+            </div>
+          </div>
+
+          <div class="cp-setting-row">
+            <span class="cp-setting-label">Épaisseur bord.</span>
+            <div class="cp-setting-control">
+              <input type="range" data-setting="borderWidth" min="0" max="8" step="1">
+              <span class="cp-setting-value">2px</span>
+            </div>
+          </div>
         </div>
 
         <!-- Animation -->
@@ -205,7 +224,6 @@
 
           <div class="cp-setting-row">
             <span class="cp-setting-label">Type</span>
-            <!-- Animation type -->
             <div class="cp-setting-control">
               <select class="cp-select" data-setting="animation">
                 <option value="fade">Fade</option>
@@ -255,7 +273,7 @@
             <span class="cp-setting-label">Taille texte</span>
             <div class="cp-setting-control">
               <input type="range" data-setting="fontSize" min="14" max="72" step="1">
-              <span class="cp-setting-value">32px</span>
+              <span class="cp-setting-value">28px</span>
             </div>
           </div>
 
@@ -267,10 +285,30 @@
           </div>
 
           <div class="cp-setting-row">
+            <span class="cp-setting-label">Alignement</span>
+            <div class="cp-setting-control">
+              <select class="cp-select" data-setting="textAlign">
+                <option value="left">Gauche</option>
+                <option value="center">Centre</option>
+                <option value="right">Droite</option>
+                <option value="justify">Justifié</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="cp-setting-row">
+            <span class="cp-setting-label">Interligne</span>
+            <div class="cp-setting-control">
+              <input type="range" data-setting="lineHeight" min="1" max="2.5" step="0.05">
+              <span class="cp-setting-value">1.55</span>
+            </div>
+          </div>
+
+          <div class="cp-setting-row">
             <span class="cp-setting-label">Taille réf.</span>
             <div class="cp-setting-control">
               <input type="range" data-setting="refFontSize" min="10" max="48" step="1">
-              <span class="cp-setting-value">20px</span>
+              <span class="cp-setting-value">15px</span>
             </div>
           </div>
 
@@ -285,6 +323,13 @@
             <span class="cp-setting-label">Fond pill réf.</span>
             <div class="cp-setting-control">
               <input type="color" data-setting="refBgColor" value="#2d1a3e">
+            </div>
+          </div>
+
+          <div class="cp-setting-row">
+            <span class="cp-setting-label">Surlignage</span>
+            <div class="cp-setting-control">
+              <input type="color" data-setting="highlightColor" value="#ffff00">
             </div>
           </div>
         </div>
@@ -304,7 +349,7 @@
             <span class="cp-setting-label">Opacité fond</span>
             <div class="cp-setting-control">
               <input type="range" data-setting="bgOpacity" min="0" max="1" step="0.05">
-              <span class="cp-setting-value">70%</span>
+              <span class="cp-setting-value">92%</span>
             </div>
           </div>
 
@@ -327,9 +372,10 @@
 
           <div class="cp-setting-row">
             <span class="cp-setting-label">Image de fond</span>
-            <div class="cp-setting-control" style="flex-direction:column;gap:4px;">
-              <input type="file" id="bg-image-input" accept="image/png,image/svg+xml,image/jpeg">
-              <button class="cp-btn-clear" id="btn-clear-bg-image" style="font-size:11px;padding:2px 8px;">Supprimer l'image</button>
+            <div class="cp-setting-control" style="flex-direction:column;gap:4px;align-items:stretch;">
+              <input type="file" id="bg-image-input" accept="image/png,image/svg+xml,image/jpeg"
+                     style="font-size:10px;color:var(--cp-text-secondary);">
+              <button class="cp-btn-clear" id="btn-clear-bg-image" style="font-size:11px;padding:3px 8px;margin-top:0;">Supprimer l'image</button>
             </div>
           </div>
         </div>

@@ -24,20 +24,24 @@
       animation: D.animation || 'fade',
       animationDuration: D.animationDuration || 500,
       autoHide: D.autoHide || 0,
-      fontFamily: D.fontFamily || 'Georgia, serif',
-      fontSize: D.fontSize || 32,
-      textColor: D.textColor || '#ffffff',
-      bgColor: D.bgColor || '#000000',
-      bgOpacity: D.bgOpacity || 0.7,
+      fontFamily: D.fontFamily || "'Segoe UI', sans-serif",
+      fontSize: D.fontSize || 28,
+      textColor: D.textColor || '#1a1a1a',
+      textAlign: D.textAlign || 'left',
+      lineHeight: D.lineHeight || 1.55,
+      bgColor: D.bgColor || '#ffffff',
+      bgOpacity: D.bgOpacity || 0.92,
       shadow: D.shadow !== undefined ? D.shadow : true,
-      borderRadius: D.borderRadius || 8,
-      padding: D.padding || 20,
-      maxWidth: D.maxWidth || 80,
-      refFontSize: D.refFontSize || 20,
-      refColor: D.refColor || '#cccccc',
+      borderRadius: D.borderRadius || 14,
+      borderWidth: D.borderWidth !== undefined ? D.borderWidth : 2,
+      padding: D.padding || 24,
+      maxWidth: D.maxWidth || 85,
+      refFontSize: D.refFontSize || 15,
+      refColor: D.refColor || '#ffffff',
       refPosition: D.refPosition || 'top-center',
       refBgColor: D.refBgColor || '#2d1a3e',
       borderColor: D.borderColor || '#50c8c8',
+      highlightColor: D.highlightColor || '#ffff00',
       bgImage: D.bgImage || '',
       template: D.template || 'custom'
     };
@@ -52,7 +56,6 @@
       var raw = localStorage.getItem(SETTINGS_KEY);
       if (raw) {
         var saved = JSON.parse(raw);
-        // Merge: defaults as base, overwrite with saved values
         for (var key in defaults) {
           if (defaults.hasOwnProperty(key)) {
             this._settings[key] = saved.hasOwnProperty(key) ? saved[key] : defaults[key];
@@ -74,7 +77,7 @@
     try {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(this._settings));
     } catch (e) {
-      // ignore
+      // ignore quota errors (e.g. large bgImage)
     }
   };
 
@@ -88,6 +91,15 @@
         copy[key] = this._settings[key];
       }
     }
+    return copy;
+  };
+
+  /**
+   * Return settings safe for messaging (excludes large data like bgImage).
+   */
+  Settings.prototype.getForMessage = function () {
+    var copy = this.getAll();
+    delete copy.bgImage;
     return copy;
   };
 
@@ -111,18 +123,17 @@
   };
 
   /**
-   * Send UPDATE_STYLE message.
+   * Send UPDATE_STYLE message (excludes bgImage from broadcast).
    */
   Settings.prototype._notifyChange = function () {
     if (typeof this.onChange === 'function') {
-      this.onChange(this.getAll());
+      this.onChange(this.getForMessage());
     }
   };
 
   /**
    * Bind settings panel UI inputs to settings values.
-   * Expects input elements with data-setting="key" attributes.
-   * Skips the "template" setting (handled by bindExtras).
+   * Skips "template" (handled by bindExtras).
    */
   Settings.prototype.bindUI = function (container) {
     var self = this;
@@ -148,7 +159,6 @@
           self._settings[key] = val;
           self.save();
 
-          // Update value display if exists
           var display = el.parentElement && el.parentElement.querySelector('.cp-setting-value');
           if (display) {
             display.textContent = _formatValue(key, val);
@@ -173,14 +183,13 @@
         display.textContent = _formatValue(binding.key, this._settings[binding.key]);
       }
     }
-    // Also update template select
     if (this._templateSelect) {
       this._templateSelect.value = this._settings.template || 'custom';
     }
   };
 
   /**
-   * Apply a template by name. Updates all template-related settings.
+   * Apply a template by name.
    */
   Settings.prototype.applyTemplate = function (templateKey) {
     var TEMPLATES = window.VerseObs.TEMPLATES || {};
@@ -201,12 +210,10 @@
 
   /**
    * Bind template selector + image import.
-   * Must be called AFTER bindUI.
    */
   Settings.prototype.bindExtras = function (container) {
     var self = this;
 
-    // Template selector (not bound by bindUI, handled here)
     var templateSelect = container.querySelector('[data-setting="template"]');
     self._templateSelect = templateSelect;
 
@@ -237,6 +244,12 @@
           self.save();
           self._updateUI();
           self._notifyChange();
+          // Also send bgImage directly via a separate localStorage key for the display
+          try {
+            localStorage.setItem('verseobs_bgimage', ev.target.result);
+          } catch (e) {
+            // ignore quota
+          }
         };
         reader.readAsDataURL(file);
       });
@@ -248,6 +261,9 @@
         self._settings.bgImage = '';
         self.save();
         self._notifyChange();
+        try {
+          localStorage.removeItem('verseobs_bgimage');
+        } catch (e) {}
         if (imageInput) imageInput.value = '';
       });
     }
@@ -281,8 +297,6 @@
   function _setInputValue(el, val) {
     if (el.type === 'checkbox') {
       el.checked = !!val;
-    } else if (el.type === 'range' || el.type === 'number') {
-      el.value = val;
     } else {
       el.value = val;
     }
@@ -291,7 +305,6 @@
   function _getInputValue(el) {
     if (el.type === 'checkbox') return el.checked;
     if (el.type === 'range' || el.type === 'number') return Number(el.value);
-    // Coerce select values that look numeric (e.g. autoHide: "0", "5000")
     if (el.tagName === 'SELECT') {
       var v = el.value;
       if (v !== '' && !isNaN(v)) return Number(v);
@@ -305,7 +318,8 @@
     if (key === 'animationDuration') return val + 'ms';
     if (key === 'autoHide') return val === 0 ? 'Off' : (val / 1000) + 's';
     if (key === 'fontSize' || key === 'refFontSize') return val + 'px';
-    if (key === 'borderRadius' || key === 'padding') return val + 'px';
+    if (key === 'borderRadius' || key === 'padding' || key === 'borderWidth') return val + 'px';
+    if (key === 'lineHeight') return (Math.round(val * 100) / 100).toString();
     return String(val);
   }
 
