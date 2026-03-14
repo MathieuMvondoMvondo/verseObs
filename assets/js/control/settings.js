@@ -291,6 +291,11 @@
   function _getInputValue(el) {
     if (el.type === 'checkbox') return el.checked;
     if (el.type === 'range' || el.type === 'number') return Number(el.value);
+    // Coerce select values that look numeric (e.g. autoHide: "0", "5000")
+    if (el.tagName === 'SELECT') {
+      var v = el.value;
+      if (v !== '' && !isNaN(v)) return Number(v);
+    }
     return el.value;
   }
 

@@ -317,6 +317,7 @@
     _sendMessage(MSG.SHOW_VERSE, {
       text: verse.text,
       reference: verse.reference,
+      version: versionName,
       settings: settings.getAll()
     });
 

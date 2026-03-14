@@ -49,7 +49,8 @@
         // Build display data from message properties
         var displayData = {
           text: msg.text || '',
-          reference: msg.reference || ''
+          reference: msg.reference || '',
+          version: msg.version || ''
         };
         // Apply settings if provided
         if (msg.settings) {
