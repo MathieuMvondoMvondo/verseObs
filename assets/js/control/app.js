@@ -89,6 +89,7 @@
     settings = new window.VerseObs.Settings();
     settings.load();
     settings.bindUI(dom.settingsContainer);
+    settings.bindExtras(dom.settingsContainer);
     settings.onChange = function (s) {
       _sendMessage(MSG.UPDATE_STYLE, { settings: s });
     };

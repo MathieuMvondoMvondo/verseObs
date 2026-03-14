@@ -104,9 +104,7 @@
       var saved = localStorage.getItem(window.VerseObs.SETTINGS_KEY);
       if (saved) {
         var settings = JSON.parse(saved);
-        if (settings.style) {
-          renderer.updateStyle(settings.style);
-        }
+        renderer.updateStyle(settings);
       }
     } catch (e) {
       // Ignore parse errors

@@ -31,6 +31,10 @@
     var card = document.createElement('div');
     card.className = 'verse-card hidden';
 
+    // Apply ref position class
+    var refPos = this._refPosition || DEFAULTS.refPosition || 'top-center';
+    card.classList.add('ref-' + refPos);
+
     // Reference pill on top
     if (data.reference) {
       var refEl = document.createElement('div');
@@ -42,6 +46,24 @@
     // Text body card
     var body = document.createElement('div');
     body.className = 'verse-body';
+
+    // Inline reference bar (visible only when ref-inline)
+    if (data.reference && refPos === 'inline') {
+      var inlineRef = document.createElement('div');
+      inlineRef.className = 'verse-inline-ref';
+      // Split reference: "Jean 3:16" -> ref part, and version if available
+      var refText = data.reference;
+      var versionText = data.version || '';
+      var refLeft = document.createElement('span');
+      refLeft.textContent = refText;
+      inlineRef.appendChild(refLeft);
+      if (versionText) {
+        var refRight = document.createElement('span');
+        refRight.textContent = versionText;
+        inlineRef.appendChild(refRight);
+      }
+      body.appendChild(inlineRef);
+    }
 
     var textEl = document.createElement('div');
     textEl.className = 'verse-text';
@@ -144,6 +166,22 @@
     }
     if (style.animationDuration !== undefined) {
       this.animationDuration = style.animationDuration;
+    }
+    if (style.refBgColor !== undefined) {
+      root.style.setProperty('--ref-bg-color', style.refBgColor);
+    }
+    if (style.borderColor !== undefined) {
+      root.style.setProperty('--border-color', style.borderColor);
+    }
+    if (style.refPosition !== undefined) {
+      this._refPosition = style.refPosition;
+    }
+    if (style.bgImage !== undefined) {
+      if (style.bgImage) {
+        root.style.setProperty('--bg-image', 'url(' + style.bgImage + ')');
+      } else {
+        root.style.setProperty('--bg-image', 'none');
+      }
     }
   };
 

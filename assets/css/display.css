@@ -11,9 +11,11 @@
   --max-width: 85%;
   --ref-color: #ffffff;
   --ref-bg: rgba(30, 30, 30, 0.85);
+  --ref-bg-color: #2d1a3e;
   --ref-font-size: 15px;
   --shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
   --border-color: rgba(80, 200, 200, 0.5);
+  --bg-image: none;
 }
 
 * {
@@ -72,16 +74,62 @@ body {
 /* Verse card wrapper - contains ref pill + text card */
 .verse-card {
   max-width: var(--max-width);
-  width: auto;
+  width: var(--max-width);
   display: flex;
   flex-direction: column;
   align-items: center;
   pointer-events: auto;
 }
 
+/* Reference position variants */
+.verse-card.ref-top-left {
+  align-items: flex-start;
+}
+
+.verse-card.ref-top-left .verse-reference {
+  margin-left: 20px;
+}
+
+.verse-card.ref-top-right {
+  align-items: flex-end;
+}
+
+.verse-card.ref-top-right .verse-reference {
+  margin-right: 20px;
+}
+
+.verse-card.ref-top-center {
+  align-items: center;
+}
+
+.verse-card.ref-inline .verse-reference {
+  display: none;
+}
+
+.verse-card.ref-inline .verse-body {
+  position: relative;
+}
+
+.verse-card.ref-inline .verse-inline-ref {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 16px;
+  background: var(--ref-bg-color);
+  color: var(--ref-color);
+  font-size: var(--ref-font-size);
+  font-weight: 600;
+  border-radius: var(--border-radius) var(--border-radius) 0 0;
+  letter-spacing: 0.3px;
+}
+
+.verse-inline-ref {
+  display: none;
+}
+
 /* Reference pill - sits on top */
 .verse-reference {
-  background: var(--ref-bg);
+  background: var(--ref-bg-color);
   color: var(--ref-color);
   font-size: var(--ref-font-size);
   font-family: var(--font-family);
@@ -97,6 +145,9 @@ body {
 /* Text body */
 .verse-body {
   background: rgba(var(--bg-color), var(--bg-opacity));
+  background-image: var(--bg-image);
+  background-size: cover;
+  background-position: center;
   border-radius: var(--border-radius);
   padding: var(--padding);
   text-align: left;

@@ -33,7 +33,12 @@
       padding: D.padding || 20,
       maxWidth: D.maxWidth || 80,
       refFontSize: D.refFontSize || 20,
-      refColor: D.refColor || '#cccccc'
+      refColor: D.refColor || '#cccccc',
+      refPosition: D.refPosition || 'top-center',
+      refBgColor: D.refBgColor || '#2d1a3e',
+      borderColor: D.borderColor || '#50c8c8',
+      bgImage: D.bgImage || '',
+      template: D.template || 'custom'
     };
   };
 
@@ -165,6 +170,94 @@
       if (display) {
         display.textContent = _formatValue(binding.key, this._settings[binding.key]);
       }
+    }
+  };
+
+  /**
+   * Apply a template by name. Updates all template-related settings.
+   */
+  Settings.prototype.applyTemplate = function (templateKey) {
+    var TEMPLATES = window.VerseObs.TEMPLATES || {};
+    var tmpl = TEMPLATES[templateKey];
+    if (!tmpl) return;
+
+    var s = tmpl.settings;
+    for (var key in s) {
+      if (s.hasOwnProperty(key)) {
+        this._settings[key] = s[key];
+      }
+    }
+    this._settings.template = templateKey;
+    this.save();
+    this._updateUI();
+    this._notifyChange();
+  };
+
+  /**
+   * Bind template selector + image import.
+   */
+  Settings.prototype.bindExtras = function (container) {
+    var self = this;
+
+    // Template selector
+    var templateSelect = container.querySelector('[data-setting="template"]');
+    if (templateSelect) {
+      templateSelect.value = self._settings.template || 'custom';
+      templateSelect.addEventListener('change', function () {
+        var val = templateSelect.value;
+        if (val === 'custom') {
+          self._settings.template = 'custom';
+          self.save();
+        } else {
+          self.applyTemplate(val);
+        }
+      });
+    }
+
+    // Image import
+    var imageInput = container.querySelector('#bg-image-input');
+    if (imageInput) {
+      imageInput.addEventListener('change', function (e) {
+        var file = e.target.files && e.target.files[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function (ev) {
+          self._settings.bgImage = ev.target.result;
+          self._settings.template = 'custom';
+          self.save();
+          self._updateUI();
+          self._notifyChange();
+          // Update template select
+          if (templateSelect) templateSelect.value = 'custom';
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    var clearImageBtn = container.querySelector('#btn-clear-bg-image');
+    if (clearImageBtn) {
+      clearImageBtn.addEventListener('click', function () {
+        self._settings.bgImage = '';
+        self.save();
+        self._notifyChange();
+        var imageInput = container.querySelector('#bg-image-input');
+        if (imageInput) imageInput.value = '';
+      });
+    }
+
+    // Auto-switch to 'custom' when user changes any setting manually
+    var allInputs = container.querySelectorAll('[data-setting]');
+    for (var i = 0; i < allInputs.length; i++) {
+      (function (el) {
+        if (el.getAttribute('data-setting') === 'template') return;
+        var evt = _getEventType(el);
+        el.addEventListener(evt, function () {
+          if (self._settings.template !== 'custom') {
+            self._settings.template = 'custom';
+            if (templateSelect) templateSelect.value = 'custom';
+          }
+        });
+      })(allInputs[i]);
     }
   };
 

@@ -128,6 +128,24 @@
     <div class="cp-tab-content" id="tab-settings">
       <div id="settings-container">
 
+        <!-- Template -->
+        <div class="cp-setting-group">
+          <div class="cp-setting-group-title">Template</div>
+
+          <div class="cp-setting-row">
+            <span class="cp-setting-label">Template</span>
+            <div class="cp-setting-control">
+              <select class="cp-select" data-setting="template">
+                <option value="classique">Classique</option>
+                <option value="eglise">Église</option>
+                <option value="moderne">Moderne</option>
+                <option value="minimal">Minimal</option>
+                <option value="custom">Personnalisé</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
         <!-- Layout -->
         <div class="cp-setting-group">
           <div class="cp-setting-group-title">Disposition</div>
@@ -165,6 +183,18 @@
             <div class="cp-setting-control">
               <input type="range" data-setting="borderRadius" min="0" max="30" step="1">
               <span class="cp-setting-value">8px</span>
+            </div>
+          </div>
+
+          <div class="cp-setting-row">
+            <span class="cp-setting-label">Position réf.</span>
+            <div class="cp-setting-control">
+              <select class="cp-select" data-setting="refPosition">
+                <option value="top-left">Haut gauche</option>
+                <option value="top-center">Haut centre</option>
+                <option value="top-right">Haut droite</option>
+                <option value="inline">Barre intégrée</option>
+              </select>
             </div>
           </div>
         </div>
@@ -250,6 +280,13 @@
               <input type="color" data-setting="refColor" value="#ffffff">
             </div>
           </div>
+
+          <div class="cp-setting-row">
+            <span class="cp-setting-label">Fond pill réf.</span>
+            <div class="cp-setting-control">
+              <input type="color" data-setting="refBgColor" value="#2d1a3e">
+            </div>
+          </div>
         </div>
 
         <!-- Background -->
@@ -272,12 +309,27 @@
           </div>
 
           <div class="cp-setting-row">
+            <span class="cp-setting-label">Couleur bordure</span>
+            <div class="cp-setting-control">
+              <input type="color" data-setting="borderColor" value="#50c8c8">
+            </div>
+          </div>
+
+          <div class="cp-setting-row">
             <span class="cp-setting-label">Ombre</span>
             <div class="cp-setting-control">
               <label class="cp-toggle">
                 <input type="checkbox" data-setting="shadow" checked>
                 <span class="cp-toggle-slider"></span>
               </label>
+            </div>
+          </div>
+
+          <div class="cp-setting-row">
+            <span class="cp-setting-label">Image de fond</span>
+            <div class="cp-setting-control" style="flex-direction:column;gap:4px;">
+              <input type="file" id="bg-image-input" accept="image/png,image/svg+xml,image/jpeg">
+              <button class="cp-btn-clear" id="btn-clear-bg-image" style="font-size:11px;padding:2px 8px;">Supprimer l'image</button>
             </div>
           </div>
         </div>
