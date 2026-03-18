@@ -10,7 +10,7 @@
   var LS_KEY = window.VerseObs.LS_KEY || 'verseobs_msg';
 
   // ---- Module instances ----
-  var bibleLoader, search, navigation, settings, history, freeText;
+  var bibleLoader, search, navigation, settings, history, freeText, queue;
   var channel = null;
   var currentBibleId = null;
   var currentBibleData = null;
@@ -54,15 +54,32 @@
     dom.btnNext = document.getElementById('btn-next');
     dom.btnPrevChapter = document.getElementById('btn-prev-chapter');
     dom.btnNextChapter = document.getElementById('btn-next-chapter');
+    dom.btnAddQueue = document.getElementById('btn-add-queue');
 
     // Format toolbar
     dom.formatToolbar = document.getElementById('format-toolbar');
     dom.highlightColorInput = document.getElementById('highlight-color');
 
     // Free text tab
-    dom.freeTextArea = document.getElementById('freetext-area');
+    dom.freeTextTitle = document.getElementById('freetext-title');
+    dom.freeTextSubtitle = document.getElementById('freetext-subtitle');
+    dom.freeTextEditable = document.getElementById('freetext-editable');
+    dom.freeTextFormatToolbar = document.getElementById('freetext-format-toolbar');
     dom.btnFreeShow = document.getElementById('btn-free-show');
     dom.btnFreeHide = document.getElementById('btn-free-hide');
+    dom.btnFreeAddQueue = document.getElementById('btn-free-add-queue');
+    dom.btnFreeClear = document.getElementById('btn-free-clear');
+    dom.btnFreeSave = document.getElementById('btn-free-save');
+    dom.freeTextSaveName = document.getElementById('freetext-save-name');
+    dom.savedTextsContainer = document.getElementById('saved-texts-container');
+
+    // Queue tab
+    dom.queueContainer = document.getElementById('queue-container');
+    dom.queueCounter = document.getElementById('queue-counter');
+    dom.btnQueuePrev = document.getElementById('btn-queue-prev');
+    dom.btnQueueNext = document.getElementById('btn-queue-next');
+    dom.btnQueueShow = document.getElementById('btn-queue-show');
+    dom.btnClearQueue = document.getElementById('btn-clear-queue');
 
     // History tab
     dom.historyContainer = document.getElementById('history-container');
@@ -101,11 +118,54 @@
     history.renderList(dom.historyContainer);
 
     freeText = new window.VerseObs.FreeText({
-      textarea: dom.freeTextArea,
-      onSend: function (text) {
-        _sendMessage(MSG.SHOW_TEXT, { text: text, settings: settings.getForMessage() });
+      titleInput: dom.freeTextTitle,
+      subtitleInput: dom.freeTextSubtitle,
+      contentEditable: dom.freeTextEditable,
+      formatToolbar: dom.freeTextFormatToolbar,
+      savedListContainer: dom.savedTextsContainer,
+      saveNameInput: dom.freeTextSaveName,
+      onSend: function (data) {
+        var msgData = {
+          text: data.text,
+          title: data.title,
+          subtitle: data.subtitle,
+          settings: settings.getForMessage()
+        };
+        if (data.html) {
+          msgData.html = data.html;
+        }
+        _sendMessage(MSG.SHOW_TEXT, msgData);
       }
     });
+    freeText.renderSavedList();
+
+    queue = new window.VerseObs.Queue({
+      container: dom.queueContainer,
+      counterEl: dom.queueCounter,
+      onShow: function (item) {
+        if (item.type === 'verse') {
+          _sendMessage(MSG.SHOW_VERSE, {
+            text: item.text,
+            html: item.html || '',
+            reference: item.reference,
+            version: item.version || '',
+            settings: settings.getForMessage()
+          });
+        } else {
+          var msgData = {
+            text: item.text,
+            title: item.title || '',
+            subtitle: item.subtitle || '',
+            settings: settings.getForMessage()
+          };
+          if (item.html) {
+            msgData.html = item.html;
+          }
+          _sendMessage(MSG.SHOW_TEXT, msgData);
+        }
+      }
+    });
+    queue.render();
 
     _bindButtons();
     _bindSearch();
@@ -217,12 +277,48 @@
     if (dom.btnNextChapter) {
       dom.btnNextChapter.addEventListener('click', function () { navigation.goToNextChapter(); });
     }
+
+    // Add to queue from Bible tab
+    if (dom.btnAddQueue) {
+      dom.btnAddQueue.addEventListener('click', function () {
+        _addCurrentVerseToQueue();
+      });
+    }
+
+    // Free text buttons
     if (dom.btnFreeShow) {
       dom.btnFreeShow.addEventListener('click', function () { freeText.send(); });
     }
     if (dom.btnFreeHide) {
       dom.btnFreeHide.addEventListener('click', _hideVerse);
     }
+    if (dom.btnFreeClear) {
+      dom.btnFreeClear.addEventListener('click', function () { freeText.clear(); });
+    }
+    if (dom.btnFreeSave) {
+      dom.btnFreeSave.addEventListener('click', function () { freeText.saveCurrentText(); });
+    }
+    if (dom.btnFreeAddQueue) {
+      dom.btnFreeAddQueue.addEventListener('click', function () {
+        _addFreeTextToQueue();
+      });
+    }
+
+    // Queue buttons
+    if (dom.btnQueuePrev) {
+      dom.btnQueuePrev.addEventListener('click', function () { queue.showPrevious(); });
+    }
+    if (dom.btnQueueNext) {
+      dom.btnQueueNext.addEventListener('click', function () { queue.showNext(); });
+    }
+    if (dom.btnQueueShow) {
+      dom.btnQueueShow.addEventListener('click', function () { queue.showCurrent(); });
+    }
+    if (dom.btnClearQueue) {
+      dom.btnClearQueue.addEventListener('click', function () { queue.clear(); });
+    }
+
+    // History
     if (dom.btnClearHistory) {
       dom.btnClearHistory.addEventListener('click', function () {
         history.clear();
@@ -233,6 +329,60 @@
       dom.btnResetSettings.addEventListener('click', function () {
         settings.reset();
       });
+    }
+  }
+
+  // ---- Queue helpers ----
+
+  function _addCurrentVerseToQueue() {
+    if (!currentBibleId) return;
+    var sel = navigation.getSelection();
+    var verse = bibleLoader.getVerse(currentBibleId, sel.bookId, sel.chapter, sel.verse);
+    if (!verse) return;
+
+    var versionName = '';
+    if (dom.versionSelect) {
+      var opt = dom.versionSelect.options[dom.versionSelect.selectedIndex];
+      versionName = opt ? opt.textContent : currentBibleId;
+    }
+
+    var html = _getFormattedHtml();
+
+    queue.add({
+      type: 'verse',
+      text: verse.text,
+      html: html || '',
+      reference: verse.reference,
+      version: versionName
+    });
+
+    // Visual feedback
+    if (dom.btnAddQueue) {
+      dom.btnAddQueue.textContent = 'Ajouté !';
+      setTimeout(function () {
+        dom.btnAddQueue.textContent = '+ File d\'attente';
+      }, 1000);
+    }
+  }
+
+  function _addFreeTextToQueue() {
+    var data = freeText.getData();
+    if (!data.text && !data.title) return;
+
+    queue.add({
+      type: 'text',
+      text: data.text,
+      html: data.html || '',
+      title: data.title,
+      subtitle: data.subtitle
+    });
+
+    // Visual feedback
+    if (dom.btnFreeAddQueue) {
+      dom.btnFreeAddQueue.textContent = 'Ajouté !';
+      setTimeout(function () {
+        dom.btnFreeAddQueue.textContent = '+ File d\'attente';
+      }, 1000);
     }
   }
 
@@ -536,7 +686,12 @@
       dom.tabContents[j].classList.toggle('active', j === index);
     }
 
+    // Render queue when switching to queue tab (index 2)
     if (index === 2) {
+      queue.render();
+    }
+    // Render history when switching to history tab (index 3)
+    if (index === 3) {
       history.renderList(dom.historyContainer);
     }
   }
@@ -545,15 +700,18 @@
 
   function _initKeyboard() {
     document.addEventListener('keydown', function (e) {
-      // Don't intercept when editing in contenteditable preview
+      // Don't intercept when editing in contenteditable
       var active = document.activeElement;
-      var inPreview = active && active.id === 'preview-text' && active.getAttribute('contenteditable') === 'true';
+      var inEditable = active && active.getAttribute('contenteditable') === 'true';
+      var inInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
 
       if (e.ctrlKey && e.key === 'Enter') {
         e.preventDefault();
         var activeTab = document.querySelector('.cp-tab-content.active');
         if (activeTab && activeTab.id === 'tab-freetext') {
           freeText.send();
+        } else if (activeTab && activeTab.id === 'tab-queue') {
+          queue.showCurrent();
         } else {
           _showCurrentVerse();
         }
@@ -565,18 +723,28 @@
         return;
       }
 
-      // Skip navigation shortcuts when editing in preview
-      if (inPreview) return;
+      // Skip navigation shortcuts when editing
+      if (inEditable || inInput) return;
 
       if (e.ctrlKey && e.key === 'ArrowRight') {
         e.preventDefault();
-        navigation.goToNext();
+        var activeTabNav = document.querySelector('.cp-tab-content.active');
+        if (activeTabNav && activeTabNav.id === 'tab-queue') {
+          queue.showNext();
+        } else {
+          navigation.goToNext();
+        }
         return;
       }
 
       if (e.ctrlKey && e.key === 'ArrowLeft') {
         e.preventDefault();
-        navigation.goToPrevious();
+        var activeTabNav2 = document.querySelector('.cp-tab-content.active');
+        if (activeTabNav2 && activeTabNav2.id === 'tab-queue') {
+          queue.showPrevious();
+        } else {
+          navigation.goToPrevious();
+        }
         return;
       }
 
@@ -640,6 +808,9 @@
   function _loadBible(id) {
     _updateVersionIndicator(id);
 
+    // Save current selection to restore after loading
+    var prevSelection = navigation.getSelection();
+
     bibleLoader.loadBible(id, function (err, data) {
       if (err) {
         console.warn('VerseObs: Could not load Bible:', id, err);
@@ -649,6 +820,28 @@
       currentBibleId = id;
       currentBibleData = data;
       navigation.populateBooks(data);
+
+      // Restore previous selection if the book/chapter/verse exist in new version
+      if (prevSelection && prevSelection.bookId) {
+        var verse = bibleLoader.getVerse(id, prevSelection.bookId, prevSelection.chapter, prevSelection.verse);
+        if (verse) {
+          navigation.setSelection(prevSelection.bookId, prevSelection.chapter, prevSelection.verse);
+        } else {
+          // Try book + chapter (verse might not exist)
+          var chapter = bibleLoader.getChapter(id, prevSelection.bookId, prevSelection.chapter);
+          if (chapter) {
+            navigation.setSelection(prevSelection.bookId, prevSelection.chapter, 1);
+          } else {
+            // Try just the book
+            var bookList = bibleLoader.getBookList(id);
+            var bookExists = bookList && bookList.some(function (b) { return b.id === prevSelection.bookId; });
+            if (bookExists) {
+              navigation.setSelection(prevSelection.bookId, 1, 1);
+            }
+          }
+        }
+      }
+
       _updatePreview();
     });
   }

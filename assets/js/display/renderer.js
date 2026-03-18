@@ -27,7 +27,7 @@
 
   /**
    * Create the verse card element from data.
-   * @param {object} data - { text, html, reference, version }
+   * @param {object} data - { text, html, reference, version, title, subtitle }
    * @returns {HTMLElement}
    */
   Renderer.prototype.createVerseElement = function (data) {
@@ -64,6 +64,22 @@
     // Text body card
     var body = document.createElement('div');
     body.className = 'verse-body';
+
+    // Title (for free text mode)
+    if (data.title) {
+      var titleEl = document.createElement('div');
+      titleEl.className = 'verse-title';
+      titleEl.textContent = data.title;
+      body.appendChild(titleEl);
+    }
+
+    // Subtitle (for free text mode)
+    if (data.subtitle) {
+      var subtitleEl = document.createElement('div');
+      subtitleEl.className = 'verse-subtitle';
+      subtitleEl.textContent = data.subtitle;
+      body.appendChild(subtitleEl);
+    }
 
     var textEl = document.createElement('div');
     textEl.className = 'verse-text';

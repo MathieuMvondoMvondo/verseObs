@@ -21,8 +21,9 @@
   <div class="cp-tabs">
     <div class="cp-tab active" data-tab="0">Bible</div>
     <div class="cp-tab" data-tab="1">Texte libre</div>
-    <div class="cp-tab" data-tab="2">Historique</div>
-    <div class="cp-tab" data-tab="3">Paramètres</div>
+    <div class="cp-tab" data-tab="2">File</div>
+    <div class="cp-tab" data-tab="3">Historique</div>
+    <div class="cp-tab" data-tab="4">Param.</div>
   </div>
 
   <!-- Panel Body -->
@@ -103,6 +104,7 @@
         <button class="cp-btn cp-btn-show" id="btn-show">Afficher<span class="shortcut">Ctrl+Enter</span></button>
         <button class="cp-btn cp-btn-hide" id="btn-hide">Masquer<span class="shortcut">Esc</span></button>
       </div>
+      <button class="cp-btn-queue-add" id="btn-add-queue" title="Ajouter ce verset à la file d'attente">+ File d'attente</button>
 
     </div>
 
@@ -110,16 +112,76 @@
     <div class="cp-tab-content" id="tab-freetext">
 
       <div class="cp-section">
-        <span class="cp-section-label">Texte libre / Paroles / Annonces</span>
-        <textarea class="cp-textarea cp-freetext-area" id="freetext-area"
-                  placeholder="Saisissez votre texte ici...&#10;Paroles de chants, annonces, prières..."
-                  spellcheck="false"></textarea>
+        <span class="cp-section-label">Titre (optionnel)</span>
+        <input type="text" class="cp-input" id="freetext-title"
+               placeholder="Ex: Cantique, Annonce, Prière..." spellcheck="false">
+      </div>
+
+      <div class="cp-section">
+        <span class="cp-section-label">Sous-titre (optionnel)</span>
+        <input type="text" class="cp-input" id="freetext-subtitle"
+               placeholder="Ex: Auteur, occasion..." spellcheck="false">
+      </div>
+
+      <div class="cp-section">
+        <span class="cp-section-label">Contenu</span>
+        <div class="cp-format-toolbar" id="freetext-format-toolbar">
+          <button class="cp-format-btn" data-format="bold" title="Gras"><b>G</b></button>
+          <button class="cp-format-btn" data-format="italic" title="Italique"><i>I</i></button>
+          <button class="cp-format-btn" data-format="underline" title="Souligné"><u>S</u></button>
+          <div class="cp-format-sep"></div>
+          <button class="cp-format-btn cp-format-highlight-btn" data-format="highlight" title="Surligner">H</button>
+          <input type="color" class="cp-format-color" value="#ffff00" title="Couleur surlignage">
+          <div class="cp-format-sep"></div>
+          <button class="cp-format-btn cp-format-clear-btn" data-format="clear" title="Effacer le formatage">&times;</button>
+        </div>
+        <div class="cp-freetext-editable" id="freetext-editable" contenteditable="true"
+             data-placeholder="Saisissez votre texte ici... Paroles de chants, annonces, prières..."></div>
       </div>
 
       <div class="cp-actions">
         <button class="cp-btn cp-btn-show" id="btn-free-show">Afficher<span class="shortcut">Ctrl+Enter</span></button>
         <button class="cp-btn cp-btn-hide" id="btn-free-hide">Masquer<span class="shortcut">Esc</span></button>
       </div>
+
+      <div class="cp-actions" style="margin-top:0;">
+        <button class="cp-btn-queue-add" id="btn-free-add-queue" style="flex:1;">+ File d'attente</button>
+        <button class="cp-btn-clear" id="btn-free-clear" style="flex:1;margin-top:0;">Effacer</button>
+      </div>
+
+      <!-- Saved Texts -->
+      <div class="cp-section" style="margin-top:10px;">
+        <span class="cp-section-label">Textes sauvegardés</span>
+        <div class="cp-save-row">
+          <input type="text" class="cp-input" id="freetext-save-name" placeholder="Nom du texte...">
+          <button class="cp-btn-save" id="btn-free-save">Sauver</button>
+        </div>
+        <div id="saved-texts-container"></div>
+      </div>
+
+    </div>
+
+    <!-- ======== Queue Tab ======== -->
+    <div class="cp-tab-content" id="tab-queue">
+
+      <div class="cp-section">
+        <div class="cp-queue-header">
+          <span class="cp-section-label">File d'attente</span>
+          <span class="cp-queue-counter" id="queue-counter">File vide</span>
+        </div>
+      </div>
+
+      <div class="cp-queue-controls">
+        <button class="cp-btn cp-btn-nav" id="btn-queue-prev" title="Précédent">&lsaquo; Préc.</button>
+        <button class="cp-btn cp-btn-show cp-btn-queue-show" id="btn-queue-show">Afficher actuel</button>
+        <button class="cp-btn cp-btn-nav" id="btn-queue-next" title="Suivant">Suiv. &rsaquo;</button>
+      </div>
+
+      <div class="cp-section">
+        <div id="queue-container"></div>
+      </div>
+
+      <button class="cp-btn-clear" id="btn-clear-queue">Vider la file</button>
 
     </div>
 
@@ -398,6 +460,7 @@
   <script src="assets/js/control/settings.js"></script>
   <script src="assets/js/control/history.js"></script>
   <script src="assets/js/control/freetext.js"></script>
+  <script src="assets/js/control/queue.js"></script>
   <script src="assets/js/control/app.js"></script>
 
 </body>

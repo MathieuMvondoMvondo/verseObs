@@ -59,7 +59,9 @@
           text: msg.text || '',
           html: msg.html || '',
           reference: msg.reference || '',
-          version: msg.version || ''
+          version: msg.version || '',
+          title: msg.title || '',
+          subtitle: msg.subtitle || ''
         };
         if (msg.settings) {
           // Restore bgImage from localStorage (excluded from broadcast)
