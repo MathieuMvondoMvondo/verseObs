@@ -91,7 +91,7 @@
     if (this._entries.length === 0) {
       var empty = document.createElement('div');
       empty.className = 'cp-history-empty';
-      empty.textContent = 'No history yet';
+      empty.textContent = 'Aucun verset dans l\'historique';
       container.appendChild(empty);
       return;
     }
@@ -154,12 +154,12 @@
     var diffMs = now - d;
     var diffMin = Math.floor(diffMs / 60000);
 
-    if (diffMin < 1) return 'Just now';
-    if (diffMin < 60) return diffMin + 'm ago';
+    if (diffMin < 1) return "à l'instant";
+    if (diffMin < 60) return 'il y a ' + diffMin + ' min';
     var diffHr = Math.floor(diffMin / 60);
-    if (diffHr < 24) return diffHr + 'h ago';
+    if (diffHr < 24) return 'il y a ' + diffHr + ' h';
     var diffDay = Math.floor(diffHr / 24);
-    if (diffDay < 7) return diffDay + 'd ago';
+    if (diffDay < 7) return 'il y a ' + diffDay + ' j';
 
     // Full date
     var month = String(d.getMonth() + 1).padStart(2, '0');

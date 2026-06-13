@@ -160,7 +160,8 @@
   FreeText.prototype._loadSaved = function () {
     try {
       var raw = localStorage.getItem(SAVED_KEY);
-      this._savedTexts = raw ? JSON.parse(raw) : [];
+      var parsed = raw ? JSON.parse(raw) : [];
+      this._savedTexts = Array.isArray(parsed) ? parsed : [];
     } catch (e) {
       this._savedTexts = [];
     }

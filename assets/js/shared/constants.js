@@ -6,7 +6,10 @@ window.VerseObs.MSG = {
   HIDE: 'hide',
   UPDATE_STYLE: 'update_style',
   PING: 'ping',
-  PONG: 'pong'
+  PONG: 'pong',
+  // Preview-only: rendered by the in-dock preview iframe, ignored by the real overlay.
+  PREVIEW: 'preview',
+  PREVIEW_HIDE: 'preview_hide'
 };
 
 window.VerseObs.POSITIONS = {

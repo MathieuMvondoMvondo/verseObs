@@ -28,10 +28,13 @@
       var raw = localStorage.getItem(QUEUE_KEY);
       if (raw) {
         var data = JSON.parse(raw);
-        this._items = data.items || [];
-        this._currentIndex = data.currentIndex || -1;
+        this._items = (data && Array.isArray(data.items)) ? data.items : [];
+        this._currentIndex = (data && typeof data.currentIndex === 'number') ? data.currentIndex : -1;
       }
-    } catch (e) {}
+    } catch (e) {
+      this._items = [];
+      this._currentIndex = -1;
+    }
   };
 
   Queue.prototype._save = function () {

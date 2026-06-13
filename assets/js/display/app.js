@@ -13,6 +13,11 @@
   var channel = null;
   var autoHideTimer = null;
 
+  // Preview mode (in-dock mini overlay): ?preview=1. It renders PREVIEW messages,
+  // never auto-hides, and never answers PINGs so the connection indicator only
+  // reflects the real OBS overlay.
+  var isPreview = /[?&]preview=1/.test(window.location.search);
+
   function clearAutoHide() {
     if (autoHideTimer) {
       clearTimeout(autoHideTimer);
@@ -50,6 +55,40 @@
 
   function handleMessage(msg) {
     if (!msg || !msg.type) return;
+
+    // ---- Preview overlay: only PREVIEW / PREVIEW_HIDE / UPDATE_STYLE ----
+    if (isPreview) {
+      if (msg.type === MSG.PREVIEW) {
+        clearAutoHide();
+        var pData = {
+          text: msg.text || '',
+          html: msg.html || '',
+          reference: msg.reference || '',
+          version: msg.version || '',
+          title: msg.title || '',
+          subtitle: msg.subtitle || ''
+        };
+        if (msg.settings) {
+          var ps = msg.settings;
+          ps.bgImage = readBgImage();
+          pData.style = ps;
+          pData.position = ps.position;
+          pData.animation = 'none'; // previews shouldn't replay animations
+          pData.animationDuration = 0;
+        }
+        renderer.show(pData);
+      } else if (msg.type === MSG.PREVIEW_HIDE) {
+        renderer.hide();
+      } else if (msg.type === MSG.UPDATE_STYLE) {
+        var pStyle = msg.settings || {};
+        pStyle.bgImage = readBgImage();
+        renderer.updateStyle(pStyle);
+      }
+      return;
+    }
+
+    // The real overlay ignores preview-only traffic.
+    if (msg.type === MSG.PREVIEW || msg.type === MSG.PREVIEW_HIDE) return;
 
     switch (msg.type) {
       case MSG.SHOW_VERSE:
@@ -123,7 +162,7 @@
       }
     } catch (e) {}
 
-    channel = new Channel(window.VerseObs.CHANNEL_NAME);
+    channel = new Channel({ autoPong: !isPreview });
     channel.onMessage(handleMessage);
 
     // Listen for bgImage changes via storage event

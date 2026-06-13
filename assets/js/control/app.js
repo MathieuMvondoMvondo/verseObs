@@ -10,10 +10,14 @@
   var LS_KEY = window.VerseObs.LS_KEY || 'verseobs_msg';
 
   // ---- Module instances ----
-  var bibleLoader, search, navigation, settings, history, freeText, queue;
+  var bibleLoader, search, navigation, settings, history, freeText, queue, favorites;
   var channel = null;
   var currentBibleId = null;
   var currentBibleData = null;
+  var _onAirItem = null; // { type:'verse', bookId, chapter, verse } currently live
+  var _pendingRange = null; // { bookId, chapter, start, end } for multi-verse display
+  var _searchResults = [];  // current keyword-search results (for keyboard nav)
+  var _searchActiveIdx = -1;
 
   // ---- DOM references ----
   var dom = {};
@@ -25,6 +29,10 @@
     _initChannel();
     _initKeyboard();
     _initFormatToolbar();
+    _initPalette();
+    _initPreviewFrame();
+    _initCollapsibleSettings();
+    _initHelp();
     _loadDefaultBible();
   }
 
@@ -33,6 +41,26 @@
   function _cacheDom() {
     dom.connectionDot = document.getElementById('connection-dot');
     dom.connectionText = document.getElementById('connection-text');
+    dom.toastContainer = document.getElementById('cp-toast-container');
+    dom.versionLoading = document.getElementById('version-loading');
+    dom.btnHelp = document.getElementById('btn-help');
+    dom.helpOverlay = document.getElementById('help-overlay');
+    dom.helpClose = document.getElementById('help-close');
+    dom.btnFav = document.getElementById('btn-fav');
+    dom.favoritesContainer = document.getElementById('favorites-container');
+
+    // Quick search palette (Ctrl+K)
+    dom.paletteOverlay = document.getElementById('palette-overlay');
+    dom.paletteInput = document.getElementById('palette-input');
+    dom.paletteResults = document.getElementById('palette-results');
+
+    // Live preview + on-air + copy
+    dom.previewStage = document.getElementById('preview-stage');
+    dom.previewFrame = document.getElementById('preview-frame');
+    dom.onairBar = document.getElementById('onair-bar');
+    dom.onairRef = document.getElementById('onair-ref');
+    dom.onairHide = document.getElementById('onair-hide');
+    dom.btnCopy = document.getElementById('btn-copy');
 
     // Tabs
     dom.tabs = document.querySelectorAll('.cp-tab');
@@ -88,6 +116,9 @@
     // Settings tab
     dom.settingsContainer = document.getElementById('settings-container');
     dom.btnResetSettings = document.getElementById('btn-reset-settings');
+    dom.btnExportData = document.getElementById('btn-export-data');
+    dom.btnImportData = document.getElementById('btn-import-data');
+    dom.importDataInput = document.getElementById('import-data-input');
   }
 
   // ---- Module initialization ----
@@ -109,6 +140,10 @@
     settings.bindExtras(dom.settingsContainer);
     settings.onChange = function (s) {
       _sendMessage(MSG.UPDATE_STYLE, { settings: s });
+      _sendPreview();
+    };
+    settings.onNotify = function (message, type) {
+      _notify(message, type);
     };
 
     history = new window.VerseObs.History();
@@ -116,6 +151,18 @@
       _showVerseFromHistory(entry);
     };
     history.renderList(dom.historyContainer);
+
+    favorites = new window.VerseObs.Favorites();
+    favorites.onShow = function (item) {
+      navigation.setSelection(item.bookId, item.chapter, item.verse);
+      _updatePreview();
+      _showCurrentVerse();
+    };
+    favorites.onChange = function () {
+      favorites.render(dom.favoritesContainer);
+      _updateFavButton();
+    };
+    favorites.render(dom.favoritesContainer);
 
     freeText = new window.VerseObs.FreeText({
       titleInput: dom.freeTextTitle,
@@ -135,6 +182,9 @@
           msgData.html = data.html;
         }
         _sendMessage(MSG.SHOW_TEXT, msgData);
+        _notify('Texte affiché', 'success');
+        _onAirItem = { type: 'text' };
+        _setOnAir(data.title || 'Texte libre');
       }
     });
     freeText.renderSavedList();
@@ -163,6 +213,9 @@
           }
           _sendMessage(MSG.SHOW_TEXT, msgData);
         }
+        _notify('Affiché : ' + (item.reference || item.title || 'élément'), 'success');
+        _onAirItem = { type: item.type === 'verse' ? 'verse-queue' : 'text' };
+        _setOnAir(item.reference || item.title || 'Élément de file');
       }
     });
     queue.render();
@@ -285,6 +338,27 @@
       });
     }
 
+    // Toggle favorite
+    if (dom.btnFav) {
+      dom.btnFav.addEventListener('click', _toggleFavorite);
+    }
+
+    // Copy current verse
+    if (dom.btnCopy) {
+      dom.btnCopy.addEventListener('click', _copyCurrentVerse);
+    }
+
+    // On-air "hide" shortcut button
+    if (dom.onairHide) {
+      dom.onairHide.addEventListener('click', _hideVerse);
+    }
+
+    // Live preview while editing free text
+    var ftInputs = [dom.freeTextEditable, dom.freeTextTitle, dom.freeTextSubtitle];
+    for (var fi = 0; fi < ftInputs.length; fi++) {
+      if (ftInputs[fi]) ftInputs[fi].addEventListener('input', _sendPreview);
+    }
+
     // Free text buttons
     if (dom.btnFreeShow) {
       dom.btnFreeShow.addEventListener('click', function () { freeText.send(); });
@@ -330,6 +404,117 @@
         settings.reset();
       });
     }
+
+    // Data backup
+    if (dom.btnExportData) {
+      dom.btnExportData.addEventListener('click', _exportData);
+    }
+    if (dom.btnImportData && dom.importDataInput) {
+      dom.btnImportData.addEventListener('click', function () { dom.importDataInput.click(); });
+      dom.importDataInput.addEventListener('change', function (e) {
+        var file = e.target.files && e.target.files[0];
+        if (file) _importData(file);
+        dom.importDataInput.value = '';
+      });
+    }
+  }
+
+  // ---- Help modal ----
+
+  function _initHelp() {
+    if (dom.btnHelp) dom.btnHelp.addEventListener('click', _openHelp);
+    if (dom.helpClose) dom.helpClose.addEventListener('click', _closeHelp);
+    if (dom.helpOverlay) {
+      dom.helpOverlay.addEventListener('mousedown', function (e) {
+        if (e.target === dom.helpOverlay) _closeHelp();
+      });
+    }
+  }
+
+  function _openHelp() {
+    if (dom.helpOverlay) dom.helpOverlay.hidden = false;
+  }
+
+  function _closeHelp() {
+    if (dom.helpOverlay) dom.helpOverlay.hidden = true;
+  }
+
+  function _isHelpOpen() {
+    return dom.helpOverlay && !dom.helpOverlay.hidden;
+  }
+
+  // ---- Collapsible settings groups ----
+
+  function _initCollapsibleSettings() {
+    if (!dom.settingsContainer) return;
+    var titles = dom.settingsContainer.querySelectorAll('.cp-setting-group-title');
+    for (var i = 0; i < titles.length; i++) {
+      (function (title) {
+        title.setAttribute('role', 'button');
+        title.setAttribute('tabindex', '0');
+        var toggle = function () {
+          var group = title.closest('.cp-setting-group');
+          if (group) group.classList.toggle('collapsed');
+        };
+        title.addEventListener('click', toggle);
+        title.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggle();
+          }
+        });
+      })(titles[i]);
+    }
+  }
+
+  // ---- Data export / import ----
+
+  function _exportData() {
+    var data = {};
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (k && k.indexOf('verseobs_') === 0) data[k] = localStorage.getItem(k);
+    }
+    var payload = { app: 'verseobs', version: 1, exportedAt: new Date().toISOString(), data: data };
+    try {
+      var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'verseobs-backup.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      _notify('Sauvegarde exportée', 'success');
+    } catch (e) {
+      _notify('Export impossible', 'error');
+    }
+  }
+
+  function _importData(file) {
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      try {
+        var payload = JSON.parse(e.target.result);
+        var data = payload && payload.data;
+        if (!data || typeof data !== 'object') throw new Error('format');
+        var count = 0;
+        for (var k in data) {
+          if (data.hasOwnProperty(k) && k.indexOf('verseobs_') === 0) {
+            localStorage.setItem(k, data[k]);
+            count++;
+          }
+        }
+        if (count === 0) throw new Error('empty');
+        _notify('Import réussi (' + count + ' clés) — rechargement…', 'success');
+        setTimeout(function () { window.location.reload(); }, 900);
+      } catch (err) {
+        _notify('Fichier de sauvegarde invalide', 'error');
+      }
+    };
+    reader.onerror = function () { _notify('Lecture du fichier impossible', 'error'); };
+    reader.readAsText(file);
   }
 
   // ---- Queue helpers ----
@@ -402,6 +587,7 @@
       if (ref && ref.bookId && ref.chapter) {
         _hideSearchResults();
         navigation.setSelection(ref.bookId, ref.chapter, ref.verseStart || 1);
+        _setPendingRange(ref);
         _updatePreview();
         return;
       }
@@ -414,17 +600,38 @@
     });
 
     dom.searchInput.addEventListener('keydown', function (e) {
+      var resultsVisible = dom.searchResults && dom.searchResults.classList.contains('visible') && _searchResults.length > 0;
+
+      if (e.key === 'ArrowDown' && resultsVisible) {
+        e.preventDefault();
+        _moveSearchActive(1);
+        return;
+      }
+      if (e.key === 'ArrowUp' && resultsVisible) {
+        e.preventDefault();
+        _moveSearchActive(-1);
+        return;
+      }
+
       if (e.key === 'Enter') {
         e.preventDefault();
+        // Prefer the highlighted result when navigating with the keyboard.
+        if (resultsVisible && _searchActiveIdx >= 0) {
+          _selectSearchResult(_searchActiveIdx);
+          return;
+        }
         var val = dom.searchInput.value.trim();
         var ref = search.parseReference(val);
         if (ref && ref.bookId && ref.chapter) {
           navigation.setSelection(ref.bookId, ref.chapter, ref.verseStart || 1);
+          _setPendingRange(ref);
           _updatePreview();
           dom.searchInput.value = '';
           _hideSearchResults();
         }
+        return;
       }
+
       if (e.key === 'Escape') {
         dom.searchInput.value = '';
         _hideSearchResults();
@@ -434,9 +641,15 @@
 
   function _showSearchResults(results, total) {
     if (!dom.searchResults) return;
+    _searchResults = results || [];
+    _searchActiveIdx = -1;
+    _renderSearchResults(total);
+  }
+
+  function _renderSearchResults(total) {
     dom.searchResults.innerHTML = '';
 
-    if (results.length === 0) {
+    if (_searchResults.length === 0) {
       var empty = document.createElement('div');
       empty.className = 'cp-search-empty';
       empty.textContent = 'Aucun verset trouvé';
@@ -448,18 +661,22 @@
     // Count header (shows when the result list was capped).
     var count = document.createElement('div');
     count.className = 'cp-search-count';
-    var totalCount = typeof total === 'number' ? total : results.length;
-    if (totalCount > results.length) {
-      count.textContent = totalCount + ' versets — ' + results.length + ' affichés';
+    var totalCount = typeof total === 'number' ? total : _searchResults.length;
+    if (totalCount > _searchResults.length) {
+      count.textContent = totalCount + ' versets — ' + _searchResults.length + ' affichés';
     } else {
       count.textContent = totalCount + (totalCount > 1 ? ' versets' : ' verset');
     }
+    if (search.lastFuzzy) {
+      count.textContent += ' · résultats approchés';
+      count.classList.add('cp-search-count-fuzzy');
+    }
     dom.searchResults.appendChild(count);
 
-    for (var i = 0; i < results.length; i++) {
-      (function (r) {
+    for (var i = 0; i < _searchResults.length; i++) {
+      (function (r, idx) {
         var item = document.createElement('div');
-        item.className = 'cp-search-result-item';
+        item.className = 'cp-search-result-item' + (idx === _searchActiveIdx ? ' active' : '');
 
         var ref = document.createElement('div');
         ref.className = 'cp-search-result-ref';
@@ -473,18 +690,35 @@
         item.appendChild(ref);
         item.appendChild(text);
 
-        item.addEventListener('click', function () {
-          navigation.setSelection(r.bookId, r.chapter, r.verse);
-          _updatePreview();
-          dom.searchInput.value = '';
-          _hideSearchResults();
-        });
+        item.addEventListener('click', function () { _selectSearchResult(idx); });
 
         dom.searchResults.appendChild(item);
-      })(results[i]);
+      })(_searchResults[i], i);
     }
 
     dom.searchResults.classList.add('visible');
+  }
+
+  function _moveSearchActive(delta) {
+    if (_searchResults.length === 0) return;
+    if (_searchActiveIdx === -1) {
+      _searchActiveIdx = delta > 0 ? 0 : _searchResults.length - 1;
+    } else {
+      _searchActiveIdx = (_searchActiveIdx + delta + _searchResults.length) % _searchResults.length;
+    }
+    _renderSearchResults();
+    var active = dom.searchResults.querySelector('.cp-search-result-item.active');
+    if (active && active.scrollIntoView) active.scrollIntoView({ block: 'nearest' });
+  }
+
+  function _selectSearchResult(idx) {
+    var r = _searchResults[idx];
+    if (!r) return;
+    navigation.setSelection(r.bookId, r.chapter, r.verse);
+    _pendingRange = null;
+    _updatePreview();
+    dom.searchInput.value = '';
+    _hideSearchResults();
   }
 
   function _hideSearchResults() {
@@ -507,6 +741,8 @@
   // ---- Navigation change ----
 
   function _onNavigationChange(sel) {
+    // Manually moving the dropdowns cancels any typed verse range.
+    _pendingRange = null;
     _updatePreview();
   }
 
@@ -530,7 +766,7 @@
       }
     } else {
       if (dom.previewText) {
-        dom.previewText.textContent = 'No verse found';
+        dom.previewText.textContent = 'Aucun verset trouvé';
         dom.previewText.className = 'cp-preview-text cp-preview-empty';
         dom.previewText.setAttribute('contenteditable', 'false');
       }
@@ -538,42 +774,140 @@
         dom.previewRef.style.display = 'none';
       }
     }
+    _updateFavButton();
+    _sendPreview();
+  }
+
+  // ---- Current verse helpers ----
+
+  /**
+   * Build a verse item {bookId, chapter, verse, reference, text, version}
+   * from the current navigation selection, or null if unavailable.
+   */
+  function _currentVerseItem() {
+    if (!currentBibleId) return null;
+    var sel = navigation.getSelection();
+    var verse = bibleLoader.getVerse(currentBibleId, sel.bookId, sel.chapter, sel.verse);
+    if (!verse) return null;
+    return {
+      bookId: sel.bookId,
+      chapter: sel.chapter,
+      verse: sel.verse,
+      reference: verse.reference,
+      text: verse.text,
+      version: _currentVersionName()
+    };
+  }
+
+  /**
+   * Resolve what should actually be displayed for the current selection,
+   * honoring an active multi-verse range. Returns {text, html?, reference,
+   * version, isRange} or null.
+   */
+  function _activeDisplay() {
+    if (!currentBibleId) return null;
+    var sel = navigation.getSelection();
+
+    if (_pendingRange &&
+        _pendingRange.bookId === sel.bookId &&
+        Number(_pendingRange.chapter) === Number(sel.chapter) &&
+        Number(_pendingRange.start) === Number(sel.verse)) {
+      var range = bibleLoader.getRange(currentBibleId, sel.bookId, sel.chapter, _pendingRange.start, _pendingRange.end);
+      if (range && range.lastVerse !== range.firstVerse) {
+        return {
+          text: range.text,
+          html: range.html,
+          reference: range.reference,
+          version: _currentVersionName(),
+          isRange: true
+        };
+      }
+    }
+
+    var verse = bibleLoader.getVerse(currentBibleId, sel.bookId, sel.chapter, sel.verse);
+    if (!verse) return null;
+    return {
+      text: verse.text,
+      reference: verse.reference,
+      version: _currentVersionName(),
+      isRange: false
+    };
+  }
+
+  /**
+   * Mark a pending range from a parsed reference (call after setSelection to start).
+   */
+  function _setPendingRange(ref) {
+    if (ref && ref.verseEnd && ref.verseEnd > (ref.verseStart || 1)) {
+      _pendingRange = {
+        bookId: ref.bookId,
+        chapter: ref.chapter,
+        start: ref.verseStart || 1,
+        end: ref.verseEnd
+      };
+    } else {
+      _pendingRange = null;
+    }
+  }
+
+  function _currentVersionName() {
+    if (dom.versionSelect) {
+      var opt = dom.versionSelect.options[dom.versionSelect.selectedIndex];
+      if (opt) return opt.textContent;
+    }
+    return currentBibleId || '';
+  }
+
+  function _updateFavButton() {
+    if (!dom.btnFav || !favorites) return;
+    var item = _currentVerseItem();
+    var isFav = item ? favorites.has(item) : false;
+    dom.btnFav.classList.toggle('is-fav', isFav);
+    dom.btnFav.setAttribute('aria-pressed', isFav ? 'true' : 'false');
+    dom.btnFav.innerHTML = isFav ? '&#9733;' : '&#9734;'; // ★ / ☆
+    dom.btnFav.title = isFav ? 'Retirer des favoris' : 'Ajouter aux favoris';
+  }
+
+  function _toggleFavorite() {
+    var item = _currentVerseItem();
+    if (!item) return;
+    var nowFav = favorites.toggle(item);
+    _notify(nowFav ? 'Ajouté aux favoris : ' + item.reference : 'Retiré des favoris', nowFav ? 'success' : 'info');
   }
 
   // ---- Show / Hide ----
 
   function _showCurrentVerse() {
-    if (!currentBibleId) return;
+    var disp = _activeDisplay();
+    if (!disp) return;
 
     var sel = navigation.getSelection();
-    var verse = bibleLoader.getVerse(currentBibleId, sel.bookId, sel.chapter, sel.verse);
-
-    if (!verse) return;
-
-    var versionName = '';
-    if (dom.versionSelect) {
-      var opt = dom.versionSelect.options[dom.versionSelect.selectedIndex];
-      versionName = opt ? opt.textContent : currentBibleId;
-    }
+    var versionName = disp.version;
 
     var msgData = {
-      text: verse.text,
-      reference: verse.reference,
+      text: disp.text,
+      reference: disp.reference,
       version: versionName,
       settings: settings.getForMessage()
     };
 
-    // Include formatted HTML if user applied formatting
-    var html = _getFormattedHtml();
-    if (html) {
-      msgData.html = html;
+    if (disp.isRange) {
+      // Range carries its own multi-verse markup.
+      msgData.html = disp.html;
+    } else {
+      // Include manual formatting from the preview editor, if any.
+      var html = _getFormattedHtml();
+      if (html) msgData.html = html;
     }
 
     _sendMessage(MSG.SHOW_VERSE, msgData);
+    _notify('Affiché : ' + disp.reference, 'success');
+    _onAirItem = { type: 'verse', bookId: sel.bookId, chapter: sel.chapter, verse: sel.verse };
+    _setOnAir(disp.reference + (versionName ? '  ·  ' + versionName : ''));
 
     history.add({
-      reference: verse.reference,
-      text: verse.text,
+      reference: disp.reference,
+      text: disp.text,
       version: versionName
     });
     history.renderList(dom.historyContainer);
@@ -581,6 +915,9 @@
 
   function _hideVerse() {
     _sendMessage(MSG.HIDE, {});
+    _notify('Overlay masqué', 'info');
+    _onAirItem = null;
+    _clearOnAir();
   }
 
   function _showVerseFromHistory(entry) {
@@ -646,7 +983,9 @@
   }
 
   function _sendMessage(type, data) {
-    var msg = { type: type };
+    // ts lets the overlay's localStorage fallback dedupe/accept messages
+    // (the shared Channel ignores stored messages without a newer ts).
+    var msg = { type: type, ts: Date.now() };
     if (data) {
       for (var key in data) {
         if (data.hasOwnProperty(key)) {
@@ -669,6 +1008,36 @@
     } catch (e) {}
   }
 
+  // ---- Toast notifications ----
+
+  /**
+   * Show a transient toast. type: 'success' | 'error' | 'info'.
+   */
+  function _notify(message, type) {
+    if (!dom.toastContainer) return;
+    var toast = document.createElement('div');
+    toast.className = 'cp-toast cp-toast-' + (type || 'info');
+    toast.textContent = message;
+    dom.toastContainer.appendChild(toast);
+
+    // Trigger entrance transition on next frame.
+    requestAnimationFrame(function () {
+      toast.classList.add('cp-toast-visible');
+    });
+
+    setTimeout(function () {
+      toast.classList.remove('cp-toast-visible');
+      setTimeout(function () {
+        if (toast.parentNode) toast.parentNode.removeChild(toast);
+      }, 250);
+    }, 2200);
+  }
+
+  function _setLoading(loading) {
+    if (dom.versionLoading) dom.versionLoading.hidden = !loading;
+    if (dom.versionSelect) dom.versionSelect.disabled = loading;
+  }
+
   function _setConnected(connected) {
     if (dom.connectionDot) {
       if (connected) {
@@ -678,7 +1047,268 @@
       }
     }
     if (dom.connectionText) {
-      dom.connectionText.textContent = connected ? 'Connected' : 'Disconnected';
+      dom.connectionText.textContent = connected ? 'Overlay connecté' : 'Overlay déconnecté';
+    }
+  }
+
+  // ---- Quick search palette (Ctrl+K) ----
+
+  var _paletteItems = [];
+  var _paletteActive = -1;
+
+  function _initPalette() {
+    if (!dom.paletteInput || !dom.paletteOverlay) return;
+
+    dom.paletteInput.addEventListener('input', function () {
+      _runPaletteSearch(dom.paletteInput.value.trim());
+    });
+
+    dom.paletteInput.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        _movePaletteActive(1);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        _movePaletteActive(-1);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        _selectPalette(_paletteActive >= 0 ? _paletteActive : 0);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        _closePalette();
+      }
+    });
+
+    // Click outside the dialog closes it.
+    dom.paletteOverlay.addEventListener('mousedown', function (e) {
+      if (e.target === dom.paletteOverlay) _closePalette();
+    });
+  }
+
+  function _openPalette() {
+    if (!dom.paletteOverlay) return;
+    dom.paletteOverlay.hidden = false;
+    dom.paletteInput.value = '';
+    _paletteItems = [];
+    _paletteActive = -1;
+    dom.paletteResults.innerHTML = '';
+    dom.paletteInput.focus();
+  }
+
+  function _closePalette() {
+    if (!dom.paletteOverlay) return;
+    dom.paletteOverlay.hidden = true;
+    if (dom.searchInput) { /* return focus to a sensible place */ }
+  }
+
+  function _isPaletteOpen() {
+    return dom.paletteOverlay && !dom.paletteOverlay.hidden;
+  }
+
+  function _runPaletteSearch(val) {
+    _paletteItems = [];
+    _paletteActive = -1;
+
+    if (!val) {
+      dom.paletteResults.innerHTML = '';
+      return;
+    }
+
+    // Reference match → single direct result.
+    var ref = search.parseReference(val);
+    if (ref && ref.bookId && ref.chapter && currentBibleId) {
+      var verse = bibleLoader.getVerse(currentBibleId, ref.bookId, ref.chapter, ref.verseStart || 1);
+      if (verse) {
+        search._terms = []; // no keyword highlight on a pure reference match
+        var pItem = {
+          bookId: ref.bookId,
+          chapter: ref.chapter,
+          verse: ref.verseStart || 1,
+          reference: verse.reference,
+          text: verse.text
+        };
+        // Multi-verse range: show combined text and a range reference.
+        if (ref.verseEnd && ref.verseEnd > (ref.verseStart || 1)) {
+          var rng = bibleLoader.getRange(currentBibleId, ref.bookId, ref.chapter, ref.verseStart || 1, ref.verseEnd);
+          if (rng && rng.lastVerse !== rng.firstVerse) {
+            pItem.reference = rng.reference;
+            pItem.text = rng.text;
+            pItem.verseEnd = ref.verseEnd;
+          }
+        }
+        _paletteItems = [pItem];
+        _renderPalette();
+        return;
+      }
+    }
+
+    // Otherwise keyword search over the current Bible.
+    if (currentBibleData) {
+      var results = search.searchText(val, currentBibleData);
+      _paletteItems = results.slice(0, 25).map(function (r) {
+        return {
+          bookId: r.bookId,
+          chapter: r.chapter,
+          verse: r.verse,
+          reference: r.reference,
+          text: r.text
+        };
+      });
+      _paletteActive = _paletteItems.length > 0 ? 0 : -1;
+    }
+    _renderPalette();
+  }
+
+  function _renderPalette() {
+    dom.paletteResults.innerHTML = '';
+
+    if (_paletteItems.length === 0) {
+      var empty = document.createElement('div');
+      empty.className = 'cp-palette-empty';
+      empty.textContent = dom.paletteInput.value.trim() ? 'Aucun résultat' : '';
+      dom.paletteResults.appendChild(empty);
+      return;
+    }
+
+    for (var i = 0; i < _paletteItems.length; i++) {
+      (function (item, idx) {
+        var el = document.createElement('div');
+        el.className = 'cp-palette-item' + (idx === _paletteActive ? ' active' : '');
+
+        var ref = document.createElement('div');
+        ref.className = 'cp-palette-item-ref';
+        ref.textContent = item.reference;
+
+        var text = document.createElement('div');
+        text.className = 'cp-palette-item-text';
+        text.innerHTML = search.highlight(item.text);
+
+        el.appendChild(ref);
+        el.appendChild(text);
+        el.addEventListener('click', function () { _selectPalette(idx); });
+        dom.paletteResults.appendChild(el);
+      })(_paletteItems[i], i);
+    }
+  }
+
+  function _movePaletteActive(delta) {
+    if (_paletteItems.length === 0) return;
+    _paletteActive = (_paletteActive + delta + _paletteItems.length) % _paletteItems.length;
+    _renderPalette();
+    var active = dom.paletteResults.querySelector('.cp-palette-item.active');
+    if (active && active.scrollIntoView) active.scrollIntoView({ block: 'nearest' });
+  }
+
+  function _selectPalette(idx) {
+    var item = _paletteItems[idx];
+    if (!item) return;
+    _switchTab(0);
+    navigation.setSelection(item.bookId, item.chapter, item.verse);
+    if (item.verseEnd) {
+      _setPendingRange({ bookId: item.bookId, chapter: item.chapter, verseStart: item.verse, verseEnd: item.verseEnd });
+    } else {
+      _pendingRange = null;
+    }
+    _updatePreview();
+    _showCurrentVerse();
+    _closePalette();
+  }
+
+  // ---- Live overlay preview (in-dock mini view) ----
+
+  function _initPreviewFrame() {
+    var frames = document.querySelectorAll('.cp-preview-frame');
+    if (!frames.length) return;
+
+    _scalePreviewFrame();
+    window.addEventListener('resize', _scalePreviewFrame);
+
+    // Re-send the current preview once each iframe is ready (they may load after
+    // the first verse was selected).
+    for (var i = 0; i < frames.length; i++) {
+      frames[i].addEventListener('load', function () {
+        _scalePreviewFrame();
+        setTimeout(_sendPreview, 120);
+      });
+    }
+  }
+
+  function _scalePreviewFrame() {
+    var frames = document.querySelectorAll('.cp-preview-frame');
+    for (var i = 0; i < frames.length; i++) {
+      var stage = frames[i].parentElement;
+      var w = stage ? stage.clientWidth : 0;
+      if (!w) continue;
+      frames[i].style.transform = 'scale(' + (w / 1920) + ')';
+    }
+  }
+
+  /**
+   * Push the current Bible/free-text selection to the preview iframe so the
+   * mini overlay mirrors exactly what "Afficher" would show.
+   */
+  function _sendPreview() {
+    var activeTab = document.querySelector('.cp-tab-content.active');
+    var data = null;
+
+    if (activeTab && activeTab.id === 'tab-freetext' && freeText) {
+      var ft = freeText.getData();
+      if (ft.text || ft.title) {
+        data = { text: ft.text, title: ft.title, subtitle: ft.subtitle };
+        if (ft.html) data.html = ft.html;
+      }
+    } else {
+      var disp = _activeDisplay();
+      if (disp) {
+        data = { text: disp.text, reference: disp.reference, version: disp.version };
+        if (disp.isRange) {
+          data.html = disp.html;
+        } else {
+          var html = _getFormattedHtml();
+          if (html) data.html = html;
+        }
+      }
+    }
+
+    if (!data) {
+      _sendMessage(MSG.PREVIEW_HIDE, {});
+      return;
+    }
+    data.settings = settings.getForMessage();
+    _sendMessage(MSG.PREVIEW, data);
+  }
+
+  // ---- On-air tracking ----
+
+  function _setOnAir(label) {
+    if (dom.onairBar) dom.onairBar.hidden = false;
+    if (dom.onairRef) dom.onairRef.textContent = label || '';
+  }
+
+  function _clearOnAir() {
+    if (dom.onairBar) dom.onairBar.hidden = true;
+    if (dom.onairRef) dom.onairRef.textContent = '';
+  }
+
+  // ---- Copy ----
+
+  function _copyCurrentVerse() {
+    var item = _currentVerseItem();
+    if (!item) return;
+    var str = item.reference + ' — ' + item.text;
+    var done = function () { _notify('Verset copié', 'success'); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(str).then(done, function () { _notify('Copie impossible', 'error'); });
+    } else {
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = str;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        done();
+      } catch (e) { _notify('Copie impossible', 'error'); }
     }
   }
 
@@ -696,7 +1326,10 @@
 
   function _switchTab(index) {
     for (var i = 0; i < dom.tabs.length; i++) {
-      dom.tabs[i].classList.toggle('active', i === index);
+      var isActive = i === index;
+      dom.tabs[i].classList.toggle('active', isActive);
+      dom.tabs[i].setAttribute('aria-selected', isActive ? 'true' : 'false');
+      dom.tabs[i].setAttribute('tabindex', isActive ? '0' : '-1');
     }
     for (var j = 0; j < dom.tabContents.length; j++) {
       dom.tabContents[j].classList.toggle('active', j === index);
@@ -710,12 +1343,34 @@
     if (index === 3) {
       history.renderList(dom.historyContainer);
     }
+    // Keep the live preview in sync with the active tab's content.
+    // (Settings tab also has a preview; rescale it now that it's visible.)
+    if (index === 0 || index === 1 || index === 4) {
+      _scalePreviewFrame();
+      _sendPreview();
+    }
   }
 
   // ---- Keyboard shortcuts ----
 
   function _initKeyboard() {
     document.addEventListener('keydown', function (e) {
+      // Open quick search palette (Ctrl+K), works from anywhere.
+      if (e.ctrlKey && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        _openPalette();
+        return;
+      }
+
+      // While the palette is open, let it own all keys (its own handler runs).
+      if (_isPaletteOpen()) return;
+
+      // Help modal: Escape closes it.
+      if (_isHelpOpen()) {
+        if (e.key === 'Escape') { e.preventDefault(); _closeHelp(); }
+        return;
+      }
+
       // Don't intercept when editing in contenteditable
       var active = document.activeElement;
       var inEditable = active && active.getAttribute('contenteditable') === 'true';
@@ -741,6 +1396,13 @@
 
       // Skip navigation shortcuts when editing
       if (inEditable || inInput) return;
+
+      // Open help (?)
+      if (e.key === '?') {
+        e.preventDefault();
+        _openHelp();
+        return;
+      }
 
       if (e.ctrlKey && e.key === 'ArrowRight') {
         e.preventDefault();
@@ -779,6 +1441,10 @@
     bibleLoader.loadIndex(function (err, index) {
       if (err) {
         console.warn('VerseObs: Could not load Bible index:', err);
+        _notify('Impossible de charger la liste des versions', 'error');
+        if (dom.versionSelect) {
+          dom.versionSelect.innerHTML = '<option value="">Erreur de chargement</option>';
+        }
         return;
       }
 
@@ -823,13 +1489,16 @@
 
   function _loadBible(id) {
     _updateVersionIndicator(id);
+    _setLoading(true);
 
     // Save current selection to restore after loading
     var prevSelection = navigation.getSelection();
 
     bibleLoader.loadBible(id, function (err, data) {
+      _setLoading(false);
       if (err) {
         console.warn('VerseObs: Could not load Bible:', id, err);
+        _notify('Impossible de charger cette version', 'error');
         return;
       }
 
@@ -859,6 +1528,11 @@
       }
 
       _updatePreview();
+
+      // If a single verse is currently on-air, re-display it in the new version.
+      if (_onAirItem && _onAirItem.type === 'verse') {
+        _showCurrentVerse();
+      }
     });
   }
 

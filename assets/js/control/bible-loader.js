@@ -151,6 +151,66 @@
   };
 
   /**
+   * Get a contiguous range of verses in a chapter.
+   * Returns { text, html, reference, firstVerse, lastVerse } or null.
+   * - text: verses joined by spaces (plain).
+   * - html: each verse prefixed with a superscript number (safe inline markup).
+   */
+  BibleLoader.prototype.getRange = function (bibleId, bookId, chapter, verseStart, verseEnd) {
+    var bible = this._cache[bibleId];
+    if (!bible) return null;
+
+    var books = bible.books || bible;
+    var book = books[bookId];
+    if (!book) return null;
+
+    var chapterData = book.chapters ? book.chapters[String(chapter)] : book[String(chapter)];
+    if (!chapterData) return null;
+
+    var start = Number(verseStart);
+    var end = Number(verseEnd);
+    if (!end || end < start) end = start;
+
+    var parts = [];
+    var htmlParts = [];
+    var firstFound = null;
+    var lastFound = null;
+
+    for (var v = start; v <= end; v++) {
+      var t = chapterData[String(v)];
+      if (t === undefined || t === null) continue;
+      t = String(t);
+      if (firstFound === null) firstFound = v;
+      lastFound = v;
+      parts.push(t);
+      htmlParts.push('<sup class="verse-num">' + v + '</sup>' + _escapeHtml(t));
+    }
+
+    if (firstFound === null) return null;
+
+    var bookName = book.name || bookId;
+    var ref = bookName + ' ' + chapter + ':' + firstFound;
+    if (lastFound !== firstFound) ref += '-' + lastFound;
+
+    return {
+      text: parts.join(' '),
+      html: htmlParts.join(' '),
+      reference: ref,
+      bookId: bookId,
+      chapter: Number(chapter),
+      firstVerse: firstFound,
+      lastVerse: lastFound
+    };
+  };
+
+  function _escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  /**
    * Get all verses in a chapter.
    * Returns array of { verse, text } or null.
    */

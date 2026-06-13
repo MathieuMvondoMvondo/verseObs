@@ -12,11 +12,14 @@ window.VerseObs = window.VerseObs || {};
  *
  * @constructor
  */
-window.VerseObs.Channel = function() {
+window.VerseObs.Channel = function(opts) {
   var self = this;
   var channelName = window.VerseObs.CHANNEL_NAME || 'verseobs';
   var lsKey = window.VerseObs.LS_KEY || 'verseobs_msg';
   var MSG = window.VerseObs.MSG || {};
+  // Auto-PONG can be disabled (e.g. the in-dock preview must stay invisible to
+  // the control panel's connection detection).
+  var autoPong = !(opts && opts.autoPong === false);
 
   self._listeners = [];
   self._bc = null;
@@ -48,9 +51,9 @@ window.VerseObs.Channel = function() {
       return;
     }
 
-    // Auto-respond to PINGs with a PONG
+    // Auto-respond to PINGs with a PONG (unless disabled, e.g. preview mode)
     if (data.type === MSG.PING) {
-      self._sendRaw({ type: MSG.PONG, ts: Date.now() });
+      if (autoPong) self._sendRaw({ type: MSG.PONG, ts: Date.now() });
       return;
     }
 

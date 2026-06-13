@@ -84,9 +84,11 @@
     var textEl = document.createElement('div');
     textEl.className = 'verse-text';
 
-    // Use formatted HTML if provided, otherwise plain text
+    // Use formatted HTML if provided, otherwise plain text.
+    // The HTML originates from the control panel's formatting toolbar, but we
+    // sanitize defensively so only known-safe inline tags ever reach the DOM.
     if (data.html) {
-      textEl.innerHTML = data.html;
+      textEl.innerHTML = sanitizeHtml(data.html);
     } else {
       var text = data.text || '';
       var verseNum = '';
@@ -304,6 +306,49 @@
       self._animating = false;
     });
   };
+
+  // Tags allowed inside formatted verse/text HTML. Anything else is unwrapped
+  // (kept as text) or dropped, and all attributes except a safe style are removed.
+  var ALLOWED_TAGS = { B: 1, I: 1, U: 1, STRONG: 1, EM: 1, MARK: 1, SPAN: 1, BR: 1, SUP: 1 };
+
+  /**
+   * Sanitize a formatting HTML fragment: keep only whitelisted inline tags,
+   * strip all attributes except a background-color style on <mark>/<span>.
+   */
+  function sanitizeHtml(html) {
+    var template = document.createElement('div');
+    template.innerHTML = String(html);
+    _sanitizeNode(template);
+    return template.innerHTML;
+  }
+
+  function _sanitizeNode(node) {
+    var children = Array.prototype.slice.call(node.childNodes);
+    for (var i = 0; i < children.length; i++) {
+      var child = children[i];
+      if (child.nodeType === 1) { // element
+        if (!ALLOWED_TAGS[child.nodeName]) {
+          // Unwrap unknown elements: replace with their text content.
+          node.replaceChild(document.createTextNode(child.textContent || ''), child);
+          continue;
+        }
+        // Strip every attribute, then restore a safe background-color and the
+        // known verse-number class only.
+        var bg = '';
+        if (child.style && child.style.backgroundColor) bg = child.style.backgroundColor;
+        var keepClass = (child.getAttribute('class') === 'verse-num') ? 'verse-num' : '';
+        while (child.attributes.length > 0) {
+          child.removeAttribute(child.attributes[0].name);
+        }
+        if (bg) child.style.backgroundColor = bg;
+        if (keepClass) child.setAttribute('class', keepClass);
+        _sanitizeNode(child);
+      } else if (child.nodeType !== 3) {
+        // Drop comments, etc. (keep only elements and text)
+        node.removeChild(child);
+      }
+    }
+  }
 
   /**
    * Convert hex color to {r, g, b}.

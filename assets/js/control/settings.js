@@ -10,9 +10,14 @@
   function Settings() {
     this._settings = {};
     this.onChange = null; // callback(settings)
+    this.onNotify = null; // callback(message, type) — surfaced to the UI toast
     this._bindings = [];
     this._templateSelect = null;
   }
+
+  Settings.prototype._notify = function (message, type) {
+    if (typeof this.onNotify === 'function') this.onNotify(message, type);
+  };
 
   /**
    * Get default settings.
@@ -72,12 +77,20 @@
 
   /**
    * Save current settings to localStorage.
+   * bgImage is large (a data URL) and lives in its own dedicated key, so it is
+   * excluded here to keep the settings blob well under the quota.
    */
   Settings.prototype.save = function () {
     try {
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(this._settings));
+      var toStore = {};
+      for (var key in this._settings) {
+        if (this._settings.hasOwnProperty(key) && key !== 'bgImage') {
+          toStore[key] = this._settings[key];
+        }
+      }
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(toStore));
     } catch (e) {
-      // ignore quota errors (e.g. large bgImage)
+      // ignore quota errors
     }
   };
 
@@ -231,27 +244,36 @@
       });
     }
 
-    // Image import
+    // Image import (downscaled to fit the localStorage quota reliably)
     var imageInput = container.querySelector('#bg-image-input');
     if (imageInput) {
       imageInput.addEventListener('change', function (e) {
         var file = e.target.files && e.target.files[0];
         if (!file) return;
-        var reader = new FileReader();
-        reader.onload = function (ev) {
-          self._settings.bgImage = ev.target.result;
+        _processBgImage(file, function (dataUrl) {
+          if (!dataUrl) {
+            self._notify("Image illisible — essayez un autre fichier", 'error');
+            return;
+          }
+          // Store ONLY in the dedicated key (kept out of the settings blob).
+          var stored = false;
+          try {
+            localStorage.setItem('verseobs_bgimage', dataUrl);
+            stored = true;
+          } catch (err) {
+            stored = false;
+          }
+          if (!stored) {
+            self._notify("Image trop lourde pour être enregistrée", 'error');
+            return;
+          }
+          self._settings.bgImage = dataUrl;
           self._settings.template = 'custom';
           self.save();
           self._updateUI();
           self._notifyChange();
-          // Also send bgImage directly via a separate localStorage key for the display
-          try {
-            localStorage.setItem('verseobs_bgimage', ev.target.result);
-          } catch (e) {
-            // ignore quota
-          }
-        };
-        reader.readAsDataURL(file);
+          self._notify("Image de fond appliquée", 'success');
+        });
       });
     }
 
@@ -286,6 +308,56 @@
 
   // ---- Helpers ----
 
+  /**
+   * Read an image file and downscale it so the resulting data URL stays small
+   * enough for localStorage. SVGs are passed through untouched (already tiny).
+   * Calls cb(dataUrl) or cb(null) on failure.
+   */
+  function _processBgImage(file, cb) {
+    var isSvg = /svg/i.test(file.type);
+    var reader = new FileReader();
+
+    reader.onload = function (ev) {
+      var src = ev.target.result;
+      if (isSvg) { cb(src); return; }
+
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var maxDim = 1280;
+          var w = img.width || 1;
+          var h = img.height || 1;
+          var scale = Math.min(1, maxDim / Math.max(w, h));
+          var cw = Math.max(1, Math.round(w * scale));
+          var ch = Math.max(1, Math.round(h * scale));
+
+          var canvas = document.createElement('canvas');
+          canvas.width = cw;
+          canvas.height = ch;
+          var ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, cw, ch);
+
+          // Keep alpha for PNG; use JPEG (much smaller) for opaque photos.
+          var keepAlpha = /png/i.test(file.type);
+          var out = canvas.toDataURL(keepAlpha ? 'image/png' : 'image/jpeg', 0.85);
+
+          // If a PNG is still huge, fall back to JPEG to fit the quota.
+          if (keepAlpha && out.length > 1500000) {
+            out = canvas.toDataURL('image/jpeg', 0.82);
+          }
+          cb(out);
+        } catch (e) {
+          cb(null);
+        }
+      };
+      img.onerror = function () { cb(null); };
+      img.src = src;
+    };
+
+    reader.onerror = function () { cb(null); };
+    reader.readAsDataURL(file);
+  }
+
   function _getEventType(el) {
     var type = el.type || el.tagName.toLowerCase();
     if (type === 'range' || type === 'color') return 'input';
@@ -316,7 +388,7 @@
     if (key === 'bgOpacity') return Math.round(val * 100) + '%';
     if (key === 'maxWidth') return val + '%';
     if (key === 'animationDuration') return val + 'ms';
-    if (key === 'autoHide') return val === 0 ? 'Off' : (val / 1000) + 's';
+    if (key === 'autoHide') return Number(val) === 0 ? 'Désactivé' : (val / 1000) + 's';
     if (key === 'fontSize' || key === 'refFontSize') return val + 'px';
     if (key === 'borderRadius' || key === 'padding' || key === 'borderWidth') return val + 'px';
     if (key === 'lineHeight') return (Math.round(val * 100) / 100).toString();
