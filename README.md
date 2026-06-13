@@ -8,7 +8,7 @@ Extension OBS pour afficher des versets bibliques en overlay (lower-third) penda
 
 - **12 versions de la Bible** incluses (9 FR + 3 EN), fonctionnement 100% local
 - **Lower-third élégant** : pilule de référence + card translucide avec numéro de verset en exposant
-- **Recherche intelligente** : tapez `Jean 3:16`, `Jn 3:16-18` ou recherchez par texte
+- **Recherche intelligente** : tapez `Jean 3:16`, `Jn 3:16-18`, recherchez par mots-clés (tous les mots, dans n'importe quel ordre), une `"phrase exacte"` entre guillemets, ou par référence. Résultats classés par pertinence, insensibles aux accents et à la casse, avec surlignage des mots trouvés.
 - **Navigation** : parcourez livre → chapitre → verset avec les dropdowns ou les raccourcis clavier
 - **Mode texte libre** : affichez des paroles de chants, annonces, prières
 - **Personnalisation complète** : position, animation, police, couleurs, opacité, taille...

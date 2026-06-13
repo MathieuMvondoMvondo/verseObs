@@ -407,8 +407,8 @@
       }
 
       if (currentBibleData) {
-        search.searchDebounced(val, currentBibleData, function (results) {
-          _showSearchResults(results);
+        search.searchDebounced(val, currentBibleData, function (results, total) {
+          _showSearchResults(results, total);
         });
       }
     });
@@ -432,14 +432,29 @@
     });
   }
 
-  function _showSearchResults(results) {
+  function _showSearchResults(results, total) {
     if (!dom.searchResults) return;
     dom.searchResults.innerHTML = '';
 
     if (results.length === 0) {
-      dom.searchResults.classList.remove('visible');
+      var empty = document.createElement('div');
+      empty.className = 'cp-search-empty';
+      empty.textContent = 'Aucun verset trouvé';
+      dom.searchResults.appendChild(empty);
+      dom.searchResults.classList.add('visible');
       return;
     }
+
+    // Count header (shows when the result list was capped).
+    var count = document.createElement('div');
+    count.className = 'cp-search-count';
+    var totalCount = typeof total === 'number' ? total : results.length;
+    if (totalCount > results.length) {
+      count.textContent = totalCount + ' versets — ' + results.length + ' affichés';
+    } else {
+      count.textContent = totalCount + (totalCount > 1 ? ' versets' : ' verset');
+    }
+    dom.searchResults.appendChild(count);
 
     for (var i = 0; i < results.length; i++) {
       (function (r) {
@@ -452,7 +467,8 @@
 
         var text = document.createElement('div');
         text.className = 'cp-search-result-text';
-        text.textContent = r.text;
+        // Highlight matched terms (search.highlight escapes the text first).
+        text.innerHTML = search.highlight(r.text);
 
         item.appendChild(ref);
         item.appendChild(text);
