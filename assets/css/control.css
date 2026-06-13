@@ -1048,7 +1048,7 @@ input[type="color"]::-webkit-color-swatch {
   background: var(--cp-bg-primary);
   border: 1px solid var(--cp-border);
   border-radius: var(--cp-radius);
-  max-height: 200px;
+  max-height: 280px;
   overflow-y: auto;
   margin-bottom: 8px;
   display: none;
@@ -1082,9 +1082,42 @@ input[type="color"]::-webkit-color-swatch {
 .cp-search-result-text {
   font-size: 11px;
   color: var(--cp-text-secondary);
-  white-space: nowrap;
+  margin-top: 2px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
+}
+
+/* Matched-term highlight inside search results */
+.cp-search-result-text .cp-hl {
+  background: var(--cp-accent);
+  color: #fff;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+/* Result count header */
+.cp-search-count {
+  position: sticky;
+  top: 0;
+  padding: 5px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--cp-text-secondary);
+  background: var(--cp-bg-secondary);
+  border-bottom: 1px solid var(--cp-border);
+}
+
+/* Empty state */
+.cp-search-empty {
+  padding: 10px 8px;
+  font-size: 11px;
+  color: var(--cp-text-secondary);
+  text-align: center;
 }
 
 /* ---- Utility ---- */
