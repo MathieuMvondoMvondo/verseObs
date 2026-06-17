@@ -89,9 +89,17 @@
         </div>
       </div>
 
-      <!-- Format Toolbar + Verse Preview -->
-      <div class="cp-section">
-        <span class="cp-section-label">Aperçu</span>
+      <!-- Show / Hide Buttons (primary action) -->
+      <div class="cp-actions">
+        <button class="cp-btn cp-btn-show" id="btn-show">Afficher<span class="shortcut">Ctrl+Enter</span></button>
+        <button class="cp-btn cp-btn-hide" id="btn-hide">Masquer<span class="shortcut">Esc</span></button>
+        <button class="cp-btn cp-btn-fav" id="btn-fav" title="Ajouter aux favoris" aria-label="Ajouter aux favoris" aria-pressed="false">&#9734;</button>
+      </div>
+      <button class="cp-btn-queue-add" id="btn-add-queue" title="Ajouter ce verset à la file d'attente">+ File d'attente</button>
+
+      <!-- Format Toolbar + Verse Preview (secondary: confirmation / retouche) -->
+      <div class="cp-section cp-section-preview">
+        <span class="cp-section-label">Aperçu &amp; mise en forme</span>
 
         <div class="cp-format-toolbar" id="format-toolbar" role="toolbar" aria-label="Mise en forme du verset">
           <button class="cp-format-btn" data-format="bold" title="Gras (Ctrl+B)" aria-label="Gras"><b>G</b></button>
@@ -121,14 +129,6 @@
                   title="Aperçu en direct de l'overlay" tabindex="-1" aria-hidden="true"></iframe>
         </div>
       </div>
-
-      <!-- Show / Hide Buttons -->
-      <div class="cp-actions">
-        <button class="cp-btn cp-btn-show" id="btn-show">Afficher<span class="shortcut">Ctrl+Enter</span></button>
-        <button class="cp-btn cp-btn-hide" id="btn-hide">Masquer<span class="shortcut">Esc</span></button>
-        <button class="cp-btn cp-btn-fav" id="btn-fav" title="Ajouter aux favoris" aria-label="Ajouter aux favoris" aria-pressed="false">&#9734;</button>
-      </div>
-      <button class="cp-btn-queue-add" id="btn-add-queue" title="Ajouter ce verset à la file d'attente">+ File d'attente</button>
 
       <!-- Favorites -->
       <div class="cp-section" id="favorites-section" style="margin-top:10px;">
