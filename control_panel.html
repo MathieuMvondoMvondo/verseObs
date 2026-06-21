@@ -26,6 +26,18 @@
     <button class="cp-onair-hide" id="onair-hide" title="Masquer l'overlay (Échap)">Masquer</button>
   </div>
 
+  <!-- Global live overlay preview (shared across all tabs, collapsible) -->
+  <details class="cp-livebar" id="livebar" open>
+    <summary class="cp-livebar-head">
+      <span class="cp-livebar-title">Aperçu overlay</span>
+      <span class="cp-collapse-chevron" aria-hidden="true">▾</span>
+    </summary>
+    <div class="cp-preview-stage" id="preview-stage">
+      <iframe class="cp-preview-frame" id="preview-frame" src="browser_source.html?preview=1"
+              title="Aperçu en direct de l'overlay" tabindex="-1" aria-hidden="true"></iframe>
+    </div>
+  </details>
+
   <!-- Tab Bar -->
   <div class="cp-tabs" role="tablist" aria-label="Sections du panneau">
     <button class="cp-tab active" data-tab="0" role="tab" id="tab-btn-0" aria-controls="tab-bible" aria-selected="true">Bible</button>
@@ -97,44 +109,44 @@
       </div>
       <button class="cp-btn-queue-add" id="btn-add-queue" title="Ajouter ce verset à la file d'attente">+ File d'attente</button>
 
-      <!-- Format Toolbar + Verse Preview (secondary: confirmation / retouche) -->
-      <div class="cp-section cp-section-preview">
-        <span class="cp-section-label">Aperçu &amp; mise en forme</span>
+      <!-- Format Toolbar + editable verse (secondary: collapsible) -->
+      <details class="cp-collapse">
+        <summary class="cp-collapse-head">
+          <span>Aperçu &amp; mise en forme</span>
+          <span class="cp-collapse-chevron" aria-hidden="true">▾</span>
+        </summary>
+        <div class="cp-collapse-body">
+          <div class="cp-format-toolbar" id="format-toolbar" role="toolbar" aria-label="Mise en forme du verset">
+            <button class="cp-format-btn" data-format="bold" title="Gras (Ctrl+B)" aria-label="Gras"><b>G</b></button>
+            <button class="cp-format-btn" data-format="italic" title="Italique (Ctrl+I)" aria-label="Italique"><i>I</i></button>
+            <button class="cp-format-btn" data-format="underline" title="Souligné (Ctrl+U)" aria-label="Souligné"><u>S</u></button>
+            <div class="cp-format-sep"></div>
+            <button class="cp-format-btn cp-format-highlight-btn" data-format="highlight" title="Surligner" aria-label="Surligner">H</button>
+            <input type="color" class="cp-format-color" id="highlight-color" value="#ffff00" title="Couleur surlignage" aria-label="Couleur de surlignage">
+            <div class="cp-format-sep"></div>
+            <button class="cp-format-btn cp-format-clear-btn" data-format="clear" title="Effacer le formatage" aria-label="Effacer le formatage">&times;</button>
+          </div>
 
-        <div class="cp-format-toolbar" id="format-toolbar" role="toolbar" aria-label="Mise en forme du verset">
-          <button class="cp-format-btn" data-format="bold" title="Gras (Ctrl+B)" aria-label="Gras"><b>G</b></button>
-          <button class="cp-format-btn" data-format="italic" title="Italique (Ctrl+I)" aria-label="Italique"><i>I</i></button>
-          <button class="cp-format-btn" data-format="underline" title="Souligné (Ctrl+U)" aria-label="Souligné"><u>S</u></button>
-          <div class="cp-format-sep"></div>
-          <button class="cp-format-btn cp-format-highlight-btn" data-format="highlight" title="Surligner" aria-label="Surligner">H</button>
-          <input type="color" class="cp-format-color" id="highlight-color" value="#ffff00" title="Couleur surlignage" aria-label="Couleur de surlignage">
-          <div class="cp-format-sep"></div>
-          <button class="cp-format-btn cp-format-clear-btn" data-format="clear" title="Effacer le formatage" aria-label="Effacer le formatage">&times;</button>
+          <div class="cp-preview">
+            <div class="cp-preview-text cp-preview-empty" id="preview-text" aria-label="Aperçu du verset (modifiable)">Sélectionnez un verset</div>
+            <div class="cp-preview-ref" id="preview-ref" style="display:none"></div>
+          </div>
+          <div class="cp-preview-tools">
+            <button class="cp-mini-btn" id="btn-copy" title="Copier le verset">⧉ Copier</button>
+          </div>
         </div>
+      </details>
 
-        <div class="cp-preview">
-          <div class="cp-preview-text cp-preview-empty" id="preview-text" aria-label="Aperçu du verset (modifiable)">Sélectionnez un verset</div>
-          <div class="cp-preview-ref" id="preview-ref" style="display:none"></div>
+      <!-- Favorites (quick access, collapsible) -->
+      <details class="cp-collapse" id="favorites-section" open>
+        <summary class="cp-collapse-head">
+          <span>Favoris</span>
+          <span class="cp-collapse-chevron" aria-hidden="true">▾</span>
+        </summary>
+        <div class="cp-collapse-body">
+          <div class="cp-fav-list" id="favorites-container"></div>
         </div>
-        <div class="cp-preview-tools">
-          <button class="cp-mini-btn" id="btn-copy" title="Copier le verset">⧉ Copier</button>
-        </div>
-      </div>
-
-      <!-- Live overlay preview (WYSIWYG mini view) -->
-      <div class="cp-section">
-        <span class="cp-section-label">Aperçu overlay (live)</span>
-        <div class="cp-preview-stage" id="preview-stage">
-          <iframe class="cp-preview-frame" id="preview-frame" src="browser_source.html?preview=1"
-                  title="Aperçu en direct de l'overlay" tabindex="-1" aria-hidden="true"></iframe>
-        </div>
-      </div>
-
-      <!-- Favorites -->
-      <div class="cp-section" id="favorites-section" style="margin-top:10px;">
-        <span class="cp-section-label">Favoris</span>
-        <div class="cp-fav-list" id="favorites-container"></div>
-      </div>
+      </details>
 
     </div>
 
@@ -352,15 +364,20 @@
         </div>
       </div>
 
-      <!-- Saved Texts -->
-      <div class="cp-section" style="margin-top:10px;">
-        <span class="cp-section-label">Textes sauvegardés</span>
-        <div class="cp-save-row">
-          <input type="text" class="cp-input" id="freetext-save-name" placeholder="Nom du texte...">
-          <button class="cp-btn-save" id="btn-free-save">Sauver</button>
+      <!-- Saved Texts (collapsible) -->
+      <details class="cp-collapse">
+        <summary class="cp-collapse-head">
+          <span>Textes sauvegardés</span>
+          <span class="cp-collapse-chevron" aria-hidden="true">▾</span>
+        </summary>
+        <div class="cp-collapse-body">
+          <div class="cp-save-row">
+            <input type="text" class="cp-input" id="freetext-save-name" placeholder="Nom du texte...">
+            <button class="cp-btn-save" id="btn-free-save">Sauver</button>
+          </div>
+          <div id="saved-texts-container"></div>
         </div>
-        <div id="saved-texts-container"></div>
-      </div>
+      </details>
 
     </div>
 
@@ -402,14 +419,6 @@
 
     <!-- ======== Settings Tab ======== -->
     <div class="cp-tab-content" id="tab-settings" role="tabpanel" aria-labelledby="tab-btn-4">
-
-      <!-- Sticky live preview so style changes are visible while editing -->
-      <div class="cp-settings-preview">
-        <div class="cp-preview-stage" id="settings-preview-stage">
-          <iframe class="cp-preview-frame" id="settings-preview-frame" src="browser_source.html?preview=1"
-                  title="Aperçu en direct de l'overlay" tabindex="-1" aria-hidden="true"></iframe>
-        </div>
-      </div>
 
       <div id="settings-container">
 

@@ -1312,6 +1312,18 @@
     _scalePreviewFrame();
     window.addEventListener('resize', _scalePreviewFrame);
 
+    // Rescale + refresh when the collapsible global preview is reopened
+    // (a collapsed iframe has zero width, so scaling must wait for expand).
+    var livebar = document.getElementById('livebar');
+    if (livebar) {
+      livebar.addEventListener('toggle', function () {
+        if (livebar.open) {
+          _scalePreviewFrame();
+          setTimeout(_sendPreview, 50);
+        }
+      });
+    }
+
     // Re-send the current preview once each iframe is ready (they may load after
     // the first verse was selected).
     for (var i = 0; i < frames.length; i++) {
@@ -1434,12 +1446,9 @@
     if (index === 3) {
       history.renderList(dom.historyContainer);
     }
-    // Keep the live preview in sync with the active tab's content.
-    // (Settings tab also has a preview; rescale it now that it's visible.)
-    if (index === 0 || index === 1 || index === 4) {
-      _scalePreviewFrame();
-      _sendPreview();
-    }
+    // The global live preview is shared by every tab — keep it in sync.
+    _scalePreviewFrame();
+    _sendPreview();
   }
 
   // ---- Keyboard shortcuts ----
