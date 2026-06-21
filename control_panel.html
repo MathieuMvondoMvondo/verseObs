@@ -26,18 +26,6 @@
     <button class="cp-onair-hide" id="onair-hide" title="Masquer l'overlay (Échap)">Masquer</button>
   </div>
 
-  <!-- Global live overlay preview (shared across all tabs, collapsible) -->
-  <details class="cp-livebar" id="livebar" open>
-    <summary class="cp-livebar-head">
-      <span class="cp-livebar-title">Aperçu overlay</span>
-      <span class="cp-collapse-chevron" aria-hidden="true">▾</span>
-    </summary>
-    <div class="cp-preview-stage" id="preview-stage">
-      <iframe class="cp-preview-frame" id="preview-frame" src="browser_source.html?preview=1"
-              title="Aperçu en direct de l'overlay" tabindex="-1" aria-hidden="true"></iframe>
-    </div>
-  </details>
-
   <!-- Tab Bar -->
   <div class="cp-tabs" role="tablist" aria-label="Sections du panneau">
     <button class="cp-tab active" data-tab="0" role="tab" id="tab-btn-0" aria-controls="tab-bible" aria-selected="true">Bible</button>
@@ -681,6 +669,18 @@
     </div>
 
   </div>
+
+  <!-- Global live overlay preview (pinned at the bottom, collapsible) -->
+  <details class="cp-livebar" id="livebar" open>
+    <summary class="cp-livebar-head">
+      <span class="cp-livebar-title">Aperçu overlay</span>
+      <span class="cp-collapse-chevron" aria-hidden="true">▾</span>
+    </summary>
+    <div class="cp-preview-stage" id="preview-stage">
+      <iframe class="cp-preview-frame" id="preview-frame" src="browser_source.html?preview=1"
+              title="Aperçu en direct de l'overlay" tabindex="-1" aria-hidden="true"></iframe>
+    </div>
+  </details>
 
   <!-- Quick search palette (Ctrl+K) -->
   <div class="cp-palette-overlay" id="palette-overlay" hidden>

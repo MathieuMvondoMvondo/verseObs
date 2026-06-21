@@ -1852,7 +1852,7 @@ input[type="color"]:focus-visible,
 .cp-livebar {
   flex-shrink: 0;
   background: var(--cp-bg-secondary);
-  border-bottom: 1px solid var(--cp-border);
+  border-top: 1px solid var(--cp-border);
 }
 
 .cp-livebar-head {
@@ -1883,7 +1883,7 @@ input[type="color"]:focus-visible,
 
 .cp-livebar .cp-preview-stage {
   width: 100%;
-  max-width: 200px;
+  max-width: 150px;
   margin: 0 auto 8px;
 }
 
