@@ -1882,9 +1882,8 @@ input[type="color"]:focus-visible,
 .cp-livebar[open] .cp-collapse-chevron { transform: rotate(180deg); }
 
 .cp-livebar .cp-preview-stage {
-  width: 100%;
-  max-width: 150px;
-  margin: 0 auto 8px;
+  width: auto;
+  margin: 0 12px 10px;
 }
 
 /* ============================================================
