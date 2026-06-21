@@ -1807,3 +1807,38 @@ input[type="color"]:focus-visible,
   padding-top: 12px;
   border-top: 1px solid var(--cp-border);
 }
+
+/* ---- Free-text style presets ("styles type") ---- */
+.cp-ft-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.cp-ft-preset {
+  flex: 1 1 auto;
+  min-width: 64px;
+  padding: 7px 10px;
+  background: var(--cp-bg-tertiary);
+  border: 1px solid var(--cp-border);
+  border-radius: 999px;
+  color: var(--cp-text-secondary);
+  font-family: var(--cp-font);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--cp-transition), color var(--cp-transition), border-color var(--cp-transition);
+}
+
+.cp-ft-preset:hover {
+  background: var(--cp-bg-hover);
+  color: var(--cp-text);
+  border-color: var(--cp-border-light);
+}
+
+.cp-ft-preset.active {
+  background: rgba(74, 158, 255, 0.16);
+  color: var(--cp-accent);
+  border-color: var(--cp-accent);
+}

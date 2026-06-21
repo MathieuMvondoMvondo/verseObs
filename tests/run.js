@@ -150,6 +150,45 @@ ok('highlight wraps the term in <mark>', /<mark[^>]*>monde<\/mark>/i.test(hl));
 ok('highlight escapes HTML', search.highlight('<script>').indexOf('&lt;script&gt;') !== -1);
 
 // ===================================================================
+group('settings — free-text style independence');
+
+// Shim a fresh localStorage in the sandbox, then load the settings module.
+var _store = {};
+ctx.localStorage = {
+  getItem: function (k) { return Object.prototype.hasOwnProperty.call(_store, k) ? _store[k] : null; },
+  setItem: function (k, v) { _store[k] = String(v); },
+  removeItem: function (k) { delete _store[k]; }
+};
+load('assets/js/shared/constants.js');
+load('assets/js/control/settings.js');
+
+var verseSettings = new VerseObs.Settings();
+verseSettings.load();
+var ftSettings = new VerseObs.Settings({
+  storageKey: VerseObs.FREETEXT_SETTINGS_KEY,
+  defaults: VerseObs.FREETEXT_DEFAULTS,
+  templates: VerseObs.FREETEXT_STYLES
+});
+ftSettings.load();
+
+ok('verse + free-text have distinct defaults',
+  verseSettings.getAll().fontSize !== ftSettings.getAll().fontSize);
+eq('free-text default preset', ftSettings.getAll().template, 'chant');
+
+// Applying a free-text preset must not touch the verse style.
+var verseSizeBefore = verseSettings.getAll().fontSize;
+ftSettings.applyTemplate('annonce');
+eq('preset "annonce" applied to free text', ftSettings.getAll().template, 'annonce');
+eq('verse style untouched by free-text preset', verseSettings.getAll().fontSize, verseSizeBefore);
+
+// Each profile persists under its own key.
+ftSettings.update('fontSize', 51);
+ok('free-text persists to its own key',
+  !!_store[VerseObs.FREETEXT_SETTINGS_KEY] &&
+  JSON.parse(_store[VerseObs.FREETEXT_SETTINGS_KEY]).fontSize === 51);
+ok('free-text message style excludes bgImage', !('bgImage' in ftSettings.getForMessage()));
+
+// ===================================================================
 console.log('\n' + (failed === 0 ? '✓ ALL PASSED' : '✗ FAILURES') +
   ' — ' + passed + ' passed, ' + failed + ' failed.');
 process.exit(failed === 0 ? 0 : 1);
