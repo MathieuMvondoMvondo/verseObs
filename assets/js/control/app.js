@@ -1022,6 +1022,18 @@
   // ---- Messaging (BroadcastChannel + localStorage fallback) ----
 
   function _initChannel() {
+    var lastLsTs = 0;
+
+    function handleStoredMessage(raw) {
+      if (!raw) return;
+      try {
+        var msg = JSON.parse(raw);
+        if (msg.ts && msg.ts <= lastLsTs) return;
+        lastLsTs = msg.ts || Date.now();
+        _handleMessage(msg);
+      } catch (err) {}
+    }
+
     if (typeof BroadcastChannel !== 'undefined') {
       try {
         channel = new BroadcastChannel(CHANNEL_NAME);
@@ -1037,12 +1049,15 @@
 
     window.addEventListener('storage', function (e) {
       if (e.key === LS_KEY && e.newValue) {
-        try {
-          var msg = JSON.parse(e.newValue);
-          _handleMessage(msg);
-        } catch (err) {}
+        handleStoredMessage(e.newValue);
       }
     });
+
+    setInterval(function () {
+      try {
+        handleStoredMessage(localStorage.getItem(LS_KEY));
+      } catch (err) {}
+    }, 250);
 
     setInterval(function () {
       _sendMessage(MSG.PING, {});
@@ -1091,9 +1106,6 @@
 
     try {
       localStorage.setItem(LS_KEY, JSON.stringify(msg));
-      setTimeout(function () {
-        localStorage.removeItem(LS_KEY);
-      }, 100);
     } catch (e) {}
   }
 
