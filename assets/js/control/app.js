@@ -1091,9 +1091,6 @@
 
     try {
       localStorage.setItem(LS_KEY, JSON.stringify(msg));
-      setTimeout(function () {
-        localStorage.removeItem(LS_KEY);
-      }, 100);
     } catch (e) {}
   }
 

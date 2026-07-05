@@ -189,6 +189,13 @@ ok('free-text persists to its own key',
 ok('free-text message style excludes bgImage', !('bgImage' in ftSettings.getForMessage()));
 
 // ===================================================================
+group('control messaging fallback');
+
+var controlAppSource = fs.readFileSync(path.join(ROOT, 'assets/js/control/app.js'), 'utf8');
+ok('localStorage fallback message is not immediately removed',
+  controlAppSource.indexOf('localStorage.removeItem(LS_KEY)') === -1);
+
+// ===================================================================
 console.log('\n' + (failed === 0 ? '✓ ALL PASSED' : '✗ FAILURES') +
   ' — ' + passed + ' passed, ' + failed + ' failed.');
 process.exit(failed === 0 ? 0 : 1);
