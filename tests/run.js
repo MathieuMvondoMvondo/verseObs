@@ -194,6 +194,8 @@ group('control messaging fallback');
 var controlAppSource = fs.readFileSync(path.join(ROOT, 'assets/js/control/app.js'), 'utf8');
 ok('localStorage fallback message is not immediately removed',
   controlAppSource.indexOf('localStorage.removeItem(LS_KEY)') === -1);
+ok('control panel polls localStorage fallback for overlay replies',
+  controlAppSource.indexOf('handleStoredMessage(localStorage.getItem(LS_KEY))') !== -1);
 
 // ===================================================================
 console.log('\n' + (failed === 0 ? '✓ ALL PASSED' : '✗ FAILURES') +
