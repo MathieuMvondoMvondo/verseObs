@@ -1,11 +1,11 @@
 /* VerseObs - Bible Data Loader */
 
 (function () {
-  'use strict';
+  "use strict";
 
   window.VerseObs = window.VerseObs || {};
 
-  var API_BASE = 'https://api.getbible.net/v2/';
+  var API_BASE = "https://api.getbible.net/v2/";
 
   function BibleLoader() {
     this._index = null;
@@ -16,10 +16,10 @@
 
   BibleLoader.prototype._load = function (url, callback) {
     // Try fetch first
-    if (typeof fetch === 'function') {
+    if (typeof fetch === "function") {
       fetch(url)
         .then(function (res) {
-          if (!res.ok) throw new Error('HTTP ' + res.status);
+          if (!res.ok) throw new Error("HTTP " + res.status);
           return res.json();
         })
         .then(function (data) {
@@ -36,25 +36,27 @@
 
   function _xhrLoad(url, callback) {
     var xhr = new XMLHttpRequest();
-    xhr.open('GET', url, true);
-    xhr.responseType = 'json';
+    xhr.open("GET", url, true);
+    xhr.responseType = "json";
     xhr.onload = function () {
       if (xhr.status === 200 || xhr.status === 0) {
         var data = xhr.response;
         // Some browsers return string for file://
-        if (typeof data === 'string') {
-          try { data = JSON.parse(data); } catch (e) {
-            callback(new Error('Failed to parse JSON'));
+        if (typeof data === "string") {
+          try {
+            data = JSON.parse(data);
+          } catch (e) {
+            callback(new Error("Failed to parse JSON"));
             return;
           }
         }
         callback(null, data);
       } else {
-        callback(new Error('XHR error: ' + xhr.status));
+        callback(new Error("XHR error: " + xhr.status));
       }
     };
     xhr.onerror = function () {
-      callback(new Error('XHR network error'));
+      callback(new Error("XHR network error"));
     };
     xhr.send();
   }
@@ -71,7 +73,7 @@
       callback(null, self._index);
       return;
     }
-    self._load('data/bibles/index.json', function (err, data) {
+    self._load("data/bibles/index.json", function (err, data) {
       if (err) {
         callback(err);
         return;
@@ -103,8 +105,8 @@
       }
     }
 
-    var file = entry && entry.file ? entry.file : id + '.json';
-    var url = 'data/bibles/' + file;
+    var file = entry && entry.file ? entry.file : id + ".json";
+    var url = "data/bibles/" + file;
 
     self._load(url, function (err, data) {
       if (err) {
@@ -130,7 +132,9 @@
     var book = books[bookId];
     if (!book) return null;
 
-    var chapterData = book.chapters ? book.chapters[String(chapter)] : book[String(chapter)];
+    var chapterData = book.chapters
+      ? book.chapters[String(chapter)]
+      : book[String(chapter)];
     if (!chapterData) return null;
 
     var verseText = chapterData[String(verse)];
@@ -146,7 +150,7 @@
       bookId: bookId,
       chapter: Number(chapter),
       verse: Number(verse),
-      reference: bookName + ' ' + chapter + ':' + verse
+      reference: bookName + " " + chapter + ":" + verse,
     };
   };
 
@@ -156,7 +160,13 @@
    * - text: verses joined by spaces (plain).
    * - html: each verse prefixed with a superscript number (safe inline markup).
    */
-  BibleLoader.prototype.getRange = function (bibleId, bookId, chapter, verseStart, verseEnd) {
+  BibleLoader.prototype.getRange = function (
+    bibleId,
+    bookId,
+    chapter,
+    verseStart,
+    verseEnd,
+  ) {
     var bible = this._cache[bibleId];
     if (!bible) return null;
 
@@ -164,7 +174,9 @@
     var book = books[bookId];
     if (!book) return null;
 
-    var chapterData = book.chapters ? book.chapters[String(chapter)] : book[String(chapter)];
+    var chapterData = book.chapters
+      ? book.chapters[String(chapter)]
+      : book[String(chapter)];
     if (!chapterData) return null;
 
     var start = Number(verseStart);
@@ -183,31 +195,33 @@
       if (firstFound === null) firstFound = v;
       lastFound = v;
       parts.push(t);
-      htmlParts.push('<sup class="verse-num">' + v + '</sup>' + _escapeHtml(t));
+      htmlParts.push(
+        '<sup class="verse-num">' + v + "</sup> " + _escapeHtml(t),
+      );
     }
 
     if (firstFound === null) return null;
 
     var bookName = book.name || bookId;
-    var ref = bookName + ' ' + chapter + ':' + firstFound;
-    if (lastFound !== firstFound) ref += '-' + lastFound;
+    var ref = bookName + " " + chapter + ":" + firstFound;
+    if (lastFound !== firstFound) ref += "-" + lastFound;
 
     return {
-      text: parts.join(' '),
-      html: htmlParts.join(' '),
+      text: parts.join(" "),
+      html: htmlParts.join(" "),
       reference: ref,
       bookId: bookId,
       chapter: Number(chapter),
       firstVerse: firstFound,
-      lastVerse: lastFound
+      lastVerse: lastFound,
     };
   };
 
   function _escapeHtml(str) {
     return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
   }
 
   /**
@@ -222,17 +236,21 @@
     var book = books[bookId];
     if (!book) return null;
 
-    var chapterData = book.chapters ? book.chapters[String(chapter)] : book[String(chapter)];
+    var chapterData = book.chapters
+      ? book.chapters[String(chapter)]
+      : book[String(chapter)];
     if (!chapterData) return null;
 
     var result = [];
     var keys = Object.keys(chapterData);
     // Sort numerically
-    keys.sort(function (a, b) { return Number(a) - Number(b); });
+    keys.sort(function (a, b) {
+      return Number(a) - Number(b);
+    });
     for (var i = 0; i < keys.length; i++) {
       result.push({
         verse: Number(keys[i]),
-        text: String(chapterData[keys[i]])
+        text: String(chapterData[keys[i]]),
       });
     }
     return result;
@@ -254,7 +272,7 @@
       var book = books[key];
       list.push({
         id: key,
-        name: book.name || key
+        name: book.name || key,
       });
     }
     return list;
@@ -264,9 +282,15 @@
    * Fetch verse from online API (api.getbible.net).
    * callback(err, { text, reference })
    */
-  BibleLoader.prototype.fetchFromAPI = function (version, book, chapter, verse, callback) {
-    var cacheKey = version + ':' + book + ':' + chapter + ':' + verse;
-    var lsKey = window.VerseObs.API_CACHE_KEY || 'verseobs_api_cache';
+  BibleLoader.prototype.fetchFromAPI = function (
+    version,
+    book,
+    chapter,
+    verse,
+    callback,
+  ) {
+    var cacheKey = version + ":" + book + ":" + chapter + ":" + verse;
+    var lsKey = window.VerseObs.API_CACHE_KEY || "verseobs_api_cache";
 
     // Check localStorage cache
     try {
@@ -282,30 +306,30 @@
       // ignore
     }
 
-    var url = API_BASE + version + '/' + book + '/' + chapter + '/' + verse;
+    var url = API_BASE + version + "/" + book + "/" + chapter + "/" + verse;
 
     // API requires real HTTP, no file:// fallback
-    if (typeof fetch !== 'function') {
-      callback(new Error('API requires fetch (online mode)'));
+    if (typeof fetch !== "function") {
+      callback(new Error("API requires fetch (online mode)"));
       return;
     }
 
     fetch(url)
       .then(function (res) {
-        if (!res.ok) throw new Error('API error: ' + res.status);
+        if (!res.ok) throw new Error("API error: " + res.status);
         return res.json();
       })
       .then(function (data) {
         // api.getbible.net v2 returns verses array
-        var text = '';
-        var ref = book + ' ' + chapter + ':' + verse;
+        var text = "";
+        var ref = book + " " + chapter + ":" + verse;
 
         if (data.verses && data.verses.length > 0) {
           var parts = [];
           for (var i = 0; i < data.verses.length; i++) {
             parts.push(data.verses[i].text);
           }
-          text = parts.join(' ').trim();
+          text = parts.join(" ").trim();
         } else if (data.text) {
           text = data.text;
         }
@@ -315,7 +339,7 @@
           reference: ref,
           book: book,
           chapter: Number(chapter),
-          verse: Number(verse)
+          verse: Number(verse),
         };
 
         // Save to localStorage cache
@@ -351,12 +375,15 @@
     // If books is an array, convert to indexed format
     if (data.books && Array.isArray(data.books)) {
       var indexed = { meta: data.meta || {}, books: {} };
-      var lang = (data.meta && data.meta.lang) || 'fr';
+      var lang = (data.meta && data.meta.lang) || "fr";
 
       for (var b = 0; b < data.books.length; b++) {
         var book = data.books[b];
         var bookId = String(book.id);
-        var bookName = book.name || window.VerseObs.getBookName(Number(bookId), lang) || bookId;
+        var bookName =
+          book.name ||
+          window.VerseObs.getBookName(Number(bookId), lang) ||
+          bookId;
 
         indexed.books[bookId] = { name: bookName, id: bookId, chapters: {} };
 
@@ -369,7 +396,8 @@
             if (Array.isArray(ch.verses)) {
               for (var v = 0; v < ch.verses.length; v++) {
                 var vs = ch.verses[v];
-                indexed.books[bookId].chapters[chNum][String(vs.verse)] = vs.text;
+                indexed.books[bookId].chapters[chNum][String(vs.verse)] =
+                  vs.text;
               }
             }
           }

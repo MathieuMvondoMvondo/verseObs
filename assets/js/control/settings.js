@@ -1,11 +1,11 @@
 /* VerseObs - Settings Management */
 
 (function () {
-  'use strict';
+  "use strict";
 
   window.VerseObs = window.VerseObs || {};
 
-  var SETTINGS_KEY = window.VerseObs.SETTINGS_KEY || 'verseobs_settings';
+  var SETTINGS_KEY = window.VerseObs.SETTINGS_KEY || "verseobs_settings";
 
   function Settings() {
     this._settings = {};
@@ -16,7 +16,7 @@
   }
 
   Settings.prototype._notify = function (message, type) {
-    if (typeof this.onNotify === 'function') this.onNotify(message, type);
+    if (typeof this.onNotify === "function") this.onNotify(message, type);
   };
 
   /**
@@ -25,16 +25,16 @@
   Settings.prototype._getDefaults = function () {
     var D = window.VerseObs.DEFAULTS || {};
     return {
-      position: D.position || 'lower-third',
-      animation: D.animation || 'fade',
+      position: D.position || "lower-third",
+      animation: D.animation || "fade",
       animationDuration: D.animationDuration || 500,
       autoHide: D.autoHide || 0,
       fontFamily: D.fontFamily || "'Segoe UI', sans-serif",
       fontSize: D.fontSize || 28,
-      textColor: D.textColor || '#1a1a1a',
-      textAlign: D.textAlign || 'left',
+      textColor: D.textColor || "#1a1a1a",
+      textAlign: D.textAlign || "left",
       lineHeight: D.lineHeight || 1.55,
-      bgColor: D.bgColor || '#ffffff',
+      bgColor: D.bgColor || "#ffffff",
       bgOpacity: D.bgOpacity || 0.92,
       shadow: D.shadow !== undefined ? D.shadow : true,
       borderRadius: D.borderRadius || 14,
@@ -42,13 +42,13 @@
       padding: D.padding || 24,
       maxWidth: D.maxWidth || 85,
       refFontSize: D.refFontSize || 15,
-      refColor: D.refColor || '#ffffff',
-      refPosition: D.refPosition || 'top-center',
-      refBgColor: D.refBgColor || '#2d1a3e',
-      borderColor: D.borderColor || '#50c8c8',
-      highlightColor: D.highlightColor || '#ffff00',
-      bgImage: D.bgImage || '',
-      template: D.template || 'custom'
+      refColor: D.refColor || "#ffffff",
+      refPosition: D.refPosition || "top-center",
+      refBgColor: D.refBgColor || "#2d1a3e",
+      borderColor: D.borderColor || "#50c8c8",
+      highlightColor: D.highlightColor || "#ffff00",
+      bgImage: D.bgImage || "",
+      template: D.template || "custom",
     };
   };
 
@@ -63,7 +63,9 @@
         var saved = JSON.parse(raw);
         for (var key in defaults) {
           if (defaults.hasOwnProperty(key)) {
-            this._settings[key] = saved.hasOwnProperty(key) ? saved[key] : defaults[key];
+            this._settings[key] = saved.hasOwnProperty(key)
+              ? saved[key]
+              : defaults[key];
           }
         }
       } else {
@@ -72,6 +74,12 @@
     } catch (e) {
       this._settings = defaults;
     }
+    try {
+      this._settings.bgImage =
+        localStorage.getItem("verseobs_bgimage") ||
+        this._settings.bgImage ||
+        "";
+    } catch (e) {}
     return this._settings;
   };
 
@@ -84,7 +92,7 @@
     try {
       var toStore = {};
       for (var key in this._settings) {
-        if (this._settings.hasOwnProperty(key) && key !== 'bgImage') {
+        if (this._settings.hasOwnProperty(key) && key !== "bgImage") {
           toStore[key] = this._settings[key];
         }
       }
@@ -130,6 +138,9 @@
    */
   Settings.prototype.reset = function () {
     this._settings = this._getDefaults();
+    try {
+      localStorage.removeItem("verseobs_bgimage");
+    } catch (e) {}
     this.save();
     this._updateUI();
     this._notifyChange();
@@ -139,7 +150,7 @@
    * Send UPDATE_STYLE message (excludes bgImage from broadcast).
    */
   Settings.prototype._notifyChange = function () {
-    if (typeof this.onChange === 'function') {
+    if (typeof this.onChange === "function") {
       this.onChange(this.getForMessage());
     }
   };
@@ -152,13 +163,13 @@
     var self = this;
     if (!container) return;
 
-    var inputs = container.querySelectorAll('[data-setting]');
+    var inputs = container.querySelectorAll("[data-setting]");
     self._bindings = [];
 
     for (var i = 0; i < inputs.length; i++) {
       (function (el) {
-        var key = el.getAttribute('data-setting');
-        if (!key || key === 'template') return;
+        var key = el.getAttribute("data-setting");
+        if (!key || key === "template") return;
 
         self._bindings.push({ el: el, key: key });
 
@@ -170,9 +181,13 @@
         el.addEventListener(eventType, function () {
           var val = _getInputValue(el);
           self._settings[key] = val;
+          self._settings.template = "custom";
+          if (self._templateSelect) self._templateSelect.value = "custom";
           self.save();
 
-          var display = el.parentElement && el.parentElement.querySelector('.cp-setting-value');
+          var display =
+            el.parentElement &&
+            el.parentElement.querySelector(".cp-setting-value");
           if (display) {
             display.textContent = _formatValue(key, val);
           }
@@ -191,13 +206,18 @@
       var binding = this._bindings[i];
       _setInputValue(binding.el, this._settings[binding.key]);
 
-      var display = binding.el.parentElement && binding.el.parentElement.querySelector('.cp-setting-value');
+      var display =
+        binding.el.parentElement &&
+        binding.el.parentElement.querySelector(".cp-setting-value");
       if (display) {
-        display.textContent = _formatValue(binding.key, this._settings[binding.key]);
+        display.textContent = _formatValue(
+          binding.key,
+          this._settings[binding.key],
+        );
       }
     }
     if (this._templateSelect) {
-      this._templateSelect.value = this._settings.template || 'custom';
+      this._templateSelect.value = this._settings.template || "custom";
     }
   };
 
@@ -216,6 +236,11 @@
       }
     }
     this._settings.template = templateKey;
+    if (!this._settings.bgImage) {
+      try {
+        localStorage.removeItem("verseobs_bgimage");
+      } catch (e) {}
+    }
     this.save();
     this._updateUI();
     this._notifyChange();
@@ -231,11 +256,11 @@
     self._templateSelect = templateSelect;
 
     if (templateSelect) {
-      templateSelect.value = self._settings.template || 'custom';
-      templateSelect.addEventListener('change', function () {
+      templateSelect.value = self._settings.template || "custom";
+      templateSelect.addEventListener("change", function () {
         var val = templateSelect.value;
-        if (val === 'custom') {
-          self._settings.template = 'custom';
+        if (val === "custom") {
+          self._settings.template = "custom";
           self.save();
           self._notifyChange();
         } else {
@@ -245,61 +270,61 @@
     }
 
     // Image import (downscaled to fit the localStorage quota reliably)
-    var imageInput = container.querySelector('#bg-image-input');
+    var imageInput = container.querySelector("#bg-image-input");
     if (imageInput) {
-      imageInput.addEventListener('change', function (e) {
+      imageInput.addEventListener("change", function (e) {
         var file = e.target.files && e.target.files[0];
         if (!file) return;
         _processBgImage(file, function (dataUrl) {
           if (!dataUrl) {
-            self._notify("Image illisible — essayez un autre fichier", 'error');
+            self._notify("Image illisible — essayez un autre fichier", "error");
             return;
           }
           // Store ONLY in the dedicated key (kept out of the settings blob).
           var stored = false;
           try {
-            localStorage.setItem('verseobs_bgimage', dataUrl);
+            localStorage.setItem("verseobs_bgimage", dataUrl);
             stored = true;
           } catch (err) {
             stored = false;
           }
           if (!stored) {
-            self._notify("Image trop lourde pour être enregistrée", 'error');
+            self._notify("Image trop lourde pour être enregistrée", "error");
             return;
           }
           self._settings.bgImage = dataUrl;
-          self._settings.template = 'custom';
+          self._settings.template = "custom";
           self.save();
           self._updateUI();
           self._notifyChange();
-          self._notify("Image de fond appliquée", 'success');
+          self._notify("Image de fond appliquée", "success");
         });
       });
     }
 
-    var clearImageBtn = container.querySelector('#btn-clear-bg-image');
+    var clearImageBtn = container.querySelector("#btn-clear-bg-image");
     if (clearImageBtn) {
-      clearImageBtn.addEventListener('click', function () {
-        self._settings.bgImage = '';
+      clearImageBtn.addEventListener("click", function () {
+        self._settings.bgImage = "";
         self.save();
         self._notifyChange();
         try {
-          localStorage.removeItem('verseobs_bgimage');
+          localStorage.removeItem("verseobs_bgimage");
         } catch (e) {}
-        if (imageInput) imageInput.value = '';
+        if (imageInput) imageInput.value = "";
       });
     }
 
     // Auto-switch to 'custom' when user changes any setting manually
-    var allInputs = container.querySelectorAll('[data-setting]');
+    var allInputs = container.querySelectorAll("[data-setting]");
     for (var i = 0; i < allInputs.length; i++) {
       (function (el) {
-        if (el.getAttribute('data-setting') === 'template') return;
+        if (el.getAttribute("data-setting") === "template") return;
         var evt = _getEventType(el);
         el.addEventListener(evt, function () {
-          if (self._settings.template !== 'custom') {
-            self._settings.template = 'custom';
-            if (templateSelect) templateSelect.value = 'custom';
+          if (self._settings.template !== "custom") {
+            self._settings.template = "custom";
+            if (templateSelect) templateSelect.value = "custom";
           }
         });
       })(allInputs[i]);
@@ -319,7 +344,10 @@
 
     reader.onload = function (ev) {
       var src = ev.target.result;
-      if (isSvg) { cb(src); return; }
+      if (isSvg) {
+        cb(src);
+        return;
+      }
 
       var img = new Image();
       img.onload = function () {
@@ -331,43 +359,50 @@
           var cw = Math.max(1, Math.round(w * scale));
           var ch = Math.max(1, Math.round(h * scale));
 
-          var canvas = document.createElement('canvas');
+          var canvas = document.createElement("canvas");
           canvas.width = cw;
           canvas.height = ch;
-          var ctx = canvas.getContext('2d');
+          var ctx = canvas.getContext("2d");
           ctx.drawImage(img, 0, 0, cw, ch);
 
           // Keep alpha for PNG; use JPEG (much smaller) for opaque photos.
           var keepAlpha = /png/i.test(file.type);
-          var out = canvas.toDataURL(keepAlpha ? 'image/png' : 'image/jpeg', 0.85);
+          var out = canvas.toDataURL(
+            keepAlpha ? "image/png" : "image/jpeg",
+            0.85,
+          );
 
           // If a PNG is still huge, fall back to JPEG to fit the quota.
           if (keepAlpha && out.length > 1500000) {
-            out = canvas.toDataURL('image/jpeg', 0.82);
+            out = canvas.toDataURL("image/jpeg", 0.82);
           }
           cb(out);
         } catch (e) {
           cb(null);
         }
       };
-      img.onerror = function () { cb(null); };
+      img.onerror = function () {
+        cb(null);
+      };
       img.src = src;
     };
 
-    reader.onerror = function () { cb(null); };
+    reader.onerror = function () {
+      cb(null);
+    };
     reader.readAsDataURL(file);
   }
 
   function _getEventType(el) {
     var type = el.type || el.tagName.toLowerCase();
-    if (type === 'range' || type === 'color') return 'input';
-    if (type === 'checkbox') return 'change';
-    if (el.tagName === 'SELECT') return 'change';
-    return 'change';
+    if (type === "range" || type === "color") return "input";
+    if (type === "checkbox") return "change";
+    if (el.tagName === "SELECT") return "change";
+    return "change";
   }
 
   function _setInputValue(el, val) {
-    if (el.type === 'checkbox') {
+    if (el.type === "checkbox") {
       el.checked = !!val;
     } else {
       el.value = val;
@@ -375,23 +410,25 @@
   }
 
   function _getInputValue(el) {
-    if (el.type === 'checkbox') return el.checked;
-    if (el.type === 'range' || el.type === 'number') return Number(el.value);
-    if (el.tagName === 'SELECT') {
+    if (el.type === "checkbox") return el.checked;
+    if (el.type === "range" || el.type === "number") return Number(el.value);
+    if (el.tagName === "SELECT") {
       var v = el.value;
-      if (v !== '' && !isNaN(v)) return Number(v);
+      if (v !== "" && !isNaN(v)) return Number(v);
     }
     return el.value;
   }
 
   function _formatValue(key, val) {
-    if (key === 'bgOpacity') return Math.round(val * 100) + '%';
-    if (key === 'maxWidth') return val + '%';
-    if (key === 'animationDuration') return val + 'ms';
-    if (key === 'autoHide') return Number(val) === 0 ? 'Désactivé' : (val / 1000) + 's';
-    if (key === 'fontSize' || key === 'refFontSize') return val + 'px';
-    if (key === 'borderRadius' || key === 'padding' || key === 'borderWidth') return val + 'px';
-    if (key === 'lineHeight') return (Math.round(val * 100) / 100).toString();
+    if (key === "bgOpacity") return Math.round(val * 100) + "%";
+    if (key === "maxWidth") return val + "%";
+    if (key === "animationDuration") return val + "ms";
+    if (key === "autoHide")
+      return Number(val) === 0 ? "Désactivé" : val / 1000 + "s";
+    if (key === "fontSize" || key === "refFontSize") return val + "px";
+    if (key === "borderRadius" || key === "padding" || key === "borderWidth")
+      return val + "px";
+    if (key === "lineHeight") return (Math.round(val * 100) / 100).toString();
     return String(val);
   }
 

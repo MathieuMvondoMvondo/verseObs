@@ -2,3 +2,7 @@ node_modules/
 tools/raw/
 .claude/
 *.log
+
+.DS_Store
+artifacts/
+dist/

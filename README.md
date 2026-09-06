@@ -1,180 +1,117 @@
-# VerseObs
+# VerseObs Studio
 
-Extension OBS pour afficher des versets bibliques en overlay (lower-third) pendant vos streams et enregistrements.
+Une régie biblique pour OBS : préparez un passage, organisez votre conducteur et diffusez au moment choisi. Interface en français, douze traductions locales, aucun compte requis.
 
-![Lower Third Preview](https://img.shields.io/badge/OBS-Compatible-green?style=flat-square) ![Offline](https://img.shields.io/badge/100%25-Hors--ligne-blue?style=flat-square) ![Bibles](https://img.shields.io/badge/12-Bibles-orange?style=flat-square)
+## Démarrer en local
 
-## Fonctionnalités
+Avec Node.js 18 ou plus récent :
 
-- **12 versions de la Bible** incluses (9 FR + 3 EN), fonctionnement 100% local
-- **Lower-third élégant** : pilule de référence + card translucide avec numéro de verset en exposant
-- **Recherche intelligente** : tapez `Jean 3:16`, `Jn 3:16-18`, recherchez par mots-clés (tous les mots, dans n'importe quel ordre), une `"phrase exacte"` entre guillemets, ou par référence. Résultats classés par pertinence, insensibles aux accents et à la casse, avec surlignage des mots trouvés.
-- **Navigation** : parcourez livre → chapitre → verset avec les dropdowns ou les raccourcis clavier
-- **Mode texte libre** : affichez des paroles de chants, annonces, prières
-- **Personnalisation complète** : position, animation, police, couleurs, opacité, taille...
-- **Historique** : retrouvez les 50 derniers versets affichés
-- **Communication temps réel** entre le dock de contrôle et l'overlay via BroadcastChannel
+```sh
+npm install
+npm start
+```
 
-## Bibles incluses
+Ouvrez [le studio](http://127.0.0.1:8080/control_panel.html).
 
-### Français (9 versions)
-| Version | Abréviation |
-|---------|-------------|
-| Louis Segond 1910 | LSG |
-| Bible du Semeur | SEM |
-| Nouvelle Bible Segond | NBS |
-| Martin 1744 | MAR |
-| Darby Français | DRB |
-| Crampon 1923 | CRA |
-| Perret-Gentil et Rilliet | PGR |
-| Oltramare 1874 | OLT |
-| Genève 1669 | GEN |
+Le serveur écoute uniquement sur cet ordinateur. Son relais WebSocket relie le navigateur, le dock OBS et la source, même lorsque leurs espaces de stockage sont séparés. Laissez le serveur ouvert pendant la session.
 
-### Anglais (3 versions)
-| Version | Abréviation |
-|---------|-------------|
-| King James Version | KJV |
-| Darby English | DBY |
-| Amplified Bible | AMP |
+## Connecter OBS
 
-## Installation (2 minutes)
+Dans l’onglet **Connexions**, copiez les adresses générées pour votre installation.
 
-### Prérequis
+1. **Sources → + → Navigateur** : collez l’adresse de la source, largeur `1920`, hauteur `1080`. Décochez « Arrêter la source quand elle n’est pas visible ».
+2. **Docks → Docks de navigateur personnalisés** : ajoutez l’adresse du panneau.
+3. Diffusez un passage pour vérifier le résultat dans OBS.
 
-- [OBS Studio](https://obsproject.com/) (25.0+)
-- C'est tout ! Aucune installation supplémentaire nécessaire.
+Adresses locales par défaut :
 
-### Étape 1 : Ajouter l'overlay (ce que vos spectateurs voient)
+- Studio : `http://127.0.0.1:8080/control_panel.html`
+- Source transparente : `http://127.0.0.1:8080/browser_source.html`
+- Projection avec fond sombre et bouton plein écran : `http://127.0.0.1:8080/browser_source.html?projector=1`
 
-1. Dans OBS, allez dans **Sources** → **+** → **Navigateur** (Browser Source)
-2. Nommez-le `VerseObs`
-3. URL :
-   ```
-   https://mathieumvondomvondo.github.io/verseObs/browser_source.html
-   ```
-4. Largeur : `1920` / Hauteur : `1080` (ou votre résolution de stream)
-5. **Décochez** "Arrêter la source quand elle n'est pas visible"
-6. Cliquez OK
+**Sortie connectée** signifie qu’une page de sortie répond. **Sortie confirmée** signifie que cette page a terminé son affichage. Ces indications ne confirment pas que la scène OBS est active ou que le stream est démarré. Une sortie de test compte comme une sortie.
 
-### Étape 2 : Ajouter le panneau de contrôle (votre interface)
+Référence officielle : [source Navigateur d’OBS](https://obsproject.com/kb/browser-source).
 
-1. Menu **Docks** → **Docks de navigateur personnalisés** (Custom Browser Docks)
-2. Ajoutez une entrée :
-   - Nom du dock : `VerseObs`
-   - URL :
-     ```
-     https://mathieumvondomvondo.github.io/verseObs/control_panel.html
-     ```
-3. Cliquez OK
-4. Le dock apparaît — glissez-le où vous voulez dans l'interface OBS
+## Préparer et diffuser
 
-> **C'est prêt !** Vous pouvez utiliser ces mêmes URLs sur n'importe quel ordinateur avec OBS. Aucun serveur local nécessaire.
+- Cherchez `Jean 3:16`, `Jn 3:16-18`, un mot-clé ou une `"phrase exacte"`. La recherche ignore la casse et les accents et tolère certaines fautes.
+- Explorez le chapitre avec la liste de versets ou les sélecteurs.
+- Modifiez le texte préparé et sa mise en forme. **Diffuser le passage** envoie exactement cette préparation.
+- Changer de sélection, de version, utiliser les favoris ou la recherche rapide prépare le passage sans le diffuser.
+- **Masquer**, ou `Échap`, retire le contenu de la sortie. Une commande de masquage reste prioritaire pendant une animation.
 
----
+Le moniteur **Préparation** représente votre prochain passage ; **Sortie** représente les dernières commandes de diffusion reçues. Ce moniteur ne capture pas la composition OBS. L’aperçu est recentré sur le bandeau ; **Voir le cadre complet** affiche le format 16:9. Dans un petit dock, l’aperçu s’ouvre à la demande et les commandes de diffusion restent en bas de l’écran.
 
-<details>
-<summary><strong>Alternative : installation locale (optionnel)</strong></summary>
+Les réglages d’habillage s’appliquent immédiatement aux sorties ouvertes. Ils ne changent pas le passage diffusé.
 
-Si vous préférez héberger VerseObs localement (sans connexion internet) :
+## Un conducteur pour l’équipe
 
-1. Installez [Node.js](https://nodejs.org/) (16+)
-2. Clonez le projet :
-   ```bash
-   git clone https://github.com/MathieuMvondoMvondo/verseObs.git
-   cd verseObs
-   ```
-3. Lancez le serveur local :
-   ```bash
-   npm run serve
-   ```
-4. Utilisez ces URLs dans OBS à la place :
-   - Overlay : `http://localhost:8080/browser_source.html`
-   - Panneau de contrôle : `http://localhost:8080/control_panel.html`
+Ajoutez vos passages et textes avec **Ajouter au conducteur**. Sur grand écran, le conducteur reste visible à côté de votre préparation.
 
-> Laissez le serveur tourner pendant toute votre session OBS.
+- Sélectionnez un élément, puis cliquez **Diffuser la sélection**.
+- Les flèches précédent/suivant changent la sélection ; les petites flèches de chaque ligne changent l’ordre.
+- Nommez votre session : le nom, les textes, leur ordre et la sélection sont conservés localement.
+- **Exporter** produit un fichier `.verseobs.json` avec les textes et leur mise en forme. Votre équipier peut l’importer sur un autre ordinateur.
+- **Importer** ajoute les éléments aux préparations existantes ; les contenus du fichier sont validés avant application.
+- **Imprimer** propose un conducteur lisible avec les textes complets.
+- **Vider le conducteur** peut être annulé tant que le studio reste ouvert.
 
-</details>
+Le conducteur est limité à 500 éléments. Le transfert par fichier est explicite ; il n’existe pas de synchronisation collaborative dans le cloud.
 
-## Utilisation
+## Textes et chants
 
-### Afficher un verset
+Préparez des paroles, une annonce ou une prière. Votre brouillon est conservé lorsque vous rechargez le studio. Les textes nommés restent disponibles dans votre bibliothèque.
 
-1. Sélectionnez une **version** (LSG, Semeur, etc.)
-2. Tapez une référence dans la barre de recherche (`Jean 3:16`, `Ps 23:1`, `Rom 8:28`)
-3. Ou naviguez avec les dropdowns Livre → Chapitre → Verset
-4. Cliquez **Afficher** ou appuyez sur `Ctrl+Enter`
+Séparez les couplets par une ligne vide, puis cliquez **Créer une diapositive par couplet** pour ajouter les diapositives numérotées au conducteur.
 
-### Masquer le verset
+## Habillage intuitif
 
-- Cliquez **Masquer** ou appuyez sur `Échap`
+Trois bases visuelles : **Studio**, **Papier**, **Cinéma**. Les styles historiques restent accessibles dans les détails.
 
-### Raccourcis clavier
+- **L’essentiel** : position, largeur, police, taille, couleur, opacité, apparition et délai de masquage.
+- **Les détails** : référence, bordure, interligne, couleurs, image de fond et durée de transition.
+- **Sauvegarde** : exporter/restaurer les données durables du studio ou réinitialiser l’habillage.
+
+L’aperçu des paramètres reste compact. Les sauvegardes n’incluent jamais les commandes temporaires de diffusion. L’import est validé avant modification et restaure les anciennes valeurs si une écriture échoue.
+
+## Raccourcis
+
+`Ctrl` sur Windows/Linux, `⌘` sur Mac.
 
 | Raccourci | Action |
-|-----------|--------|
-| `Ctrl+Enter` | Afficher le verset / texte libre |
-| `Échap` | Masquer |
-| `Ctrl+←` | Verset précédent |
-| `Ctrl+→` | Verset suivant |
-| `Ctrl+F` | Focus sur la recherche |
+| --- | --- |
+| `Ctrl/⌘ + Entrée` | Diffuser la préparation ou la sélection du conducteur |
+| `Échap` | Masquer la sortie ; fermer d’abord une aide/recherche ouverte |
+| `Ctrl/⌘ + K` | Recherche rapide ; Entrée prépare le résultat |
+| `Ctrl/⌘ + F` | Rechercher dans la Bible |
+| `Ctrl/⌘ + ← / →` | Préparer le passage ou l’élément précédent/suivant |
+| `?` | Aide |
 
-### Mode texte libre
+Les onglets se parcourent aussi avec les flèches du clavier. Les transitions respectent la préférence de réduction des animations.
 
-Passez à l'onglet **Texte libre** pour afficher n'importe quel texte : paroles de chants, annonces, prières, etc.
+## Traductions
 
-### Paramètres
+Les douze jeux de données du dépôt sont conservés : LSG, NBS, SEM, MAR, DRB, CRA, PGR, OLT, GEN, KJV, DBY et AMP. Les fichiers locaux sont chargés à la demande. Aucune API distante n’est nécessaire pour les versions incluses avec le serveur local.
 
-L'onglet **Paramètres** permet de personnaliser :
+Les outils de téléchargement/conversion se trouvent dans `tools/`. Leurs fournisseurs et les droits de redistribution propres à chaque traduction doivent être vérifiés avant de redistribuer les données ; l’accès public à une API ne constitue pas une licence de redistribution.
 
-- **Position** : Lower-third, Upper-third, Centre, Plein écran
-- **Animation** : Fade, Slide, Typewriter, Aucune
-- **Typographie** : police, taille, couleur du texte et de la référence
-- **Arrière-plan** : couleur, opacité, ombre, rayon de bordure
-- **Auto-masquer** : timer configurable (5s à 60s)
+## Hébergement statique
 
-Les paramètres sont sauvegardés automatiquement dans le navigateur.
+Le studio reste compatible avec GitHub Pages et d’autres serveurs statiques. Les routes historiques `control_panel.html` et `browser_source.html` sont conservées ; la racine ouvre le studio.
 
-## Structure du projet
+En hébergement statique, la communication utilise BroadcastChannel et localStorage. Le panneau et la sortie doivent partager la même origine et un espace navigateur compatible. Un navigateur externe et OBS peuvent être isolés : utilisez alors `npm start` avec les adresses locales. Le relais ne fonctionne pas sur GitHub Pages.
 
-```
-verseObs/
-├── control_panel.html          # Interface de contrôle (dock OBS)
-├── browser_source.html         # Overlay transparent (source navigateur OBS)
-├── assets/
-│   ├── css/
-│   │   ├── control.css         # Thème sombre pour le dock
-│   │   └── display.css         # Styles de l'overlay
-│   └── js/
-│       ├── shared/             # Code partagé (constantes, livres, communication)
-│       ├── control/            # Modules du panneau de contrôle
-│       └── display/            # Modules de l'overlay
-├── data/
-│   ├── bibles/                 # Fichiers JSON des Bibles (générés)
-│   │   └── index.json          # Registre des versions
-│   └── books/                  # Noms des livres FR/EN
-├── tools/                      # Scripts de téléchargement et conversion
-└── package.json
+## Développement et vérification
+
+```sh
+npm run check
+npm test
 ```
 
-## Architecture technique
+- `check` vérifie la syntaxe JavaScript, les identifiants HTML et la présence des assets.
+- Les tests couvrent recherche, plages de versets, préparation distincte du direct, conducteur, import, animations concurrentes, déduplication et relais local.
+- Aucun framework ni dépendance JavaScript tiers n’est chargé par le frontend. `ws` est utilisé uniquement par le serveur local ; `jsdom` sert uniquement aux tests.
+- Les icônes Lucide sont incluses dans `assets/icons/`, avec leur licence.
 
-- **HTML/CSS/JS pur** — zéro dépendance runtime, pas de framework
-- **Pas de modules ES** — compatible `file://`, scripts classiques avec namespace `window.VerseObs`
-- **Communication** : BroadcastChannel API avec fallback localStorage pour la communication entre le dock et l'overlay
-- **Données** : fichiers JSON locaux (~5 MB par Bible), chargés avec fetch + fallback XMLHttpRequest
-
-## Sécurité
-
-- **100% statique** : aucun serveur backend, aucune base de données
-- **Aucune donnée personnelle** collectée — pas de cookies, pas de tracking, pas d'analytics
-- **Hébergé sur GitHub Pages** : HTTPS par défaut, code source ouvert et vérifiable
-- **BroadcastChannel** : la communication entre le dock et l'overlay est limitée au même domaine — personne d'autre ne peut envoyer de commandes à votre overlay
-
-## Licence
-
-Les textes bibliques inclus proviennent de sources dans le domaine public ou sous licence libre :
-- [scrollmapper/bible_databases](https://github.com/scrollmapper/bible_databases) (domaine public)
-- [getbible.net](https://getbible.net/) (API publique)
-- [bolls.life](https://bolls.life/) (API publique)
-
-Le code source de VerseObs est sous licence MIT.
+Le serveur local n’expose que les pages et assets du produit, refuse les origines WebSocket externes et ne conserve pas les commandes en mémoire après redémarrage. Aucun service d’analyse ni collecte de données n’est ajouté.

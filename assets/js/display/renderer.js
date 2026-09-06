@@ -1,6 +1,6 @@
 /* VerseObs - Verse Renderer */
 (function () {
-  'use strict';
+  "use strict";
 
   window.VerseObs = window.VerseObs || {};
 
@@ -8,7 +8,12 @@
   var POSITIONS = window.VerseObs.POSITIONS;
   var Animations = window.VerseObs.Animations;
 
-  var REF_POSITIONS = ['ref-top-left', 'ref-top-right', 'ref-top-center', 'ref-inline'];
+  var REF_POSITIONS = [
+    "ref-top-left",
+    "ref-top-right",
+    "ref-top-center",
+    "ref-inline",
+  ];
 
   /**
    * Renderer class - renders verses to the DOM.
@@ -20,7 +25,7 @@
     this.currentPosition = DEFAULTS.position;
     this.currentAnimation = DEFAULTS.animation;
     this.animationDuration = DEFAULTS.animationDuration;
-    this._refPosition = DEFAULTS.refPosition || 'top-center';
+    this._refPosition = DEFAULTS.refPosition || "top-center";
     this._visible = false;
     this._animating = false;
   }
@@ -31,30 +36,30 @@
    * @returns {HTMLElement}
    */
   Renderer.prototype.createVerseElement = function (data) {
-    var card = document.createElement('div');
-    card.className = 'verse-card hidden';
+    var card = document.createElement("div");
+    card.className = "verse-card hidden";
 
     // Apply ref position class
-    var refPos = this._refPosition || 'top-center';
-    card.classList.add('ref-' + refPos);
+    var refPos = this._refPosition || "top-center";
+    card.classList.add("ref-" + refPos);
 
     // Reference pill on top (hidden via CSS when inline)
     if (data.reference) {
-      var refEl = document.createElement('div');
-      refEl.className = 'verse-reference';
+      var refEl = document.createElement("div");
+      refEl.className = "verse-reference";
       refEl.textContent = data.reference;
       card.appendChild(refEl);
     }
 
     // Inline reference bar - always created, shown/hidden via CSS
     if (data.reference) {
-      var inlineRef = document.createElement('div');
-      inlineRef.className = 'verse-inline-ref';
-      var refLeft = document.createElement('span');
+      var inlineRef = document.createElement("div");
+      inlineRef.className = "verse-inline-ref";
+      var refLeft = document.createElement("span");
       refLeft.textContent = data.reference;
       inlineRef.appendChild(refLeft);
       if (data.version) {
-        var refRight = document.createElement('span');
+        var refRight = document.createElement("span");
         refRight.textContent = data.version;
         inlineRef.appendChild(refRight);
       }
@@ -62,44 +67,44 @@
     }
 
     // Text body card
-    var body = document.createElement('div');
-    body.className = 'verse-body';
+    var body = document.createElement("div");
+    body.className = "verse-body";
 
     // Title (for free text mode)
     if (data.title) {
-      var titleEl = document.createElement('div');
-      titleEl.className = 'verse-title';
+      var titleEl = document.createElement("div");
+      titleEl.className = "verse-title";
       titleEl.textContent = data.title;
       body.appendChild(titleEl);
     }
 
     // Subtitle (for free text mode)
     if (data.subtitle) {
-      var subtitleEl = document.createElement('div');
-      subtitleEl.className = 'verse-subtitle';
+      var subtitleEl = document.createElement("div");
+      subtitleEl.className = "verse-subtitle";
       subtitleEl.textContent = data.subtitle;
       body.appendChild(subtitleEl);
     }
 
-    var textEl = document.createElement('div');
-    textEl.className = 'verse-text';
+    var textEl = document.createElement("div");
+    textEl.className = "verse-text";
 
     // Use formatted HTML if provided, otherwise plain text.
     // The HTML originates from the control panel's formatting toolbar, but we
     // sanitize defensively so only known-safe inline tags ever reach the DOM.
     if (data.html) {
-      textEl.innerHTML = sanitizeHtml(data.html);
+      textEl.innerHTML = window.VerseObs.sanitizeHtml(data.html);
     } else {
-      var text = data.text || '';
-      var verseNum = '';
+      var text = data.text || "";
+      var verseNum = "";
       if (data.reference) {
         var match = data.reference.match(/:(\d+)/);
         if (match) verseNum = match[1];
       }
 
       if (verseNum) {
-        var sup = document.createElement('sup');
-        sup.className = 'verse-num';
+        var sup = document.createElement("sup");
+        sup.className = "verse-num";
         sup.textContent = verseNum;
         textEl.appendChild(sup);
         textEl.appendChild(document.createTextNode(text));
@@ -122,7 +127,7 @@
     for (var i = 0; i < REF_POSITIONS.length; i++) {
       this.card.classList.remove(REF_POSITIONS[i]);
     }
-    this.card.classList.add('ref-' + (this._refPosition || 'top-center'));
+    this.card.classList.add("ref-" + (this._refPosition || "top-center"));
   };
 
   /**
@@ -133,7 +138,7 @@
       POSITIONS.LOWER_THIRD,
       POSITIONS.UPPER_THIRD,
       POSITIONS.CENTER,
-      POSITIONS.FULLSCREEN
+      POSITIONS.FULLSCREEN,
     ];
     for (var i = 0; i < all.length; i++) {
       this.container.classList.remove(all[i]);
@@ -151,43 +156,46 @@
     var root = document.documentElement;
 
     if (style.textColor !== undefined) {
-      root.style.setProperty('--text-color', style.textColor);
+      root.style.setProperty("--text-color", style.textColor);
     }
     if (style.bgColor !== undefined) {
       var rgb = hexToRgb(style.bgColor);
       if (rgb) {
-        root.style.setProperty('--bg-color', rgb.r + ', ' + rgb.g + ', ' + rgb.b);
+        root.style.setProperty(
+          "--bg-color",
+          rgb.r + ", " + rgb.g + ", " + rgb.b,
+        );
       }
     }
     if (style.bgOpacity !== undefined) {
-      root.style.setProperty('--bg-opacity', String(style.bgOpacity));
+      root.style.setProperty("--bg-opacity", String(style.bgOpacity));
     }
     if (style.fontSize !== undefined) {
-      root.style.setProperty('--font-size', style.fontSize + 'px');
+      root.style.setProperty("--font-size", style.fontSize + "px");
     }
     if (style.fontFamily !== undefined) {
-      root.style.setProperty('--font-family', style.fontFamily);
+      root.style.setProperty("--font-family", style.fontFamily);
     }
     if (style.padding !== undefined) {
-      root.style.setProperty('--padding', style.padding + 'px');
+      root.style.setProperty("--padding", style.padding + "px");
     }
     if (style.borderRadius !== undefined) {
-      root.style.setProperty('--border-radius', style.borderRadius + 'px');
+      root.style.setProperty("--border-radius", style.borderRadius + "px");
     }
     if (style.maxWidth !== undefined) {
-      root.style.setProperty('--max-width', style.maxWidth + '%');
+      root.style.setProperty("--max-width", style.maxWidth + "%");
     }
     if (style.refColor !== undefined) {
-      root.style.setProperty('--ref-color', style.refColor);
+      root.style.setProperty("--ref-color", style.refColor);
     }
     if (style.refFontSize !== undefined) {
-      root.style.setProperty('--ref-font-size', style.refFontSize + 'px');
+      root.style.setProperty("--ref-font-size", style.refFontSize + "px");
     }
     if (style.shadow !== undefined) {
-      if (style.shadow === false || style.shadow === 'none') {
-        root.style.setProperty('--shadow', 'none');
+      if (style.shadow === false || style.shadow === "none") {
+        root.style.setProperty("--shadow", "none");
       } else {
-        root.style.setProperty('--shadow', '0 4px 20px rgba(0, 0, 0, 0.5)');
+        root.style.setProperty("--shadow", "0 4px 20px rgba(0, 0, 0, 0.5)");
       }
     }
     if (style.position !== undefined) {
@@ -200,32 +208,32 @@
       this.animationDuration = style.animationDuration;
     }
     if (style.refBgColor !== undefined) {
-      root.style.setProperty('--ref-bg-color', style.refBgColor);
+      root.style.setProperty("--ref-bg-color", style.refBgColor);
     }
     if (style.borderColor !== undefined) {
-      root.style.setProperty('--border-color', style.borderColor);
+      root.style.setProperty("--border-color", style.borderColor);
     }
     if (style.borderWidth !== undefined) {
-      root.style.setProperty('--border-width', style.borderWidth + 'px');
+      root.style.setProperty("--border-width", style.borderWidth + "px");
     }
     if (style.refPosition !== undefined) {
       this._refPosition = style.refPosition;
       this._updateRefPositionClass();
     }
     if (style.textAlign !== undefined) {
-      root.style.setProperty('--text-align', style.textAlign);
+      root.style.setProperty("--text-align", style.textAlign);
     }
     if (style.lineHeight !== undefined) {
-      root.style.setProperty('--line-height', String(style.lineHeight));
+      root.style.setProperty("--line-height", String(style.lineHeight));
     }
     if (style.highlightColor !== undefined) {
-      root.style.setProperty('--highlight-color', style.highlightColor);
+      root.style.setProperty("--highlight-color", style.highlightColor);
     }
     if (style.bgImage !== undefined) {
       if (style.bgImage) {
-        root.style.setProperty('--bg-image', 'url("' + style.bgImage + '")');
+        root.style.setProperty("--bg-image", 'url("' + style.bgImage + '")');
       } else {
-        root.style.setProperty('--bg-image', 'none');
+        root.style.setProperty("--bg-image", "none");
       }
     }
   };
@@ -234,128 +242,74 @@
    * Show a verse with animation.
    */
   Renderer.prototype.show = function (data) {
-    var self = this;
-
-    if (self._animating) {
-      return Promise.resolve();
-    }
+    var self = this,
+      token = (self._generation || 0) + 1;
+    self._generation = token;
+    var previous = self.card;
+    var wasAnimating = self._animating;
     self._animating = true;
-
-    if (data.style) {
-      self.updateStyle(data.style);
-    }
-
-    if (data.position) {
-      self._setPosition(data.position);
-    }
-
+    if (data.style) self.updateStyle(data.style);
+    if (data.position) self._setPosition(data.position);
     var animation = data.animation || self.currentAnimation;
-    var duration = data.animationDuration || self.animationDuration;
-
-    var hidePromise;
-    if (self._visible && self.card) {
-      hidePromise = Animations.animate(self.card, animation, 'out', {
-        position: self.currentPosition,
-        duration: duration
-      }).then(function () {
-        if (self.card && self.card.parentNode) {
-          self.card.parentNode.removeChild(self.card);
-        }
+    var duration =
+      data.animationDuration !== undefined
+        ? data.animationDuration
+        : self.animationDuration;
+    var out =
+      previous && !wasAnimating
+        ? Animations.animate(previous, animation, "out", {
+            position: self.currentPosition,
+            duration: duration,
+          })
+        : Promise.resolve();
+    return out
+      .then(function () {
+        if (token !== self._generation) return false;
+        self.container.replaceChildren();
+        self.card = self.createVerseElement(data);
+        self.container.appendChild(self.card);
+        return Animations.animate(self.card, animation, "in", {
+          position: self.currentPosition,
+          duration: duration,
+        });
+      })
+      .then(function () {
+        if (token !== self._generation) return false;
+        self._visible = true;
+        self._animating = false;
+        return true;
       });
-    } else {
-      hidePromise = Promise.resolve();
-    }
-
-    return hidePromise.then(function () {
-      self.card = self.createVerseElement(data);
-      self.container.appendChild(self.card);
-
-      return Animations.animate(self.card, animation, 'in', {
-        position: self.currentPosition,
-        duration: duration
-      });
-    }).then(function () {
-      self._visible = true;
-      self._animating = false;
-    });
   };
-
-  /**
-   * Hide the current verse with animation.
-   */
   Renderer.prototype.hide = function () {
-    var self = this;
-
-    if (!self._visible || !self.card || self._animating) {
-      return Promise.resolve();
-    }
+    var self = this,
+      token = (self._generation || 0) + 1;
+    self._generation = token;
+    var card = self.card,
+      busy = self._animating;
+    self._visible = false;
     self._animating = true;
-
-    var animation = self.currentAnimation;
-    var duration = self.animationDuration;
-
-    return Animations.animate(self.card, animation, 'out', {
-      position: self.currentPosition,
-      duration: duration
-    }).then(function () {
-      if (self.card && self.card.parentNode) {
-        self.card.parentNode.removeChild(self.card);
-      }
+    var out =
+      card && !busy
+        ? Animations.animate(card, self.currentAnimation, "out", {
+            position: self.currentPosition,
+            duration: self.animationDuration,
+          })
+        : Promise.resolve();
+    return out.then(function () {
+      if (token !== self._generation) return false;
+      self.container.replaceChildren();
       self.card = null;
-      self._visible = false;
       self._animating = false;
+      return true;
     });
   };
-
-  // Tags allowed inside formatted verse/text HTML. Anything else is unwrapped
-  // (kept as text) or dropped, and all attributes except a safe style are removed.
-  var ALLOWED_TAGS = { B: 1, I: 1, U: 1, STRONG: 1, EM: 1, MARK: 1, SPAN: 1, BR: 1, SUP: 1 };
-
-  /**
-   * Sanitize a formatting HTML fragment: keep only whitelisted inline tags,
-   * strip all attributes except a background-color style on <mark>/<span>.
-   */
-  function sanitizeHtml(html) {
-    var template = document.createElement('div');
-    template.innerHTML = String(html);
-    _sanitizeNode(template);
-    return template.innerHTML;
-  }
-
-  function _sanitizeNode(node) {
-    var children = Array.prototype.slice.call(node.childNodes);
-    for (var i = 0; i < children.length; i++) {
-      var child = children[i];
-      if (child.nodeType === 1) { // element
-        if (!ALLOWED_TAGS[child.nodeName]) {
-          // Unwrap unknown elements: replace with their text content.
-          node.replaceChild(document.createTextNode(child.textContent || ''), child);
-          continue;
-        }
-        // Strip every attribute, then restore a safe background-color and the
-        // known verse-number class only.
-        var bg = '';
-        if (child.style && child.style.backgroundColor) bg = child.style.backgroundColor;
-        var keepClass = (child.getAttribute('class') === 'verse-num') ? 'verse-num' : '';
-        while (child.attributes.length > 0) {
-          child.removeAttribute(child.attributes[0].name);
-        }
-        if (bg) child.style.backgroundColor = bg;
-        if (keepClass) child.setAttribute('class', keepClass);
-        _sanitizeNode(child);
-      } else if (child.nodeType !== 3) {
-        // Drop comments, etc. (keep only elements and text)
-        node.removeChild(child);
-      }
-    }
-  }
 
   /**
    * Convert hex color to {r, g, b}.
    */
   function hexToRgb(hex) {
     if (!hex) return null;
-    hex = hex.replace(/^#/, '');
+    hex = hex.replace(/^#/, "");
     if (hex.length === 3) {
       hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
     }
@@ -364,7 +318,7 @@
     return {
       r: (num >> 16) & 255,
       g: (num >> 8) & 255,
-      b: num & 255
+      b: num & 255,
     };
   }
 

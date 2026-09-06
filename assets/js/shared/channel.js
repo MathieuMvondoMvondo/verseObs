@@ -1,230 +1,127 @@
+/* One command, one delivery across browser, storage and the optional local relay. */
 window.VerseObs = window.VerseObs || {};
-
-/**
- * Communication channel that tries BroadcastChannel first,
- * then falls back to localStorage polling if unavailable or unresponsive.
- *
- * Usage:
- *   var ch = new window.VerseObs.Channel();
- *   ch.onMessage(function(msg) { console.log(msg); });
- *   ch.send({ type: 'show_verse', text: 'John 3:16', ts: Date.now() });
- *   ch.destroy();
- *
- * @constructor
- */
-window.VerseObs.Channel = function(opts) {
-  var self = this;
-  var channelName = window.VerseObs.CHANNEL_NAME || 'verseobs';
-  var lsKey = window.VerseObs.LS_KEY || 'verseobs_msg';
-  var MSG = window.VerseObs.MSG || {};
-  // Auto-PONG can be disabled (e.g. the in-dock preview must stay invisible to
-  // the control panel's connection detection).
-  var autoPong = !(opts && opts.autoPong === false);
-
-  self._listeners = [];
-  self._bc = null;
-  self._pollInterval = null;
-  self._lastLsTs = 0;
-  self._mode = null; // 'broadcast' or 'localstorage'
-  self._destroyed = false;
-  self._pendingPong = false;
-
-  // ── Internal: dispatch a message to all registered callbacks ──
-  function _dispatch(msg) {
-    if (self._destroyed) return;
-    for (var i = 0; i < self._listeners.length; i++) {
-      try {
-        self._listeners[i](msg);
-      } catch (e) {
-        // Swallow listener errors to keep other listeners running
-      }
-    }
-  }
-
-  // ── Internal: handle incoming raw message data ──
-  function _handleRaw(data) {
-    if (!data || typeof data !== 'object') return;
-
-    // If we sent a PING and got a PONG back, confirm BroadcastChannel works
-    if (data.type === MSG.PONG && self._pendingPong) {
-      self._pendingPong = false;
+window.VerseObs.Channel = function (opts) {
+  "use strict";
+  opts = opts || {};
+  var self = this,
+    V = window.VerseObs;
+  var name = V.CHANNEL_NAME || "verseobs",
+    key = V.LS_KEY || "verseobs_msg";
+  var sender =
+    Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
+  var seq = 0,
+    seen = new Set(),
+    listeners = [],
+    bc = null,
+    ws = null;
+  var stopped = false,
+    reconnect = null,
+    poll = null;
+  // Ignore the prior run's transient command; reloading a source never goes live.
+  var lastRaw = null;
+  try {
+    lastRaw = localStorage.getItem(key);
+  } catch (e) {}
+  function receive(msg) {
+    if (
+      stopped ||
+      !msg ||
+      typeof msg !== "object" ||
+      typeof msg.type !== "string"
+    )
       return;
-    }
-
-    // Auto-respond to PINGs with a PONG (unless disabled, e.g. preview mode)
-    if (data.type === MSG.PING) {
-      if (autoPong) self._sendRaw({ type: MSG.PONG, ts: Date.now() });
-      return;
-    }
-
-    _dispatch(data);
+    if (msg.sender === sender) return;
+    var id = msg.id || msg.type + ":" + (msg.ts || msg.timestamp || "");
+    if (seen.has(id)) return;
+    seen.add(id);
+    if (seen.size > 600) seen.delete(seen.values().next().value);
+    if (msg.type === V.MSG.PING && opts.autoPong !== false)
+      self.send({ type: V.MSG.PONG });
+    listeners.slice().forEach(function (fn) {
+      fn(msg);
+    });
   }
-
-  // ── Internal: send raw data through the active transport ──
-  self._sendRaw = function(msg) {
-    if (self._bc && self._mode === 'broadcast') {
-      try {
-        self._bc.postMessage(msg);
-        return;
-      } catch (e) {
-        // BroadcastChannel may have been closed; fall through to localStorage
-      }
-    }
-    // localStorage transport
+  function readStorage(raw) {
+    if (!raw || raw === lastRaw) return;
+    lastRaw = raw;
     try {
-      localStorage.setItem(lsKey, JSON.stringify(msg));
-    } catch (e) {
-      // localStorage may be full or disabled
-    }
-  };
-
-  // ── localStorage polling setup ──
-  function _startLsPoll() {
-    if (self._pollInterval) return;
-
-    // Listen for storage events from other tabs
-    self._storageHandler = function(e) {
-      if (e.key !== lsKey || !e.newValue) return;
-      try {
-        var data = JSON.parse(e.newValue);
-        if (data.ts && data.ts > self._lastLsTs) {
-          self._lastLsTs = data.ts;
-          _handleRaw(data);
-        }
-      } catch (err) {
-        // Ignore malformed data
-      }
+      var m = JSON.parse(raw);
+      if (!m.ts || Math.abs(Date.now() - m.ts) < 15000) receive(m);
+    } catch (e) {}
+  }
+  function onStorage(e) {
+    if (e.key === key) readStorage(e.newValue);
+  }
+  window.addEventListener("storage", onStorage);
+  poll = setInterval(function () {
+    try {
+      readStorage(localStorage.getItem(key));
+    } catch (e) {}
+  }, 120);
+  try {
+    bc = new BroadcastChannel(name);
+    bc.onmessage = function (e) {
+      receive(e.data);
     };
-    window.addEventListener('storage', self._storageHandler);
-
-    // Also poll for same-tab messages (storage event doesn't fire in same tab)
-    self._pollInterval = setInterval(function() {
-      if (self._destroyed) return;
-      try {
-        var raw = localStorage.getItem(lsKey);
-        if (!raw) return;
-        var data = JSON.parse(raw);
-        if (data.ts && data.ts > self._lastLsTs) {
-          self._lastLsTs = data.ts;
-          _handleRaw(data);
-        }
-      } catch (err) {
-        // Ignore
-      }
-    }, 200);
+  } catch (e) {}
+  function relayState(connected) {
+    if (typeof opts.onTransport === "function") opts.onTransport(connected);
   }
-
-  function _stopLsPoll() {
-    if (self._pollInterval) {
-      clearInterval(self._pollInterval);
-      self._pollInterval = null;
-    }
-    if (self._storageHandler) {
-      window.removeEventListener('storage', self._storageHandler);
-      self._storageHandler = null;
-    }
-  }
-
-  // ── Initialization: try BroadcastChannel, fall back to localStorage ──
-  function _init() {
-    // Always start localStorage as a baseline so messages are never lost
-    _startLsPoll();
-
-    if (typeof BroadcastChannel === 'undefined') {
-      self._mode = 'localstorage';
+  function connectRelay() {
+    if (stopped || opts.relay === false || typeof WebSocket === "undefined")
       return;
-    }
-
-    try {
-      self._bc = new BroadcastChannel(channelName);
-    } catch (e) {
-      self._mode = 'localstorage';
-      return;
-    }
-
-    self._bc.onmessage = function(e) {
-      _handleRaw(e.data);
+    if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) return;
+    ws = new WebSocket(
+      (location.protocol === "https:" ? "wss://" : "ws://") +
+        location.host +
+        "/verseobs-relay",
+    );
+    ws.onopen = function () {
+      relayState(true);
+      if (opts.autoPong === false) self.send({ type: V.MSG.PING });
     };
-
-    // Send a PING and wait up to 1 second for a PONG
-    self._pendingPong = true;
-    self._mode = 'broadcast';
-
-    try {
-      self._bc.postMessage({ type: MSG.PING, ts: Date.now() });
-    } catch (e) {
-      self._mode = 'localstorage';
-      self._pendingPong = false;
-      return;
-    }
-
-    self._pongTimeout = setTimeout(function() {
-      if (self._destroyed) return;
-      // If no PONG received, BroadcastChannel may not be working across contexts
-      // Keep it alive anyway (it works, just no other tab responded yet)
-      // Both transports run in parallel for maximum reliability
-      self._pendingPong = false;
-    }, 1000);
-  }
-
-  _init();
-
-  // ── Public API ──
-
-  /**
-   * Send a message to all other tabs/windows.
-   * Automatically adds a timestamp if not present.
-   * @param {object} msg - The message object to send
-   */
-  self.send = function(msg) {
-    if (self._destroyed) return;
-    if (!msg.ts) msg.ts = Date.now();
-
-    // Send through BroadcastChannel if available
-    if (self._bc && self._mode === 'broadcast') {
+    ws.onmessage = function (e) {
       try {
-        self._bc.postMessage(msg);
-      } catch (e) {
-        // Fall through to localStorage
-      }
-    }
-
-    // Always write to localStorage as well for maximum compatibility
+        receive(JSON.parse(e.data));
+      } catch (err) {}
+    };
+    ws.onerror = function () {};
+    ws.onclose = function () {
+      relayState(false);
+      if (!stopped) reconnect = setTimeout(connectRelay, 4000);
+    };
+  }
+  self.send = function (msg) {
+    if (stopped) return;
+    msg = Object.assign({}, msg, {
+      sender: sender,
+      id: sender + ":" + ++seq,
+      ts: Date.now(),
+    });
+    var raw = JSON.stringify(msg);
     try {
-      localStorage.setItem(lsKey, JSON.stringify(msg));
-    } catch (e) {
-      // localStorage may be unavailable
-    }
+      if (bc) bc.postMessage(msg);
+    } catch (e) {}
+    try {
+      lastRaw = raw;
+      localStorage.setItem(key, raw);
+    } catch (e) {}
+    try {
+      if (ws && ws.readyState === 1) ws.send(raw);
+    } catch (e) {}
+    return msg.id;
   };
-
-  /**
-   * Register a callback for incoming messages.
-   * @param {function} callback - Function called with the message object
-   */
-  self.onMessage = function(callback) {
-    if (typeof callback === 'function') {
-      self._listeners.push(callback);
-    }
+  self.onMessage = function (fn) {
+    if (typeof fn === "function") listeners.push(fn);
   };
-
-  /**
-   * Clean up all resources (BroadcastChannel, intervals, event listeners).
-   */
-  self.destroy = function() {
-    self._destroyed = true;
-    self._listeners = [];
-
-    if (self._pongTimeout) {
-      clearTimeout(self._pongTimeout);
-      self._pongTimeout = null;
-    }
-
-    if (self._bc) {
-      try { self._bc.close(); } catch (e) {}
-      self._bc = null;
-    }
-
-    _stopLsPoll();
-    self._mode = null;
+  self.destroy = function () {
+    stopped = true;
+    listeners = [];
+    clearInterval(poll);
+    clearTimeout(reconnect);
+    window.removeEventListener("storage", onStorage);
+    if (bc) bc.close();
+    if (ws) ws.close();
   };
+  connectRelay();
 };

@@ -1,6 +1,6 @@
 /* VerseObs - Animation handling */
 (function () {
-  'use strict';
+  "use strict";
 
   window.VerseObs = window.VerseObs || {};
 
@@ -11,10 +11,13 @@
    */
   function clearAnimClasses(el) {
     var classes = [
-      'anim-fade-in', 'anim-fade-out',
-      'anim-slide-up-in', 'anim-slide-up-out',
-      'anim-slide-down-in', 'anim-slide-down-out',
-      'anim-typewriter'
+      "anim-fade-in",
+      "anim-fade-out",
+      "anim-slide-up-in",
+      "anim-slide-up-out",
+      "anim-slide-down-in",
+      "anim-slide-down-out",
+      "anim-typewriter",
     ];
     for (var i = 0; i < classes.length; i++) {
       el.classList.remove(classes[i]);
@@ -27,11 +30,11 @@
    * Upper-third: slides down on in, up on out.
    */
   function getSlideClass(position, direction) {
-    var isUpper = position === 'upper-third';
-    if (direction === 'in') {
-      return isUpper ? 'anim-slide-down-in' : 'anim-slide-up-in';
+    var isUpper = position === "upper-third";
+    if (direction === "in") {
+      return isUpper ? "anim-slide-down-in" : "anim-slide-up-in";
     }
-    return isUpper ? 'anim-slide-up-out' : 'anim-slide-down-out'; // direction === 'out' is implied since we only have 'in' and 'out'
+    return isUpper ? "anim-slide-up-out" : "anim-slide-down-out"; // direction === 'out' is implied since we only have 'in' and 'out'
   }
 
   /**
@@ -40,7 +43,7 @@
    */
   function typewrite(el, duration) {
     return new Promise(function (resolve) {
-      var textEl = el.querySelector('.verse-text');
+      var textEl = el.querySelector(".verse-text");
       if (!textEl) {
         resolve();
         return;
@@ -53,10 +56,10 @@
       }
 
       // Make element visible immediately
-      el.classList.remove('hidden');
-      el.style.opacity = '1';
-      textEl.textContent = '';
-      el.classList.add('anim-typewriter');
+      el.classList.remove("hidden");
+      el.style.opacity = "1";
+      textEl.textContent = "";
+      el.classList.add("anim-typewriter");
 
       var charDelay = Math.max(20, Math.min(80, duration / fullText.length));
       var index = 0;
@@ -86,69 +89,75 @@
   function animate(el, type, direction, opts) {
     opts = opts || {};
     var position = opts.position || DEFAULTS.position;
-    var duration = opts.duration || DEFAULTS.animationDuration;
+    var duration =
+      opts.duration !== undefined ? opts.duration : DEFAULTS.animationDuration;
+    if (
+      window.matchMedia &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    )
+      type = "none";
 
     return new Promise(function (resolve) {
       clearAnimClasses(el);
 
       // None: instant show/hide
-      if (type === 'none') {
-        if (direction === 'in') {
-          el.classList.remove('hidden');
-          el.style.opacity = '1';
+      if (type === "none") {
+        if (direction === "in") {
+          el.classList.remove("hidden");
+          el.style.opacity = "1";
         } else {
-          el.style.opacity = '0';
-          el.classList.add('hidden');
+          el.style.opacity = "0";
+          el.classList.add("hidden");
         }
         resolve();
         return;
       }
 
       // Typewriter (only for 'in'; falls back to fade for 'out')
-      if (type === 'typewriter' && direction === 'in') {
+      if (type === "typewriter" && direction === "in") {
         typewrite(el, duration).then(resolve);
         return;
       }
 
       // Fade or slide (and typewriter-out which uses fade)
       var animClass;
-      if (type === 'slide') {
+      if (type === "slide") {
         animClass = getSlideClass(position, direction);
       } else {
         // fade (and typewriter-out fallback)
-        animClass = direction === 'in' ? 'anim-fade-in' : 'anim-fade-out';
+        animClass = direction === "in" ? "anim-fade-in" : "anim-fade-out";
       }
 
-      if (direction === 'in') {
-        el.classList.remove('hidden');
+      if (direction === "in") {
+        el.classList.remove("hidden");
       }
 
       // Set animation duration
-      el.style.animationDuration = duration + 'ms';
+      el.style.animationDuration = duration + "ms";
       el.classList.add(animClass);
 
       function onEnd() {
-        el.removeEventListener('animationend', onEnd);
+        el.removeEventListener("animationend", onEnd);
         clearAnimClasses(el);
-        if (direction === 'out') {
-          el.classList.add('hidden');
-          el.style.opacity = '0';
+        if (direction === "out") {
+          el.classList.add("hidden");
+          el.style.opacity = "0";
         } else {
-          el.style.opacity = '1';
+          el.style.opacity = "1";
         }
         resolve();
       }
 
-      el.addEventListener('animationend', onEnd);
+      el.addEventListener("animationend", onEnd);
 
       // Fallback timeout in case animationend doesn't fire
       setTimeout(function () {
-        el.removeEventListener('animationend', onEnd);
-        if (direction === 'out') {
-          el.classList.add('hidden');
-          el.style.opacity = '0';
+        el.removeEventListener("animationend", onEnd);
+        if (direction === "out") {
+          el.classList.add("hidden");
+          el.style.opacity = "0";
         } else {
-          el.style.opacity = '1';
+          el.style.opacity = "1";
         }
         clearAnimClasses(el);
         resolve();
@@ -158,6 +167,6 @@
 
   window.VerseObs.Animations = {
     animate: animate,
-    clearAnimClasses: clearAnimClasses
+    clearAnimClasses: clearAnimClasses,
   };
 })();

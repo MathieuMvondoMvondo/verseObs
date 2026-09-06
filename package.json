@@ -1,13 +1,25 @@
 {
   "name": "verseobs",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "OBS Bible Verse Display Extension",
   "private": true,
   "scripts": {
     "download": "node tools/download_bibles.js",
     "convert": "node tools/convert_scrollmapper.js && node tools/convert_getbible.js && node tools/convert_bolls.js",
     "build-data": "npm run download && npm run convert",
-    "serve": "npx http-server -p 8080 -c-1 --cors",
-    "test": "node tests/run.js"
+    "serve": "node tools/server.js",
+    "test": "node tests/run.js && node tests/studio.js",
+    "start": "node tools/server.js",
+    "check": "node tools/check.js",
+    "build": "node tools/build.js"
+  },
+  "dependencies": {
+    "ws": "^8.21.3"
+  },
+  "devDependencies": {
+    "jsdom": "^26.1.0"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

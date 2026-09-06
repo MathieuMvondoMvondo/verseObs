@@ -1,560 +1,1363 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VerseObs - Control Panel</title>
-  <link rel="stylesheet" href="assets/css/control.css">
-</head>
-<body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#121315" />
+    <meta
+      name="description"
+      content="Votre studio de diffusion biblique. Préparez, organisez et diffusez vos passages dans OBS."
+    />
+    <title>VerseObs — Studio</title>
+    <link rel="stylesheet" href="assets/css/control.css?v=2.0" />
+    <link rel="stylesheet" href="assets/css/studio.css?v=2.0" />
+  </head>
+  <body data-tab="0">
+    <a class="skip-link" href="#search-input">Aller à la recherche</a>
+    <aside class="studio-sidebar">
+      <a class="brand" href="control_panel.html"
+        ><img
+          class="icon"
+          src="assets/icons/radio.svg"
+          alt=""
+          width="18"
+          height="18"
+        /><span
+          >Verse<span class="brand-light">Obs</span
+          ><small>LE STUDIO DE VOTRE ÉQUIPE</small></span
+        ></a
+      >
+      <div class="sidebar-label">ESPACE DE TRAVAIL</div>
+      <nav
+        class="cp-tabs"
+        role="tablist"
+        aria-label="Sections du studio"
+        aria-orientation="vertical"
+      >
+        <button
+          class="cp-tab active"
+          data-tab="0"
+          role="tab"
+          id="tab-btn-0"
+          aria-controls="tab-bible"
+          aria-selected="true"
+          tabindex="0"
+        >
+          <img
+            class="icon"
+            src="assets/icons/book-open.svg"
+            alt=""
+            width="18"
+            height="18"
+          /><span>Bible</span></button
+        ><button
+          class="cp-tab"
+          data-tab="1"
+          role="tab"
+          id="tab-btn-1"
+          aria-controls="tab-freetext"
+          aria-selected="false"
+          tabindex="-1"
+        >
+          <img
+            class="icon"
+            src="assets/icons/music-2.svg"
+            alt=""
+            width="18"
+            height="18"
+          /><span>Textes & chants</span></button
+        ><button
+          class="cp-tab"
+          data-tab="2"
+          role="tab"
+          id="tab-btn-2"
+          aria-controls="tab-queue"
+          aria-selected="false"
+          tabindex="-1"
+        >
+          <img
+            class="icon"
+            src="assets/icons/list-music.svg"
+            alt=""
+            width="18"
+            height="18"
+          /><span>Conducteur</span></button
+        ><button
+          class="cp-tab"
+          data-tab="3"
+          role="tab"
+          id="tab-btn-3"
+          aria-controls="tab-history"
+          aria-selected="false"
+          tabindex="-1"
+        >
+          <img
+            class="icon"
+            src="assets/icons/history.svg"
+            alt=""
+            width="18"
+            height="18"
+          /><span>Historique</span></button
+        ><button
+          class="cp-tab"
+          data-tab="4"
+          role="tab"
+          id="tab-btn-4"
+          aria-controls="tab-settings"
+          aria-selected="false"
+          tabindex="-1"
+        >
+          <img
+            class="icon"
+            src="assets/icons/palette.svg"
+            alt=""
+            width="18"
+            height="18"
+          /><span>Habillage</span></button
+        ><button
+          class="cp-tab"
+          data-tab="5"
+          role="tab"
+          id="tab-btn-5"
+          aria-controls="tab-connections"
+          aria-selected="false"
+          tabindex="-1"
+        >
+          <img
+            class="icon"
+            src="assets/icons/plug.svg"
+            alt=""
+            width="18"
+            height="18"
+          /><span>Connexions</span>
+        </button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="local-badge">
+          <span class="status-dot"></span> Votre espace local
+        </div>
+        <p>Vos préparations restent<br />sur cet ordinateur.</p>
+        <button class="sidebar-help" id="btn-help">
+          <img
+            class="icon"
+            src="assets/icons/keyboard.svg"
+            alt=""
+            width="18"
+            height="18"
+          />
+          Aide & raccourcis <kbd>?</kbd>
+        </button>
+        <div class="sidebar-version">VerseObs Studio <span>2.0</span></div>
+      </div>
+    </aside>
+    <div class="studio-shell">
+      <header class="cp-header">
+        <div class="breadcrumb">
+          Espace de travail <span>/</span>
+          <strong id="workspace-label">Bible</strong>
+        </div>
+        <div class="header-right">
+          <span class="save-status" id="save-status"
+            >Enregistré sur cet appareil</span
+          >
+          <div class="cp-connection" aria-live="polite">
+            <span
+              class="cp-connection-dot"
+              id="connection-dot"
+              role="img"
+              aria-label="Connexion à une sortie"
+            ></span
+            ><span id="connection-text">Aucune sortie connectée</span>
+          </div>
+          <button class="connect-top" data-open-connections>
+            Connecter OBS
+            <img
+              class="icon"
+              src="assets/icons/arrow-up-right.svg"
+              alt=""
+              width="18"
+              height="18"
+            />
+          </button>
+        </div>
+      </header>
+      <div class="studio-heading">
+        <div>
+          <h1 id="studio-title">Préparer un passage</h1>
+          <p id="studio-subtitle">
+            Votre Bible, votre prochain passage, votre diffusion.
+          </p>
+        </div>
+        <button class="command-trigger" id="command-trigger">
+          <img
+            class="icon"
+            src="assets/icons/search.svg"
+            alt=""
+            width="18"
+            height="18"
+          />
+          Recherche rapide <kbd>⌘ K</kbd>
+        </button>
+      </div>
+      <div
+        class="cp-onair"
+        id="onair-bar"
+        hidden
+        role="status"
+        aria-live="polite"
+      >
+        <span class="cp-onair-dot"></span
+        ><span class="cp-onair-label">Commande de diffusion</span
+        ><span class="cp-onair-ref" id="onair-ref"></span
+        ><button class="cp-onair-hide" id="onair-hide">
+          Masquer <kbd>Esc</kbd>
+        </button>
+      </div>
+      <main class="cp-panel">
+        <section
+          class="cp-tab-content active"
+          id="tab-bible"
+          role="tabpanel"
+          aria-labelledby="tab-btn-0"
+        >
+          <div class="bible-search-row">
+            <div class="search-area">
+              <div class="cp-search-wrap">
+                <img
+                  class="icon"
+                  src="assets/icons/search.svg"
+                  alt=""
+                  width="18"
+                  height="18"
+                /><input
+                  type="search"
+                  class="cp-search-input"
+                  id="search-input"
+                  placeholder="Une référence, un mot, une inspiration…"
+                  autocomplete="off"
+                  spellcheck="false"
+                  aria-label="Rechercher une référence ou des mots-clés"
+                /><kbd>⌘ F</kbd>
+              </div>
+              <div class="cp-search-results" id="search-results"></div>
+            </div>
+            <div class="cp-version-row">
+              <select
+                class="cp-select cp-version-select"
+                id="version-select"
+                aria-label="Version de la Bible"
+              >
+                <option value="">Chargement…</option></select
+              ><span class="cp-version-indicator local" id="version-indicator"
+                >local</span
+              ><span class="cp-loading" id="version-loading" hidden></span>
+            </div>
+          </div>
+          <div class="search-suggestions">
+            <span>Accès rapide</span
+            ><button data-reference="Jean 3:16">Jean 3:16</button
+            ><button data-reference="Psaumes 23:1">Psaumes 23</button
+            ><button data-reference="1 Corinthiens 13:4-7">L’amour</button
+            ><button data-reference="Philippiens 4:6-7">La paix</button>
+          </div>
+          <div class="bible-workspace">
+            <section class="scripture-panel">
+              <div class="section-heading">
+                <h2>Explorer la Bible</h2>
+                <span id="chapter-count" class="muted"></span>
+              </div>
+              <div class="cp-nav-row">
+                <label
+                  >Livre<select
+                    class="cp-select book-select"
+                    id="book-select"
+                    aria-label="Livre"
+                  >
+                    <option>—</option>
+                  </select></label
+                ><label
+                  >Chapitre<select
+                    class="cp-select"
+                    id="chapter-select"
+                    aria-label="Chapitre"
+                  >
+                    <option>—</option>
+                  </select></label
+                ><label
+                  >Verset<select
+                    class="cp-select"
+                    id="verse-select"
+                    aria-label="Verset"
+                  >
+                    <option>—</option>
+                  </select></label
+                >
+              </div>
+              <div
+                class="chapter-list"
+                id="chapter-list"
+                aria-label="Versets du chapitre"
+              ></div>
+              <div class="cp-nav-buttons">
+                <button
+                  class="cp-btn-nav"
+                  id="btn-prev-chapter"
+                  title="Chapitre précédent"
+                >
+                  ← Chapitre</button
+                ><button
+                  class="cp-btn-nav"
+                  id="btn-next-chapter"
+                  title="Chapitre suivant"
+                >
+                  Chapitre →
+                </button>
+              </div>
+            </section>
+            <section class="preparation-panel">
+              <div class="section-heading">
+                <h2>Moniteur</h2>
+                <button
+                  class="monitor-framing"
+                  id="monitor-framing"
+                  aria-pressed="false"
+                >
+                  Voir le cadre complet
+                </button>
+              </div>
+              <div
+                class="monitor-tabs"
+                role="group"
+                aria-label="Vue du moniteur"
+              >
+                <button
+                  class="selected"
+                  id="monitor-preview"
+                  aria-pressed="true"
+                >
+                  <span class="status-dot"></span> Préparation</button
+                ><button id="monitor-program" aria-pressed="false">
+                  <span class="status-dot"></span> Sortie</button
+                ><span id="monitor-label">Non diffusé</span>
+              </div>
+              <div class="cp-preview-stage" id="preview-stage">
+                <div class="stage-label">VERSEOBS / PREVIEW</div>
+                <iframe
+                  class="cp-preview-frame"
+                  id="preview-frame"
+                  src="browser_source.html?preview=1&v=2.0"
+                  title="Aperçu du passage préparé"
+                  tabindex="-1"
+                ></iframe
+                ><iframe
+                  class="cp-preview-frame"
+                  id="program-frame"
+                  src="browser_source.html?monitor=1&v=2.0"
+                  title="Retour des commandes de diffusion"
+                  tabindex="-1"
+                  hidden
+                ></iframe>
+              </div>
+              <div class="monitor-footer">
+                <span id="preview-caption">Votre prochain passage</span
+                ><button id="btn-copy" class="cp-mini-btn">
+                  Copier le texte
+                </button>
+              </div>
+              <div class="passage-editor">
+                <div class="section-heading">
+                  <h2 id="preview-ref">Votre sélection</h2>
+                  <button
+                    class="format-toggle"
+                    id="toggle-format"
+                    aria-controls="format-toolbar"
+                    aria-expanded="false"
+                  >
+                    Mise en forme
+                  </button>
+                </div>
+                <div
+                  class="cp-format-toolbar"
+                  id="format-toolbar"
+                  hidden
+                  role="toolbar"
+                  aria-label="Mise en forme du verset"
+                >
+                  <button
+                    class="cp-format-btn"
+                    data-format="bold"
+                    title="Gras (Ctrl+B)"
+                    aria-label="Gras"
+                  >
+                    <b>G</b>
+                  </button>
+                  <button
+                    class="cp-format-btn"
+                    data-format="italic"
+                    title="Italique (Ctrl+I)"
+                    aria-label="Italique"
+                  >
+                    <i>I</i>
+                  </button>
+                  <button
+                    class="cp-format-btn"
+                    data-format="underline"
+                    title="Souligné (Ctrl+U)"
+                    aria-label="Souligné"
+                  >
+                    <u>S</u>
+                  </button>
+                  <div class="cp-format-sep"></div>
+                  <button
+                    class="cp-format-btn cp-format-highlight-btn"
+                    data-format="highlight"
+                    title="Surligner"
+                    aria-label="Surligner"
+                  >
+                    H
+                  </button>
+                  <input
+                    type="color"
+                    class="cp-format-color"
+                    id="highlight-color"
+                    value="#f2d484"
+                    title="Couleur surlignage"
+                    aria-label="Couleur de surlignage"
+                  />
+                  <div class="cp-format-sep"></div>
+                  <button
+                    class="cp-format-btn cp-format-clear-btn"
+                    data-format="clear"
+                    title="Effacer le formatage"
+                    aria-label="Effacer le formatage"
+                  >
+                    &times;
+                  </button>
+                </div>
 
-  <!-- Header -->
-  <div class="cp-header">
-    <span class="cp-header-title">VerseObs</span>
-    <div class="cp-connection" aria-live="polite">
-      <span id="connection-text">Overlay déconnecté</span>
-      <span class="cp-connection-dot" id="connection-dot" role="img" aria-label="État de la connexion à l'overlay"></span>
-      <button class="cp-help-btn" id="btn-help" title="Aide & raccourcis (?)" aria-label="Aide et raccourcis clavier">?</button>
+                <div class="cp-preview">
+                  <div
+                    class="cp-preview-text cp-preview-empty"
+                    id="preview-text"
+                    role="textbox"
+                    aria-label="Texte du passage à diffuser"
+                    aria-multiline="true"
+                  >
+                    Chargement du passage…
+                  </div>
+                </div>
+              </div>
+              <div class="cp-actions">
+                <button class="cp-btn cp-btn-show" id="btn-show">
+                  <img
+                    class="icon"
+                    src="assets/icons/play.svg"
+                    alt=""
+                    width="18"
+                    height="18"
+                  />
+                  Diffuser le passage <kbd>⌘ ↵</kbd></button
+                ><button class="cp-btn cp-btn-hide" id="btn-hide">
+                  Masquer <kbd>Esc</kbd></button
+                ><button
+                  class="cp-btn cp-btn-fav"
+                  id="btn-fav"
+                  aria-label="Ajouter aux favoris"
+                  aria-pressed="false"
+                >
+                  ☆
+                </button>
+              </div>
+              <div class="prepare-actions">
+                <button class="cp-btn-queue-add" id="btn-add-queue">
+                  + Ajouter au conducteur
+                </button>
+                <div class="verse-step">
+                  <button
+                    class="cp-btn-nav"
+                    id="btn-prev"
+                    title="Verset précédent"
+                  >
+                    ←</button
+                  ><button
+                    class="cp-btn-nav"
+                    id="btn-next"
+                    title="Verset suivant"
+                  >
+                    →
+                  </button>
+                </div>
+              </div>
+              <p class="prep-hint">
+                Préparez librement. Seul « Diffuser » change le passage à
+                l’antenne.
+              </p>
+              <div class="quick-styles">
+                <div class="section-heading">
+                  <h2>Habillage express</h2>
+                  <button data-open-settings>Tout personnaliser →</button>
+                </div>
+                <div class="style-choices">
+                  <button
+                    data-preset="studio"
+                    class="style-choice studio-style"
+                  >
+                    <span>Aa</span><small>Studio</small></button
+                  ><button
+                    data-preset="papier"
+                    class="style-choice paper-style"
+                  >
+                    <span>Aa</span><small>Papier</small></button
+                  ><button
+                    data-preset="cinema"
+                    class="style-choice cinema-style"
+                  >
+                    <span>Aa</span><small>Cinéma</small>
+                  </button>
+                </div>
+              </div>
+            </section>
+          </div>
+          <section id="favorites-section" class="favorites-strip">
+            <div class="section-heading">
+              <h2>Vos favoris</h2>
+              <span class="muted">Les passages qui vous accompagnent</span>
+            </div>
+            <div class="cp-fav-list" id="favorites-container"></div>
+          </section>
+        </section>
+        <div
+          class="cp-tab-content"
+          id="tab-freetext"
+          role="tabpanel"
+          aria-labelledby="tab-btn-1"
+        >
+          <div class="cp-section">
+            <span class="cp-section-label">Titre (optionnel)</span>
+            <input
+              type="text"
+              class="cp-input"
+              id="freetext-title"
+              placeholder="Ex: Cantique, Annonce, Prière..."
+              spellcheck="false"
+            />
+          </div>
+
+          <div class="cp-section">
+            <span class="cp-section-label">Sous-titre (optionnel)</span>
+            <input
+              type="text"
+              class="cp-input"
+              id="freetext-subtitle"
+              placeholder="Ex: Auteur, occasion..."
+              spellcheck="false"
+            />
+          </div>
+
+          <div class="cp-section">
+            <span class="cp-section-label">Contenu</span>
+            <div
+              class="cp-format-toolbar"
+              id="freetext-format-toolbar"
+              role="toolbar"
+              aria-label="Mise en forme du texte"
+            >
+              <button
+                class="cp-format-btn"
+                data-format="bold"
+                title="Gras"
+                aria-label="Gras"
+              >
+                <b>G</b>
+              </button>
+              <button
+                class="cp-format-btn"
+                data-format="italic"
+                title="Italique"
+                aria-label="Italique"
+              >
+                <i>I</i>
+              </button>
+              <button
+                class="cp-format-btn"
+                data-format="underline"
+                title="Souligné"
+                aria-label="Souligné"
+              >
+                <u>S</u>
+              </button>
+              <div class="cp-format-sep"></div>
+              <button
+                class="cp-format-btn cp-format-highlight-btn"
+                data-format="highlight"
+                title="Surligner"
+                aria-label="Surligner"
+              >
+                H
+              </button>
+              <input
+                type="color"
+                class="cp-format-color"
+                value="#f2d484"
+                title="Couleur surlignage"
+                aria-label="Couleur de surlignage"
+              />
+              <div class="cp-format-sep"></div>
+              <button
+                class="cp-format-btn cp-format-clear-btn"
+                data-format="clear"
+                title="Effacer le formatage"
+                aria-label="Effacer le formatage"
+              >
+                &times;
+              </button>
+            </div>
+            <div
+              class="cp-freetext-editable"
+              id="freetext-editable"
+              contenteditable="true"
+              role="textbox"
+              aria-multiline="true"
+              aria-label="Contenu du texte libre"
+              data-placeholder="Saisissez votre texte ici... Paroles de chants, annonces, prières..."
+            ></div>
+          </div>
+
+          <div class="cp-actions">
+            <button class="cp-btn cp-btn-show" id="btn-free-show">
+              Diffuser le texte<span class="shortcut">Ctrl+Enter</span>
+            </button>
+            <button class="cp-btn cp-btn-hide" id="btn-free-hide">
+              Masquer<span class="shortcut">Esc</span>
+            </button>
+          </div>
+
+          <div class="cp-actions" style="margin-top: 0">
+            <button
+              class="cp-btn-queue-add"
+              id="btn-free-add-queue"
+              style="flex: 1"
+            >
+              + Ajouter au conducteur
+            </button>
+            <button
+              class="cp-btn-clear"
+              id="btn-free-clear"
+              style="flex: 1; margin-top: 0"
+            >
+              Effacer
+            </button>
+          </div>
+
+          <!-- Saved Texts -->
+          <div class="cp-section" style="margin-top: 10px">
+            <span class="cp-section-label">Textes sauvegardés</span>
+            <div class="cp-save-row">
+              <input
+                type="text"
+                class="cp-input"
+                id="freetext-save-name"
+                placeholder="Nom du texte..."
+              />
+              <button class="cp-btn-save" id="btn-free-save">Sauver</button>
+            </div>
+            <div id="saved-texts-container"></div>
+          </div>
+        </div>
+
+        <div
+          class="cp-tab-content"
+          id="tab-queue"
+          role="tabpanel"
+          aria-labelledby="tab-btn-2"
+        >
+          <div class="cp-section">
+            <div class="cp-queue-header">
+              <span class="cp-section-label">Votre conducteur</span>
+              <span class="cp-queue-counter" id="queue-counter">0 élément</span>
+            </div>
+          </div>
+
+          <div class="session-meta">
+            <label for="session-name">SESSION</label
+            ><input
+              id="session-name"
+              class="session-name"
+              value="Ma prochaine célébration"
+              maxlength="100"
+            /><span class="muted" id="session-saved"
+              >Sauvegarde automatique</span
+            >
+          </div>
+          <div class="session-toolbar">
+            <button id="session-export">Exporter</button
+            ><button id="session-import">Importer</button
+            ><button id="session-print">Imprimer</button
+            ><input
+              type="file"
+              id="session-file"
+              accept=".json,application/json"
+              hidden
+            />
+          </div>
+          <div class="cp-queue-controls">
+            <button
+              class="cp-btn cp-btn-nav"
+              id="btn-queue-prev"
+              title="Précédent"
+            >
+              &lsaquo; Préc.
+            </button>
+            <button
+              class="cp-btn cp-btn-show cp-btn-queue-show"
+              id="btn-queue-show"
+            >
+              Diffuser la sélection
+            </button>
+            <button
+              class="cp-btn cp-btn-nav"
+              id="btn-queue-next"
+              title="Suivant"
+            >
+              Suiv. &rsaquo;
+            </button>
+          </div>
+
+          <div class="cp-section">
+            <div id="queue-container"></div>
+          </div>
+
+          <p class="queue-tip">
+            Sélectionnez un élément, puis diffusez-le quand vous êtes prêt.
+          </p>
+          <button class="cp-btn-clear" id="btn-clear-queue">
+            Vider le conducteur
+          </button>
+        </div>
+
+        <div
+          class="cp-tab-content"
+          id="tab-history"
+          role="tabpanel"
+          aria-labelledby="tab-btn-3"
+        >
+          <div class="cp-section">
+            <span class="cp-section-label">Versets récents</span>
+            <div id="history-container"></div>
+          </div>
+
+          <button class="cp-btn-clear" id="btn-clear-history">
+            Effacer l'historique
+          </button>
+        </div>
+
+        <div
+          class="cp-tab-content"
+          id="tab-settings"
+          role="tabpanel"
+          aria-labelledby="tab-btn-4"
+        >
+          <!-- Sticky live preview so style changes are visible while editing -->
+          <div class="cp-settings-preview">
+            <div class="cp-preview-stage" id="settings-preview-stage">
+              <iframe
+                class="cp-preview-frame"
+                id="settings-preview-frame"
+                src="browser_source.html?preview=1&v=2.0"
+                title="Aperçu en direct de l'overlay"
+                tabindex="-1"
+                aria-hidden="true"
+              ></iframe>
+            </div>
+          </div>
+
+          <div id="settings-container">
+            <!-- Template -->
+            <div class="cp-setting-group">
+              <div class="cp-setting-group-title">Template</div>
+
+              <div class="cp-setting-row">
+                <span class="cp-setting-label">Template</span>
+                <div class="cp-setting-control">
+                  <select class="cp-select" data-setting="template">
+                    <option value="studio">Studio</option>
+                    <option value="papier">Papier</option>
+                    <option value="cinema">Cinéma</option>
+                    <option value="classique">Classique</option>
+                    <option value="eglise">Église</option>
+                    <option value="moderne">Moderne</option>
+                    <option value="minimal">Minimal</option>
+                    <option value="custom">Personnalisé</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Layout -->
+            <div class="cp-setting-group">
+              <div class="cp-setting-group-title">Disposition</div>
+
+              <div class="cp-setting-row">
+                <span class="cp-setting-label">Position</span>
+                <div class="cp-setting-control">
+                  <select class="cp-select" data-setting="position">
+                    <option value="lower-third">Lower Third</option>
+                    <option value="upper-third">Upper Third</option>
+                    <option value="center">Centre</option>
+                    <option value="fullscreen">Plein écran</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="cp-setting-row">
+                <span class="cp-setting-label">Position de la réf.</span>
+                <div class="cp-setting-control">
+                  <select class="cp-select" data-setting="refPosition">
+                    <option value="top-left">Haut gauche</option>
+                    <option value="top-center">Haut centre</option>
+                    <option value="top-right">Haut droite</option>
+                    <option value="inline">Barre intégrée</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="cp-setting-row">
+                <span class="cp-setting-label">Largeur de la carte</span>
+                <div class="cp-setting-control">
+                  <input
+                    type="range"
+                    data-setting="maxWidth"
+                    min="30"
+                    max="100"
+                    step="5"
+                  />
+                  <span class="cp-setting-value">85%</span>
+                </div>
+              </div>
+
+              <div class="cp-setting-row">
+                <span class="cp-setting-label">Marge intérieure</span>
+                <div class="cp-setting-control">
+                  <input
+                    type="range"
+                    data-setting="padding"
+                    min="5"
+                    max="60"
+                    step="1"
+                  />
+                  <span class="cp-setting-value">24px</span>
+                </div>
+              </div>
+
+              <div class="cp-setting-row">
+                <span class="cp-setting-label">Arrondi des coins</span>
+                <div class="cp-setting-control">
+                  <input
+                    type="range"
+                    data-setting="borderRadius"
+                    min="0"
+                    max="30"
+                    step="1"
+                  />
+                  <span class="cp-setting-value">14px</span>
+                </div>
+              </div>
+
+              <div class="cp-setting-row">
+                <span class="cp-setting-label">Épaisseur de bordure</span>
+                <div class="cp-setting-control">
+                  <input
+                    type="range"
+                    data-setting="borderWidth"
+                    min="0"
+                    max="8"
+                    step="1"
+                  />
+                  <span class="cp-setting-value">2px</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Animation -->
+            <div class="cp-setting-group">
+              <div class="cp-setting-group-title">Animation</div>
+
+              <div class="cp-setting-row">
+                <span class="cp-setting-label">Type</span>
+                <div class="cp-setting-control">
+                  <select class="cp-select" data-setting="animation">
+                    <option value="fade">Fade</option>
+                    <option value="slide">Slide</option>
+                    <option value="typewriter">Typewriter</option>
+                    <option value="none">Aucune</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="cp-setting-row">
+                <span class="cp-setting-label">Durée</span>
+                <div class="cp-setting-control">
+                  <input
+                    type="range"
+                    data-setting="animationDuration"
+                    min="100"
+                    max="2000"
+                    step="100"
+                  />
+                  <span class="cp-setting-value">500ms</span>
+                </div>
+              </div>
+
+              <div class="cp-setting-row">
+                <span class="cp-setting-label">Auto-masquer</span>
+                <div class="cp-setting-control">
+                  <select class="cp-select" data-setting="autoHide">
+                    <option value="0">Désactivé</option>
+                    <option value="5000">5 secondes</option>
+                    <option value="10000">10 secondes</option>
+                    <option value="15000">15 secondes</option>
+                    <option value="30000">30 secondes</option>
+                    <option value="60000">60 secondes</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Typography -->
+            <div class="cp-setting-group">
+              <div class="cp-setting-group-title">Typographie</div>
+
+              <div class="cp-setting-row">
+                <span class="cp-setting-label">Police</span>
+                <div class="cp-setting-control">
+                  <input
+                    type="text"
+                    class="cp-input"
+                    data-setting="fontFamily"
+                    placeholder="'Segoe UI', Calibri, sans-serif"
+                    style="width: 100%"
+                  />
+                </div>
+              </div>
+
+              <div class="cp-setting-row">
+                <span class="cp-setting-label">Taille texte</span>
+                <div class="cp-setting-control">
+                  <input
+                    type="range"
+                    data-setting="fontSize"
+                    min="14"
+                    max="72"
+                    step="1"
+                  />
+                  <span class="cp-setting-value">28px</span>
+                </div>
+              </div>
+
+              <div class="cp-setting-row">
+                <span class="cp-setting-label">Couleur texte</span>
+                <div class="cp-setting-control">
+                  <input
+                    type="color"
+                    data-setting="textColor"
+                    value="#1a1a1a"
+                  />
+                </div>
+              </div>
+
+              <div class="cp-setting-row">
+                <span class="cp-setting-label">Alignement</span>
+                <div class="cp-setting-control">
+                  <select class="cp-select" data-setting="textAlign">
+                    <option value="left">Gauche</option>
+                    <option value="center">Centre</option>
+                    <option value="right">Droite</option>
+                    <option value="justify">Justifié</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="cp-setting-row">
+                <span class="cp-setting-label">Interligne</span>
+                <div class="cp-setting-control">
+                  <input
+                    type="range"
+                    data-setting="lineHeight"
+                    min="1"
+                    max="2.5"
+                    step="0.05"
+                  />
+                  <span class="cp-setting-value">1.55</span>
+                </div>
+              </div>
+
+              <div class="cp-setting-row">
+                <span class="cp-setting-label">Taille de la référence</span>
+                <div class="cp-setting-control">
+                  <input
+                    type="range"
+                    data-setting="refFontSize"
+                    min="10"
+                    max="48"
+                    step="1"
+                  />
+                  <span class="cp-setting-value">15px</span>
+                </div>
+              </div>
+
+              <div class="cp-setting-row">
+                <span class="cp-setting-label">Couleur du texte réf.</span>
+                <div class="cp-setting-control">
+                  <input type="color" data-setting="refColor" value="#ffffff" />
+                </div>
+              </div>
+
+              <div class="cp-setting-row">
+                <span class="cp-setting-label">Fond de la référence</span>
+                <div class="cp-setting-control">
+                  <input
+                    type="color"
+                    data-setting="refBgColor"
+                    value="#2d1a3e"
+                  />
+                </div>
+              </div>
+
+              <div class="cp-setting-row">
+                <span class="cp-setting-label">Couleur de surlignage</span>
+                <div class="cp-setting-control">
+                  <input
+                    type="color"
+                    data-setting="highlightColor"
+                    value="#f2d484"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- Background -->
+            <div class="cp-setting-group">
+              <div class="cp-setting-group-title">Arrière-plan</div>
+
+              <div class="cp-setting-row">
+                <span class="cp-setting-label">Couleur de fond</span>
+                <div class="cp-setting-control">
+                  <input type="color" data-setting="bgColor" value="#ffffff" />
+                </div>
+              </div>
+
+              <div class="cp-setting-row">
+                <span class="cp-setting-label">Opacité du fond</span>
+                <div class="cp-setting-control">
+                  <input
+                    type="range"
+                    data-setting="bgOpacity"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                  />
+                  <span class="cp-setting-value">92%</span>
+                </div>
+              </div>
+
+              <div class="cp-setting-row">
+                <span class="cp-setting-label">Couleur de bordure</span>
+                <div class="cp-setting-control">
+                  <input
+                    type="color"
+                    data-setting="borderColor"
+                    value="#50c8c8"
+                  />
+                </div>
+              </div>
+
+              <div class="cp-setting-row">
+                <span class="cp-setting-label">Ombre</span>
+                <div class="cp-setting-control">
+                  <label class="cp-toggle">
+                    <input type="checkbox" data-setting="shadow" checked />
+                    <span class="cp-toggle-slider"></span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="cp-setting-row">
+                <span class="cp-setting-label">Image de fond</span>
+                <div
+                  class="cp-setting-control"
+                  style="flex-direction: column; gap: 4px; align-items: stretch"
+                >
+                  <input
+                    type="file"
+                    id="bg-image-input"
+                    accept="image/png,image/svg+xml,image/jpeg"
+                    style="font-size: 10px; color: var(--cp-text-secondary)"
+                  />
+                  <button
+                    class="cp-btn-clear"
+                    id="btn-clear-bg-image"
+                    style="font-size: 11px; padding: 3px 8px; margin-top: 0"
+                  >
+                    Supprimer l'image
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Data backup -->
+            <div class="cp-setting-group">
+              <div class="cp-setting-group-title">Sauvegarde des données</div>
+              <div class="cp-data-buttons">
+                <button
+                  class="cp-btn-save"
+                  id="btn-export-data"
+                  style="flex: 1"
+                >
+                  Exporter
+                </button>
+                <button
+                  class="cp-btn-save"
+                  id="btn-import-data"
+                  style="
+                    flex: 1;
+                    background: var(--cp-bg-tertiary);
+                    color: var(--cp-text);
+                  "
+                >
+                  Importer
+                </button>
+                <input
+                  type="file"
+                  id="import-data-input"
+                  accept="application/json,.json"
+                  hidden
+                />
+              </div>
+              <p class="cp-setting-hint">
+                Favoris, textes, file, historique et réglages dans un fichier
+                .json.
+              </p>
+            </div>
+
+            <!-- Reset -->
+            <button class="cp-reset-btn" id="btn-reset-settings">
+              Réinitialiser les paramètres
+            </button>
+          </div>
+        </div>
+
+        <section
+          class="cp-tab-content"
+          id="tab-connections"
+          role="tabpanel"
+          aria-labelledby="tab-btn-5"
+        >
+          <div class="connection-intro">
+            <div class="integration-logo">OBS</div>
+            <h2>Votre studio. Votre diffusion.</h2>
+            <p>
+              Connectez VerseObs à OBS ou ouvrez une sortie sur un second écran.
+            </p>
+          </div>
+          <div class="connection-cards">
+            <article class="integration-card">
+              <span class="step-number">01</span>
+              <h3>Ajoutez la source dans OBS</h3>
+              <p>
+                Sources → + → Navigateur. Collez cette adresse et réglez la
+                taille sur 1920 × 1080.
+              </p>
+              <label for="overlay-url">URL DE LA SOURCE</label>
+              <div class="copy-url">
+                <input id="overlay-url" readonly /><button
+                  data-copy-url="overlay-url"
+                >
+                  Copier
+                </button>
+              </div>
+              <p class="integration-note">
+                Décochez « Arrêter la source quand elle n’est pas visible » pour
+                garder la connexion.
+              </p>
+            </article>
+            <article class="integration-card">
+              <span class="step-number">02</span>
+              <h3>Gardez la régie dans OBS</h3>
+              <p>
+                Docks → Docks de navigateur personnalisés. Ajoutez cette adresse
+                au dock VerseObs.
+              </p>
+              <label for="dock-url">URL DU DOCK</label>
+              <div class="copy-url">
+                <input id="dock-url" readonly /><button
+                  data-copy-url="dock-url"
+                >
+                  Copier
+                </button>
+              </div>
+            </article>
+            <article class="integration-card">
+              <span class="step-number">03</span>
+              <h3>Vérifiez votre sortie</h3>
+              <p>
+                Ouvrez la sortie de test, puis diffusez un passage. Le voyant
+                devient vert lorsqu’une sortie répond.
+              </p>
+              <a
+                id="open-output"
+                class="integration-link"
+                href="browser_source.html"
+                target="_blank"
+                rel="noopener"
+                >Ouvrir une sortie de test ↗</a
+              ><a
+                id="open-projector"
+                class="integration-link secondary"
+                href="browser_source.html?projector=1"
+                target="_blank"
+                rel="noopener"
+                >Ouvrir le mode projection ↗</a
+              >
+            </article>
+          </div>
+          <div class="relay-info">
+            <span class="status-dot"></span>
+            <div>
+              <strong id="relay-status">Communication locale</strong>
+              <p id="relay-description">
+                Le dock et la source doivent utiliser la même adresse et le même
+                navigateur. Le serveur local relie aussi les navigateurs
+                séparés.
+              </p>
+            </div>
+          </div>
+          <div class="integration-card team-transfer">
+            <h3>Un conducteur, toute l’équipe</h3>
+            <p>
+              Exportez votre session depuis le conducteur. Votre équipier
+              importe le fichier et retrouve les passages dans le bon ordre,
+              avec leurs textes et leur mise en forme.
+            </p>
+            <button data-open-queue class="cp-btn-save">
+              Ouvrir le conducteur
+            </button>
+          </div>
+        </section>
+      </main>
+      <footer class="studio-footer">
+        <span
+          ><span class="status-dot"></span> Espace enregistré sur cet
+          appareil</span
+        ><span></span>
+      </footer>
     </div>
-  </div>
-
-  <!-- On-air indicator (global) -->
-  <div class="cp-onair" id="onair-bar" hidden role="status" aria-live="polite">
-    <span class="cp-onair-dot" aria-hidden="true"></span>
-    <span class="cp-onair-label">À l'antenne</span>
-    <span class="cp-onair-ref" id="onair-ref"></span>
-    <button class="cp-onair-hide" id="onair-hide" title="Masquer l'overlay (Échap)">Masquer</button>
-  </div>
-
-  <!-- Tab Bar -->
-  <div class="cp-tabs" role="tablist" aria-label="Sections du panneau">
-    <button class="cp-tab active" data-tab="0" role="tab" id="tab-btn-0" aria-controls="tab-bible" aria-selected="true">Bible</button>
-    <button class="cp-tab" data-tab="1" role="tab" id="tab-btn-1" aria-controls="tab-freetext" aria-selected="false" tabindex="-1">Texte libre</button>
-    <button class="cp-tab" data-tab="2" role="tab" id="tab-btn-2" aria-controls="tab-queue" aria-selected="false" tabindex="-1">File</button>
-    <button class="cp-tab" data-tab="3" role="tab" id="tab-btn-3" aria-controls="tab-history" aria-selected="false" tabindex="-1">Historique</button>
-    <button class="cp-tab" data-tab="4" role="tab" id="tab-btn-4" aria-controls="tab-settings" aria-selected="false" tabindex="-1">Param.</button>
-  </div>
-
-  <!-- Panel Body -->
-  <div class="cp-panel">
-
-    <!-- ======== Bible Tab ======== -->
-    <div class="cp-tab-content active" id="tab-bible" role="tabpanel" aria-labelledby="tab-btn-0">
-
-      <!-- Version Selector -->
-      <div class="cp-section">
-        <div class="cp-version-row">
-          <select class="cp-select cp-version-select" id="version-select" aria-label="Version de la Bible">
-            <option value="">Chargement...</option>
-          </select>
-          <span class="cp-version-indicator local" id="version-indicator">local</span>
-          <span class="cp-loading" id="version-loading" role="status" aria-label="Chargement de la version" hidden></span>
+    <!-- Quick search palette (Ctrl+K) -->
+    <div class="cp-palette-overlay" id="palette-overlay" hidden>
+      <div
+        class="cp-palette"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Recherche rapide"
+      >
+        <input
+          type="text"
+          class="cp-palette-input"
+          id="palette-input"
+          placeholder="Référence ou mots-clés… (Entrée pour préparer)"
+          autocomplete="off"
+          spellcheck="false"
+          aria-label="Recherche rapide"
+        />
+        <div class="cp-palette-results" id="palette-results"></div>
+        <div class="cp-palette-hint">
+          <span><kbd>↑</kbd><kbd>↓</kbd> naviguer</span>
+          <span><kbd>Entrée</kbd> préparer</span>
+          <span><kbd>Échap</kbd> fermer</span>
         </div>
-      </div>
-
-      <!-- Search -->
-      <div class="cp-section">
-        <div class="cp-search-wrap">
-          <span class="cp-search-icon">&#128269;</span>
-          <input type="text" class="cp-search-input" id="search-input"
-                 placeholder="Jean 3:16, mots-clés, ou &quot;phrase exacte&quot;"
-                 autocomplete="off" spellcheck="false"
-                 aria-label="Rechercher une référence ou des mots-clés" role="searchbox">
-          <span class="cp-search-hint">Ctrl+F</span>
-        </div>
-        <div class="cp-search-results" id="search-results"></div>
-      </div>
-
-      <!-- Book / Chapter / Verse Dropdowns -->
-      <div class="cp-section">
-        <span class="cp-section-label">Navigation</span>
-        <div class="cp-nav-row">
-          <select class="cp-select book-select" id="book-select" aria-label="Livre">
-            <option value="">--</option>
-          </select>
-          <select class="cp-select" id="chapter-select" aria-label="Chapitre">
-            <option value="">--</option>
-          </select>
-          <select class="cp-select" id="verse-select" aria-label="Verset">
-            <option value="">--</option>
-          </select>
-        </div>
-
-        <!-- Prev / Next Buttons -->
-        <div class="cp-nav-buttons">
-          <button class="cp-btn-nav" id="btn-prev-chapter" title="Chapitre précédent">&laquo; Ch.</button>
-          <button class="cp-btn-nav" id="btn-prev" title="Verset précédent">&lsaquo; Verset<span class="shortcut">Ctrl+&larr;</span></button>
-          <button class="cp-btn-nav" id="btn-next" title="Verset suivant">Verset &rsaquo;<span class="shortcut">Ctrl+&rarr;</span></button>
-          <button class="cp-btn-nav" id="btn-next-chapter" title="Chapitre suivant">Ch. &raquo;</button>
-        </div>
-      </div>
-
-      <!-- Format Toolbar + Verse Preview -->
-      <div class="cp-section">
-        <span class="cp-section-label">Aperçu</span>
-
-        <div class="cp-format-toolbar" id="format-toolbar" role="toolbar" aria-label="Mise en forme du verset">
-          <button class="cp-format-btn" data-format="bold" title="Gras (Ctrl+B)" aria-label="Gras"><b>G</b></button>
-          <button class="cp-format-btn" data-format="italic" title="Italique (Ctrl+I)" aria-label="Italique"><i>I</i></button>
-          <button class="cp-format-btn" data-format="underline" title="Souligné (Ctrl+U)" aria-label="Souligné"><u>S</u></button>
-          <div class="cp-format-sep"></div>
-          <button class="cp-format-btn cp-format-highlight-btn" data-format="highlight" title="Surligner" aria-label="Surligner">H</button>
-          <input type="color" class="cp-format-color" id="highlight-color" value="#ffff00" title="Couleur surlignage" aria-label="Couleur de surlignage">
-          <div class="cp-format-sep"></div>
-          <button class="cp-format-btn cp-format-clear-btn" data-format="clear" title="Effacer le formatage" aria-label="Effacer le formatage">&times;</button>
-        </div>
-
-        <div class="cp-preview">
-          <div class="cp-preview-text cp-preview-empty" id="preview-text" aria-label="Aperçu du verset (modifiable)">Sélectionnez un verset</div>
-          <div class="cp-preview-ref" id="preview-ref" style="display:none"></div>
-        </div>
-        <div class="cp-preview-tools">
-          <button class="cp-mini-btn" id="btn-copy" title="Copier le verset">⧉ Copier</button>
-        </div>
-      </div>
-
-      <!-- Live overlay preview (WYSIWYG mini view) -->
-      <div class="cp-section">
-        <span class="cp-section-label">Aperçu overlay (live)</span>
-        <div class="cp-preview-stage" id="preview-stage">
-          <iframe class="cp-preview-frame" id="preview-frame" src="browser_source.html?preview=1"
-                  title="Aperçu en direct de l'overlay" tabindex="-1" aria-hidden="true"></iframe>
-        </div>
-      </div>
-
-      <!-- Show / Hide Buttons -->
-      <div class="cp-actions">
-        <button class="cp-btn cp-btn-show" id="btn-show">Afficher<span class="shortcut">Ctrl+Enter</span></button>
-        <button class="cp-btn cp-btn-hide" id="btn-hide">Masquer<span class="shortcut">Esc</span></button>
-        <button class="cp-btn cp-btn-fav" id="btn-fav" title="Ajouter aux favoris" aria-label="Ajouter aux favoris" aria-pressed="false">&#9734;</button>
-      </div>
-      <button class="cp-btn-queue-add" id="btn-add-queue" title="Ajouter ce verset à la file d'attente">+ File d'attente</button>
-
-      <!-- Favorites -->
-      <div class="cp-section" id="favorites-section" style="margin-top:10px;">
-        <span class="cp-section-label">Favoris</span>
-        <div class="cp-fav-list" id="favorites-container"></div>
-      </div>
-
-    </div>
-
-    <!-- ======== Free Text Tab ======== -->
-    <div class="cp-tab-content" id="tab-freetext" role="tabpanel" aria-labelledby="tab-btn-1">
-
-      <div class="cp-section">
-        <span class="cp-section-label">Titre (optionnel)</span>
-        <input type="text" class="cp-input" id="freetext-title"
-               placeholder="Ex: Cantique, Annonce, Prière..." spellcheck="false">
-      </div>
-
-      <div class="cp-section">
-        <span class="cp-section-label">Sous-titre (optionnel)</span>
-        <input type="text" class="cp-input" id="freetext-subtitle"
-               placeholder="Ex: Auteur, occasion..." spellcheck="false">
-      </div>
-
-      <div class="cp-section">
-        <span class="cp-section-label">Contenu</span>
-        <div class="cp-format-toolbar" id="freetext-format-toolbar" role="toolbar" aria-label="Mise en forme du texte">
-          <button class="cp-format-btn" data-format="bold" title="Gras" aria-label="Gras"><b>G</b></button>
-          <button class="cp-format-btn" data-format="italic" title="Italique" aria-label="Italique"><i>I</i></button>
-          <button class="cp-format-btn" data-format="underline" title="Souligné" aria-label="Souligné"><u>S</u></button>
-          <div class="cp-format-sep"></div>
-          <button class="cp-format-btn cp-format-highlight-btn" data-format="highlight" title="Surligner" aria-label="Surligner">H</button>
-          <input type="color" class="cp-format-color" value="#ffff00" title="Couleur surlignage" aria-label="Couleur de surlignage">
-          <div class="cp-format-sep"></div>
-          <button class="cp-format-btn cp-format-clear-btn" data-format="clear" title="Effacer le formatage" aria-label="Effacer le formatage">&times;</button>
-        </div>
-        <div class="cp-freetext-editable" id="freetext-editable" contenteditable="true"
-             role="textbox" aria-multiline="true" aria-label="Contenu du texte libre"
-             data-placeholder="Saisissez votre texte ici... Paroles de chants, annonces, prières..."></div>
-      </div>
-
-      <div class="cp-actions">
-        <button class="cp-btn cp-btn-show" id="btn-free-show">Afficher<span class="shortcut">Ctrl+Enter</span></button>
-        <button class="cp-btn cp-btn-hide" id="btn-free-hide">Masquer<span class="shortcut">Esc</span></button>
-      </div>
-
-      <div class="cp-actions" style="margin-top:0;">
-        <button class="cp-btn-queue-add" id="btn-free-add-queue" style="flex:1;">+ File d'attente</button>
-        <button class="cp-btn-clear" id="btn-free-clear" style="flex:1;margin-top:0;">Effacer</button>
-      </div>
-
-      <!-- Saved Texts -->
-      <div class="cp-section" style="margin-top:10px;">
-        <span class="cp-section-label">Textes sauvegardés</span>
-        <div class="cp-save-row">
-          <input type="text" class="cp-input" id="freetext-save-name" placeholder="Nom du texte...">
-          <button class="cp-btn-save" id="btn-free-save">Sauver</button>
-        </div>
-        <div id="saved-texts-container"></div>
-      </div>
-
-    </div>
-
-    <!-- ======== Queue Tab ======== -->
-    <div class="cp-tab-content" id="tab-queue" role="tabpanel" aria-labelledby="tab-btn-2">
-
-      <div class="cp-section">
-        <div class="cp-queue-header">
-          <span class="cp-section-label">File d'attente</span>
-          <span class="cp-queue-counter" id="queue-counter">File vide</span>
-        </div>
-      </div>
-
-      <div class="cp-queue-controls">
-        <button class="cp-btn cp-btn-nav" id="btn-queue-prev" title="Précédent">&lsaquo; Préc.</button>
-        <button class="cp-btn cp-btn-show cp-btn-queue-show" id="btn-queue-show">Afficher actuel</button>
-        <button class="cp-btn cp-btn-nav" id="btn-queue-next" title="Suivant">Suiv. &rsaquo;</button>
-      </div>
-
-      <div class="cp-section">
-        <div id="queue-container"></div>
-      </div>
-
-      <button class="cp-btn-clear" id="btn-clear-queue">Vider la file</button>
-
-    </div>
-
-    <!-- ======== History Tab ======== -->
-    <div class="cp-tab-content" id="tab-history" role="tabpanel" aria-labelledby="tab-btn-3">
-
-      <div class="cp-section">
-        <span class="cp-section-label">Versets récents</span>
-        <div id="history-container"></div>
-      </div>
-
-      <button class="cp-btn-clear" id="btn-clear-history">Effacer l'historique</button>
-
-    </div>
-
-    <!-- ======== Settings Tab ======== -->
-    <div class="cp-tab-content" id="tab-settings" role="tabpanel" aria-labelledby="tab-btn-4">
-
-      <!-- Sticky live preview so style changes are visible while editing -->
-      <div class="cp-settings-preview">
-        <div class="cp-preview-stage" id="settings-preview-stage">
-          <iframe class="cp-preview-frame" id="settings-preview-frame" src="browser_source.html?preview=1"
-                  title="Aperçu en direct de l'overlay" tabindex="-1" aria-hidden="true"></iframe>
-        </div>
-      </div>
-
-      <div id="settings-container">
-
-        <!-- Template -->
-        <div class="cp-setting-group">
-          <div class="cp-setting-group-title">Template</div>
-
-          <div class="cp-setting-row">
-            <span class="cp-setting-label">Template</span>
-            <div class="cp-setting-control">
-              <select class="cp-select" data-setting="template">
-                <option value="classique">Classique</option>
-                <option value="eglise">Église</option>
-                <option value="moderne">Moderne</option>
-                <option value="minimal">Minimal</option>
-                <option value="custom">Personnalisé</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <!-- Layout -->
-        <div class="cp-setting-group">
-          <div class="cp-setting-group-title">Disposition</div>
-
-          <div class="cp-setting-row">
-            <span class="cp-setting-label">Position</span>
-            <div class="cp-setting-control">
-              <select class="cp-select" data-setting="position">
-                <option value="lower-third">Lower Third</option>
-                <option value="upper-third">Upper Third</option>
-                <option value="center">Centre</option>
-                <option value="fullscreen">Plein écran</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="cp-setting-row">
-            <span class="cp-setting-label">Position de la réf.</span>
-            <div class="cp-setting-control">
-              <select class="cp-select" data-setting="refPosition">
-                <option value="top-left">Haut gauche</option>
-                <option value="top-center">Haut centre</option>
-                <option value="top-right">Haut droite</option>
-                <option value="inline">Barre intégrée</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="cp-setting-row">
-            <span class="cp-setting-label">Largeur de la carte</span>
-            <div class="cp-setting-control">
-              <input type="range" data-setting="maxWidth" min="30" max="100" step="5">
-              <span class="cp-setting-value">85%</span>
-            </div>
-          </div>
-
-          <div class="cp-setting-row">
-            <span class="cp-setting-label">Marge intérieure</span>
-            <div class="cp-setting-control">
-              <input type="range" data-setting="padding" min="5" max="60" step="1">
-              <span class="cp-setting-value">24px</span>
-            </div>
-          </div>
-
-          <div class="cp-setting-row">
-            <span class="cp-setting-label">Arrondi des coins</span>
-            <div class="cp-setting-control">
-              <input type="range" data-setting="borderRadius" min="0" max="30" step="1">
-              <span class="cp-setting-value">14px</span>
-            </div>
-          </div>
-
-          <div class="cp-setting-row">
-            <span class="cp-setting-label">Épaisseur de bordure</span>
-            <div class="cp-setting-control">
-              <input type="range" data-setting="borderWidth" min="0" max="8" step="1">
-              <span class="cp-setting-value">2px</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Animation -->
-        <div class="cp-setting-group">
-          <div class="cp-setting-group-title">Animation</div>
-
-          <div class="cp-setting-row">
-            <span class="cp-setting-label">Type</span>
-            <div class="cp-setting-control">
-              <select class="cp-select" data-setting="animation">
-                <option value="fade">Fade</option>
-                <option value="slide">Slide</option>
-                <option value="typewriter">Typewriter</option>
-                <option value="none">Aucune</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="cp-setting-row">
-            <span class="cp-setting-label">Durée</span>
-            <div class="cp-setting-control">
-              <input type="range" data-setting="animationDuration" min="100" max="2000" step="100">
-              <span class="cp-setting-value">500ms</span>
-            </div>
-          </div>
-
-          <div class="cp-setting-row">
-            <span class="cp-setting-label">Auto-masquer</span>
-            <div class="cp-setting-control">
-              <select class="cp-select" data-setting="autoHide">
-                <option value="0">Désactivé</option>
-                <option value="5000">5 secondes</option>
-                <option value="10000">10 secondes</option>
-                <option value="15000">15 secondes</option>
-                <option value="30000">30 secondes</option>
-                <option value="60000">60 secondes</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <!-- Typography -->
-        <div class="cp-setting-group">
-          <div class="cp-setting-group-title">Typographie</div>
-
-          <div class="cp-setting-row">
-            <span class="cp-setting-label">Police</span>
-            <div class="cp-setting-control">
-              <input type="text" class="cp-input" data-setting="fontFamily"
-                     placeholder="'Segoe UI', Calibri, sans-serif" style="width:100%">
-            </div>
-          </div>
-
-          <div class="cp-setting-row">
-            <span class="cp-setting-label">Taille texte</span>
-            <div class="cp-setting-control">
-              <input type="range" data-setting="fontSize" min="14" max="72" step="1">
-              <span class="cp-setting-value">28px</span>
-            </div>
-          </div>
-
-          <div class="cp-setting-row">
-            <span class="cp-setting-label">Couleur texte</span>
-            <div class="cp-setting-control">
-              <input type="color" data-setting="textColor" value="#1a1a1a">
-            </div>
-          </div>
-
-          <div class="cp-setting-row">
-            <span class="cp-setting-label">Alignement</span>
-            <div class="cp-setting-control">
-              <select class="cp-select" data-setting="textAlign">
-                <option value="left">Gauche</option>
-                <option value="center">Centre</option>
-                <option value="right">Droite</option>
-                <option value="justify">Justifié</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="cp-setting-row">
-            <span class="cp-setting-label">Interligne</span>
-            <div class="cp-setting-control">
-              <input type="range" data-setting="lineHeight" min="1" max="2.5" step="0.05">
-              <span class="cp-setting-value">1.55</span>
-            </div>
-          </div>
-
-          <div class="cp-setting-row">
-            <span class="cp-setting-label">Taille de la référence</span>
-            <div class="cp-setting-control">
-              <input type="range" data-setting="refFontSize" min="10" max="48" step="1">
-              <span class="cp-setting-value">15px</span>
-            </div>
-          </div>
-
-          <div class="cp-setting-row">
-            <span class="cp-setting-label">Couleur du texte réf.</span>
-            <div class="cp-setting-control">
-              <input type="color" data-setting="refColor" value="#ffffff">
-            </div>
-          </div>
-
-          <div class="cp-setting-row">
-            <span class="cp-setting-label">Fond de la référence</span>
-            <div class="cp-setting-control">
-              <input type="color" data-setting="refBgColor" value="#2d1a3e">
-            </div>
-          </div>
-
-          <div class="cp-setting-row">
-            <span class="cp-setting-label">Couleur de surlignage</span>
-            <div class="cp-setting-control">
-              <input type="color" data-setting="highlightColor" value="#ffff00">
-            </div>
-          </div>
-        </div>
-
-        <!-- Background -->
-        <div class="cp-setting-group">
-          <div class="cp-setting-group-title">Arrière-plan</div>
-
-          <div class="cp-setting-row">
-            <span class="cp-setting-label">Couleur de fond</span>
-            <div class="cp-setting-control">
-              <input type="color" data-setting="bgColor" value="#ffffff">
-            </div>
-          </div>
-
-          <div class="cp-setting-row">
-            <span class="cp-setting-label">Opacité du fond</span>
-            <div class="cp-setting-control">
-              <input type="range" data-setting="bgOpacity" min="0" max="1" step="0.05">
-              <span class="cp-setting-value">92%</span>
-            </div>
-          </div>
-
-          <div class="cp-setting-row">
-            <span class="cp-setting-label">Couleur de bordure</span>
-            <div class="cp-setting-control">
-              <input type="color" data-setting="borderColor" value="#50c8c8">
-            </div>
-          </div>
-
-          <div class="cp-setting-row">
-            <span class="cp-setting-label">Ombre</span>
-            <div class="cp-setting-control">
-              <label class="cp-toggle">
-                <input type="checkbox" data-setting="shadow" checked>
-                <span class="cp-toggle-slider"></span>
-              </label>
-            </div>
-          </div>
-
-          <div class="cp-setting-row">
-            <span class="cp-setting-label">Image de fond</span>
-            <div class="cp-setting-control" style="flex-direction:column;gap:4px;align-items:stretch;">
-              <input type="file" id="bg-image-input" accept="image/png,image/svg+xml,image/jpeg"
-                     style="font-size:10px;color:var(--cp-text-secondary);">
-              <button class="cp-btn-clear" id="btn-clear-bg-image" style="font-size:11px;padding:3px 8px;margin-top:0;">Supprimer l'image</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Data backup -->
-        <div class="cp-setting-group">
-          <div class="cp-setting-group-title">Sauvegarde des données</div>
-          <div class="cp-data-buttons">
-            <button class="cp-btn-save" id="btn-export-data" style="flex:1;">Exporter</button>
-            <button class="cp-btn-save" id="btn-import-data" style="flex:1;background:var(--cp-bg-tertiary);color:var(--cp-text);">Importer</button>
-            <input type="file" id="import-data-input" accept="application/json,.json" hidden>
-          </div>
-          <p class="cp-setting-hint">Favoris, textes, file, historique et réglages dans un fichier .json.</p>
-        </div>
-
-        <!-- Reset -->
-        <button class="cp-reset-btn" id="btn-reset-settings">Réinitialiser les paramètres</button>
-
       </div>
     </div>
 
-  </div>
-
-  <!-- Quick search palette (Ctrl+K) -->
-  <div class="cp-palette-overlay" id="palette-overlay" hidden>
-    <div class="cp-palette" role="dialog" aria-modal="true" aria-label="Recherche rapide">
-      <input type="text" class="cp-palette-input" id="palette-input"
-             placeholder="Référence ou mots-clés… (Entrée pour afficher)"
-             autocomplete="off" spellcheck="false" aria-label="Recherche rapide">
-      <div class="cp-palette-results" id="palette-results"></div>
-      <div class="cp-palette-hint">
-        <span><kbd>↑</kbd><kbd>↓</kbd> naviguer</span>
-        <span><kbd>Entrée</kbd> afficher</span>
-        <span><kbd>Échap</kbd> fermer</span>
+    <!-- Help / shortcuts modal -->
+    <div class="cp-palette-overlay" id="help-overlay" hidden>
+      <div
+        class="cp-help"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Aide et raccourcis"
+      >
+        <div class="cp-help-header">
+          <span>Raccourcis &amp; astuces</span>
+          <button class="cp-help-close" id="help-close" aria-label="Fermer">
+            &times;
+          </button>
+        </div>
+        <div class="cp-help-body">
+          <div class="cp-help-row">
+            <kbd>Ctrl / ⌘</kbd>+<kbd>K</kbd
+            ><span>Recherche rapide (prépare un passage)</span>
+          </div>
+          <div class="cp-help-row">
+            <kbd>Ctrl / ⌘</kbd>+<kbd>F</kbd><span>Aller à la recherche</span>
+          </div>
+          <div class="cp-help-row">
+            <kbd>Ctrl / ⌘</kbd>+<kbd>Entrée</kbd
+            ><span>Afficher le verset / texte</span>
+          </div>
+          <div class="cp-help-row">
+            <kbd>Échap</kbd><span>Masquer l'overlay</span>
+          </div>
+          <div class="cp-help-row">
+            <kbd>Ctrl / ⌘</kbd>+<kbd>←</kbd> / <kbd>→</kbd
+            ><span>Verset précédent / suivant</span>
+          </div>
+          <div class="cp-help-row">
+            <kbd>?</kbd><span>Ouvrir cette aide</span>
+          </div>
+          <div class="cp-help-sep"></div>
+          <div class="cp-help-tip">
+            ★ Cliquez l'étoile pour mettre un verset en favori (préparation en 1
+            clic).
+          </div>
+          <div class="cp-help-tip">
+            Tapez une plage comme <b>Jean 3:16-18</b> pour afficher plusieurs
+            versets.
+          </div>
+          <div class="cp-help-tip">
+            « Préparation » montre votre prochain passage. « Sortie » montre les
+            dernières commandes de diffusion.
+          </div>
+          <div class="cp-help-tip">
+            Changez librement de version : cliquez « Diffuser » pour mettre à
+            jour la sortie.
+          </div>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- Help / shortcuts modal -->
-  <div class="cp-palette-overlay" id="help-overlay" hidden>
-    <div class="cp-help" role="dialog" aria-modal="true" aria-label="Aide et raccourcis">
-      <div class="cp-help-header">
-        <span>Raccourcis &amp; astuces</span>
-        <button class="cp-help-close" id="help-close" aria-label="Fermer">&times;</button>
-      </div>
-      <div class="cp-help-body">
-        <div class="cp-help-row"><kbd>Ctrl</kbd>+<kbd>K</kbd><span>Recherche rapide (affiche directement)</span></div>
-        <div class="cp-help-row"><kbd>Ctrl</kbd>+<kbd>F</kbd><span>Aller à la recherche</span></div>
-        <div class="cp-help-row"><kbd>Ctrl</kbd>+<kbd>Entrée</kbd><span>Afficher le verset / texte</span></div>
-        <div class="cp-help-row"><kbd>Échap</kbd><span>Masquer l'overlay</span></div>
-        <div class="cp-help-row"><kbd>Ctrl</kbd>+<kbd>←</kbd> / <kbd>→</kbd><span>Verset précédent / suivant</span></div>
-        <div class="cp-help-row"><kbd>?</kbd><span>Ouvrir cette aide</span></div>
-        <div class="cp-help-sep"></div>
-        <div class="cp-help-tip">★ Cliquez l'étoile pour mettre un verset en favori (affichage en 1 clic).</div>
-        <div class="cp-help-tip">Tapez une plage comme <b>Jean 3:16-18</b> pour afficher plusieurs versets.</div>
-        <div class="cp-help-tip">L'aperçu « live » reflète exactement ce que verront vos spectateurs.</div>
-        <div class="cp-help-tip">Changez de version pendant qu'un verset est à l'antenne : il se met à jour.</div>
-      </div>
-    </div>
-  </div>
+    <!-- Toast notifications (feedback after actions) -->
+    <div
+      class="cp-toast-container"
+      id="cp-toast-container"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    ></div>
 
-  <!-- Toast notifications (feedback after actions) -->
-  <div class="cp-toast-container" id="cp-toast-container" role="status" aria-live="polite" aria-atomic="true"></div>
-
-  <!-- Scripts: shared first, then control modules, then app -->
-  <script src="assets/js/shared/constants.js"></script>
-  <script src="assets/js/shared/books.js"></script>
-  <script src="assets/js/shared/channel.js"></script>
-  <script src="assets/js/control/bible-loader.js"></script>
-  <script src="assets/js/control/search.js"></script>
-  <script src="assets/js/control/navigation.js"></script>
-  <script src="assets/js/control/settings.js"></script>
-  <script src="assets/js/control/history.js"></script>
-  <script src="assets/js/control/favorites.js"></script>
-  <script src="assets/js/control/freetext.js"></script>
-  <script src="assets/js/control/queue.js"></script>
-  <script src="assets/js/control/app.js"></script>
-
-</body>
+    <!-- Scripts: shared first, then control modules, then app -->
+    <script src="assets/js/shared/constants.js?v=2.0"></script>
+    <script src="assets/js/shared/books.js?v=2.0"></script>
+    <script src="assets/js/shared/html.js?v=2.0"></script>
+    <script src="assets/js/shared/channel.js?v=2.0"></script>
+    <script src="assets/js/control/bible-loader.js?v=2.0"></script>
+    <script src="assets/js/control/search.js?v=2.0"></script>
+    <script src="assets/js/control/navigation.js?v=2.0"></script>
+    <script src="assets/js/control/settings.js?v=2.0"></script>
+    <script src="assets/js/control/history.js?v=2.0"></script>
+    <script src="assets/js/control/favorites.js?v=2.0"></script>
+    <script src="assets/js/control/freetext.js?v=2.0"></script>
+    <script src="assets/js/control/queue.js?v=2.0"></script>
+    <script src="assets/js/control/backup.js?v=2.0"></script>
+    <script src="assets/js/control/studio.js?v=2.0"></script>
+    <script src="assets/js/control/app.js?v=2.0"></script>
+  </body>
 </html>

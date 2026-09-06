@@ -1,11 +1,13 @@
 /* VerseObs - OBS Browser Source Overlay Styles */
 
 :root {
+  color-scheme: dark;
+  background: transparent;
   --text-color: #1a1a1a;
   --bg-color: 255, 255, 255;
   --bg-opacity: 0.92;
   --font-size: 28px;
-  --font-family: 'Segoe UI', Calibri, 'Helvetica Neue', Arial, sans-serif;
+  --font-family: "Segoe UI", Calibri, "Helvetica Neue", Arial, sans-serif;
   --padding: 24px 30px;
   --border-radius: 14px;
   --max-width: 85%;
@@ -231,13 +233,21 @@ body {
 /* ---- Animation Keyframes ---- */
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes fadeOut {
-  from { opacity: 1; }
-  to   { opacity: 0; }
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }
 
 @keyframes slideUpIn {
@@ -312,4 +322,31 @@ body {
 /* Typewriter: characters revealed via JS, this just ensures smooth appearance */
 .anim-typewriter .verse-text {
   overflow: hidden;
+}
+
+body.projector {
+  background: #121315;
+}
+.projector-fullscreen {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 10px 16px;
+  border: 1px solid #545761;
+  background: #25262a;
+  color: #d4d6db;
+  border-radius: 7px;
+  font: 14px system-ui;
+  cursor: pointer;
+  z-index: 100;
+}
+.projector-fullscreen:focus-visible {
+  outline: 3px solid #92b3f5;
+  outline-offset: 4px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .verse-card {
+    transition: none !important;
+    animation: none !important;
+  }
 }

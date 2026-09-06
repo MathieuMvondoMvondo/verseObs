@@ -1,11 +1,11 @@
 /* VerseObs - Enhanced Free Text Mode */
 
 (function () {
-  'use strict';
+  "use strict";
 
   window.VerseObs = window.VerseObs || {};
 
-  var SAVED_KEY = 'verseobs_saved_texts';
+  var SAVED_KEY = "verseobs_saved_texts";
 
   /**
    * @param {object} opts
@@ -30,22 +30,37 @@
     this._savedTexts = [];
     this._loadSaved();
     this._bindFormatToolbar();
+    var self = this;
+    try {
+      var draft = JSON.parse(localStorage.getItem("verseobs_draft"));
+      if (draft) self.setData(draft);
+    } catch (e) {}
+    [this.titleInput, this.subtitleInput, this.contentEditable].forEach(
+      function (input) {
+        if (input)
+          input.addEventListener("input", function () {
+            self.saveDraft();
+          });
+      },
+    );
   }
 
   /**
    * Get current data.
    */
   FreeText.prototype.getData = function () {
-    var title = this.titleInput ? this.titleInput.value.trim() : '';
-    var subtitle = this.subtitleInput ? this.subtitleInput.value.trim() : '';
-    var text = this.contentEditable ? this.contentEditable.textContent.trim() : '';
-    var html = '';
+    var title = this.titleInput ? this.titleInput.value.trim() : "";
+    var subtitle = this.subtitleInput ? this.subtitleInput.value.trim() : "";
+    var text = this.contentEditable
+      ? this.contentEditable.innerText.trim()
+      : "";
+    var html = "";
 
     if (this.contentEditable) {
       var rawHtml = this.contentEditable.innerHTML;
       // Check if any formatting tags exist
-      if (/<(b|i|u|strong|em|mark|span|br)\b/i.test(rawHtml)) {
-        html = rawHtml;
+      if (rawHtml) {
+        html = window.VerseObs.sanitizeHtml(rawHtml);
       }
     }
 
@@ -56,13 +71,15 @@
    * Set content.
    */
   FreeText.prototype.setData = function (data) {
-    if (this.titleInput) this.titleInput.value = data.title || '';
-    if (this.subtitleInput) this.subtitleInput.value = data.subtitle || '';
+    if (this.titleInput) this.titleInput.value = data.title || "";
+    if (this.subtitleInput) this.subtitleInput.value = data.subtitle || "";
     if (this.contentEditable) {
       if (data.html) {
-        this.contentEditable.innerHTML = data.html;
+        this.contentEditable.innerHTML = window.VerseObs.sanitizeHtml(
+          data.html,
+        );
       } else {
-        this.contentEditable.textContent = data.text || '';
+        this.contentEditable.textContent = data.text || "";
       }
     }
   };
@@ -70,10 +87,17 @@
   /**
    * Clear all fields.
    */
+  FreeText.prototype.saveDraft = function () {
+    try {
+      localStorage.setItem("verseobs_draft", JSON.stringify(this.getData()));
+    } catch (e) {}
+  };
+
   FreeText.prototype.clear = function () {
-    if (this.titleInput) this.titleInput.value = '';
-    if (this.subtitleInput) this.subtitleInput.value = '';
-    if (this.contentEditable) this.contentEditable.innerHTML = '';
+    if (this.titleInput) this.titleInput.value = "";
+    if (this.subtitleInput) this.subtitleInput.value = "";
+    if (this.contentEditable) this.contentEditable.innerHTML = "";
+    this.saveDraft();
   };
 
   /**
@@ -83,7 +107,7 @@
     var data = this.getData();
     if (!data.text && !data.title) return;
 
-    if (typeof this.onSend === 'function') {
+    if (typeof this.onSend === "function") {
       this.onSend(data);
     }
   };
@@ -94,12 +118,12 @@
     if (!this.formatToolbar || !this.contentEditable) return;
     var self = this;
 
-    var buttons = this.formatToolbar.querySelectorAll('[data-format]');
+    var buttons = this.formatToolbar.querySelectorAll("[data-format]");
     for (var i = 0; i < buttons.length; i++) {
       (function (btn) {
-        btn.addEventListener('mousedown', function (e) {
+        btn.addEventListener("mousedown", function (e) {
           e.preventDefault();
-          self._applyFormat(btn.getAttribute('data-format'));
+          self._applyFormat(btn.getAttribute("data-format"));
         });
       })(buttons[i]);
     }
@@ -109,30 +133,31 @@
     if (!this.contentEditable) return;
     this.contentEditable.focus();
 
-    var colorInput = this.formatToolbar ?
-      this.formatToolbar.querySelector('.cp-format-color') : null;
+    var colorInput = this.formatToolbar
+      ? this.formatToolbar.querySelector(".cp-format-color")
+      : null;
 
     switch (format) {
-      case 'bold':
-        document.execCommand('bold', false, null);
+      case "bold":
+        document.execCommand("bold", false, null);
         break;
-      case 'italic':
-        document.execCommand('italic', false, null);
+      case "italic":
+        document.execCommand("italic", false, null);
         break;
-      case 'underline':
-        document.execCommand('underline', false, null);
+      case "underline":
+        document.execCommand("underline", false, null);
         break;
-      case 'highlight':
-        var color = colorInput ? colorInput.value : '#ffff00';
+      case "highlight":
+        var color = colorInput ? colorInput.value : "#ffff00";
         var sel = window.getSelection();
         if (sel.rangeCount > 0 && !sel.isCollapsed) {
           var range = sel.getRangeAt(0);
           var parent = sel.anchorNode.parentElement;
-          if (parent && parent.tagName === 'MARK') {
+          if (parent && parent.tagName === "MARK") {
             var textNode = document.createTextNode(parent.textContent);
             parent.parentNode.replaceChild(textNode, parent);
           } else {
-            var mark = document.createElement('mark');
+            var mark = document.createElement("mark");
             mark.style.backgroundColor = color;
             try {
               range.surroundContents(mark);
@@ -144,9 +169,9 @@
           }
         }
         break;
-      case 'clear':
-        document.execCommand('removeFormat', false, null);
-        var marks = this.contentEditable.querySelectorAll('mark');
+      case "clear":
+        document.execCommand("removeFormat", false, null);
+        var marks = this.contentEditable.querySelectorAll("mark");
         for (var i = 0; i < marks.length; i++) {
           var tn = document.createTextNode(marks[i].textContent);
           marks[i].parentNode.replaceChild(tn, marks[i]);
@@ -177,9 +202,9 @@
     var data = this.getData();
     if (!data.text && !data.title) return;
 
-    var name = this.saveNameInput ? this.saveNameInput.value.trim() : '';
+    var name = this.saveNameInput ? this.saveNameInput.value.trim() : "";
     if (!name) {
-      name = data.title || data.text.substring(0, 40) + '...';
+      name = data.title || data.text.substring(0, 40) + "...";
     }
 
     this._savedTexts.unshift({
@@ -188,11 +213,11 @@
       subtitle: data.subtitle,
       text: data.text,
       html: data.html,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
 
     this._savePersist();
-    if (this.saveNameInput) this.saveNameInput.value = '';
+    if (this.saveNameInput) this.saveNameInput.value = "";
     this.renderSavedList();
   };
 
@@ -206,17 +231,18 @@
     var item = this._savedTexts[index];
     if (!item) return;
     this.setData(item);
+    this.saveDraft();
   };
 
   FreeText.prototype.renderSavedList = function () {
     if (!this.savedListContainer) return;
     var self = this;
-    this.savedListContainer.innerHTML = '';
+    this.savedListContainer.innerHTML = "";
 
     if (this._savedTexts.length === 0) {
-      var empty = document.createElement('div');
-      empty.className = 'cp-history-empty';
-      empty.textContent = 'Aucun texte sauvegardé';
+      var empty = document.createElement("div");
+      empty.className = "cp-history-empty";
+      empty.textContent = "Aucun texte sauvegardé";
       this.savedListContainer.appendChild(empty);
       return;
     }
@@ -224,48 +250,48 @@
     for (var i = 0; i < this._savedTexts.length; i++) {
       (function (idx) {
         var item = self._savedTexts[idx];
-        var row = document.createElement('div');
-        row.className = 'cp-saved-item';
+        var row = document.createElement("div");
+        row.className = "cp-saved-item";
 
-        var info = document.createElement('div');
-        info.className = 'cp-saved-info';
+        var info = document.createElement("div");
+        info.className = "cp-saved-info";
 
-        var nameEl = document.createElement('div');
-        nameEl.className = 'cp-saved-name';
+        var nameEl = document.createElement("div");
+        nameEl.className = "cp-saved-name";
         nameEl.textContent = item.name;
 
-        var previewEl = document.createElement('div');
-        previewEl.className = 'cp-saved-preview';
-        previewEl.textContent = item.text ? item.text.substring(0, 60) : '';
+        var previewEl = document.createElement("div");
+        previewEl.className = "cp-saved-preview";
+        previewEl.textContent = item.text ? item.text.substring(0, 60) : "";
 
         info.appendChild(nameEl);
         info.appendChild(previewEl);
 
-        var actions = document.createElement('div');
-        actions.className = 'cp-saved-actions';
+        var actions = document.createElement("div");
+        actions.className = "cp-saved-actions";
 
-        var loadBtn = document.createElement('button');
-        loadBtn.className = 'cp-saved-btn cp-saved-load';
-        loadBtn.textContent = 'Charger';
-        loadBtn.addEventListener('click', function (e) {
+        var loadBtn = document.createElement("button");
+        loadBtn.className = "cp-saved-btn cp-saved-load";
+        loadBtn.textContent = "Charger";
+        loadBtn.addEventListener("click", function (e) {
           e.stopPropagation();
           self.loadSaved(idx);
         });
 
-        var sendBtn = document.createElement('button');
-        sendBtn.className = 'cp-saved-btn cp-saved-send';
-        sendBtn.textContent = 'Afficher';
-        sendBtn.addEventListener('click', function (e) {
+        var sendBtn = document.createElement("button");
+        sendBtn.className = "cp-saved-btn cp-saved-send";
+        sendBtn.textContent = "Afficher";
+        sendBtn.addEventListener("click", function (e) {
           e.stopPropagation();
           self.loadSaved(idx);
           self.send();
         });
 
-        var delBtn = document.createElement('button');
-        delBtn.className = 'cp-saved-btn cp-saved-del';
-        delBtn.textContent = '\u00d7';
-        delBtn.title = 'Supprimer';
-        delBtn.addEventListener('click', function (e) {
+        var delBtn = document.createElement("button");
+        delBtn.className = "cp-saved-btn cp-saved-del";
+        delBtn.textContent = "\u00d7";
+        delBtn.title = "Supprimer";
+        delBtn.addEventListener("click", function (e) {
           e.stopPropagation();
           self.deleteSaved(idx);
         });

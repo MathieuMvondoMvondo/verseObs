@@ -1,11 +1,11 @@
 /* VerseObs - Verse History */
 
 (function () {
-  'use strict';
+  "use strict";
 
   window.VerseObs = window.VerseObs || {};
 
-  var HISTORY_KEY = window.VerseObs.HISTORY_KEY || 'verseobs_history';
+  var HISTORY_KEY = window.VerseObs.HISTORY_KEY || "verseobs_history";
   var HISTORY_MAX = window.VerseObs.HISTORY_MAX || 50;
 
   function History() {
@@ -49,9 +49,10 @@
 
     var item = {
       reference: entry.reference,
-      text: entry.text || '',
-      version: entry.version || '',
-      timestamp: entry.timestamp || Date.now()
+      text: entry.text || "",
+      html: entry.html || "",
+      version: entry.version || "",
+      timestamp: entry.timestamp || Date.now(),
     };
 
     // Add to front
@@ -86,42 +87,43 @@
   History.prototype.renderList = function (container) {
     if (!container) return;
 
-    container.innerHTML = '';
+    container.innerHTML = "";
 
     if (this._entries.length === 0) {
-      var empty = document.createElement('div');
-      empty.className = 'cp-history-empty';
-      empty.textContent = 'Aucun verset dans l\'historique';
+      var empty = document.createElement("div");
+      empty.className = "cp-history-empty";
+      empty.textContent = "Aucun verset dans l'historique";
       container.appendChild(empty);
       return;
     }
 
-    var list = document.createElement('ul');
-    list.className = 'cp-history-list';
+    var list = document.createElement("ul");
+    list.className = "cp-history-list";
     var self = this;
 
     for (var i = 0; i < this._entries.length; i++) {
       (function (entry, index) {
-        var li = document.createElement('li');
-        li.className = 'cp-history-item';
+        var li = document.createElement("li");
+        li.className = "cp-history-item";
 
-        var ref = document.createElement('div');
-        ref.className = 'cp-history-ref';
+        var ref = document.createElement("div");
+        ref.className = "cp-history-ref";
         ref.textContent = entry.reference;
 
-        var preview = document.createElement('div');
-        preview.className = 'cp-history-preview';
-        var previewText = entry.text || '';
-        if (previewText.length > 80) previewText = previewText.substring(0, 80) + '...';
+        var preview = document.createElement("div");
+        preview.className = "cp-history-preview";
+        var previewText = entry.text || "";
+        if (previewText.length > 80)
+          previewText = previewText.substring(0, 80) + "...";
         preview.textContent = previewText;
 
-        var meta = document.createElement('div');
-        meta.className = 'cp-history-meta';
+        var meta = document.createElement("div");
+        meta.className = "cp-history-meta";
 
-        var version = document.createElement('span');
-        version.textContent = entry.version || '';
+        var version = document.createElement("span");
+        version.textContent = entry.version || "";
 
-        var time = document.createElement('span');
+        var time = document.createElement("span");
         time.textContent = _formatTime(entry.timestamp);
 
         meta.appendChild(version);
@@ -131,8 +133,8 @@
         li.appendChild(preview);
         li.appendChild(meta);
 
-        li.addEventListener('click', function () {
-          if (typeof self.onClick === 'function') {
+        li.addEventListener("click", function () {
+          if (typeof self.onClick === "function") {
             self.onClick(entry);
           }
         });
@@ -148,23 +150,23 @@
    * Format timestamp for display.
    */
   function _formatTime(ts) {
-    if (!ts) return '';
+    if (!ts) return "";
     var d = new Date(ts);
     var now = new Date();
     var diffMs = now - d;
     var diffMin = Math.floor(diffMs / 60000);
 
     if (diffMin < 1) return "à l'instant";
-    if (diffMin < 60) return 'il y a ' + diffMin + ' min';
+    if (diffMin < 60) return "il y a " + diffMin + " min";
     var diffHr = Math.floor(diffMin / 60);
-    if (diffHr < 24) return 'il y a ' + diffHr + ' h';
+    if (diffHr < 24) return "il y a " + diffHr + " h";
     var diffDay = Math.floor(diffHr / 24);
-    if (diffDay < 7) return 'il y a ' + diffDay + ' j';
+    if (diffDay < 7) return "il y a " + diffDay + " j";
 
     // Full date
-    var month = String(d.getMonth() + 1).padStart(2, '0');
-    var day = String(d.getDate()).padStart(2, '0');
-    return d.getFullYear() + '-' + month + '-' + day;
+    var month = String(d.getMonth() + 1).padStart(2, "0");
+    var day = String(d.getDate()).padStart(2, "0");
+    return d.getFullYear() + "-" + month + "-" + day;
   }
 
   window.VerseObs.History = History;
