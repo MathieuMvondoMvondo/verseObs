@@ -113,7 +113,34 @@
       }
     }
 
+    var secondary = null;
+    try {
+      secondary = window.VerseObs.validateSecondary(data.secondary);
+    } catch (e) {}
+    if (secondary) {
+      card.classList.add("verse-card-bilingual");
+      var primaryLabel = document.createElement("div");
+      primaryLabel.className = "verse-translation-label";
+      primaryLabel.textContent = data.version || "";
+      body.appendChild(primaryLabel);
+    }
     body.appendChild(textEl);
+    if (secondary) {
+      var second = document.createElement("section");
+      second.className = "verse-secondary";
+      if (secondary.lang) second.lang = secondary.lang;
+      var secondLabel = document.createElement("div");
+      secondLabel.className = "verse-translation-label";
+      secondLabel.textContent = secondary.version + " · " + secondary.reference;
+      second.appendChild(secondLabel);
+      var secondText = document.createElement("div");
+      secondText.className = "verse-text verse-secondary-text";
+      if (secondary.html)
+        secondText.innerHTML = window.VerseObs.sanitizeHtml(secondary.html);
+      else secondText.textContent = secondary.text;
+      second.appendChild(secondText);
+      body.appendChild(second);
+    }
     card.appendChild(body);
 
     return card;
@@ -251,6 +278,7 @@
     if (data.style) self.updateStyle(data.style);
     if (data.position) self._setPosition(data.position);
     var animation = data.animation || self.currentAnimation;
+    if (data.secondary && animation === "typewriter") animation = "fade";
     var duration =
       data.animationDuration !== undefined
         ? data.animationDuration

@@ -2861,3 +2861,121 @@ body[data-tab="2"] .cp-queue-preview {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Let the document scroll; the legacy dock stylesheet fixed and clipped the body. */
+html {
+  height: auto;
+  min-height: 100%;
+  overflow-y: auto;
+}
+body {
+  display: block;
+  height: auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: visible;
+}
+.cp-tab-content {
+  overflow: visible;
+}
+.studio-sidebar {
+  overflow-y: auto;
+}
+.bilingual-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin: 12px 0;
+}
+.bilingual-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.bilingual-switch input {
+  accent-color: var(--cp-accent);
+  width: 16px;
+  height: 16px;
+}
+#secondary-version-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--cp-text-secondary);
+  min-width: 0;
+}
+#secondary-version {
+  max-width: 250px;
+  font-size: 12px;
+  min-width: 0;
+}
+.bilingual-order {
+  color: var(--cp-text-muted);
+  font-size: 10px;
+}
+.bilingual-status {
+  padding: 10px 12px;
+  border-left: 2px solid var(--cp-accent);
+  color: var(--cp-text-secondary);
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+.translation-caption {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--cp-text-muted);
+  margin: 0 0 8px;
+}
+.secondary-preparation {
+  margin-top: 15px;
+  padding-top: 14px;
+  border-top: 1px solid var(--cp-border);
+}
+.secondary-preparation h3 {
+  font-size: 13px;
+}
+.secondary-text {
+  width: 100%;
+  min-height: 100px;
+  max-height: 300px;
+  resize: vertical;
+  border: 0;
+  background: transparent;
+  color: var(--cp-text);
+  font: 15px/1.65 var(--cp-font);
+  padding: 4px 0;
+}
+.secondary-text:focus-visible {
+  outline: 2px solid var(--cp-accent);
+  outline-offset: 4px;
+}
+.queue-secondary-text {
+  display: block;
+  white-space: pre-line;
+  margin-top: 10px;
+}
+@media (max-width: 620px) {
+  #secondary-version-field {
+    flex-basis: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  #secondary-version {
+    max-width: none;
+    width: 100%;
+  }
+  .bilingual-order {
+    flex-basis: 100%;
+  }
+}
+
+.passage-editor .cp-preview {
+  max-height: none;
+  overflow: visible;
+}

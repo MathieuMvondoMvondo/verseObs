@@ -9,8 +9,8 @@
       content="Votre studio de diffusion biblique. Préparez, organisez et diffusez vos passages dans OBS."
     />
     <title>VerseObs — Studio</title>
-    <link rel="stylesheet" href="assets/css/control.css?v=2.0" />
-    <link rel="stylesheet" href="assets/css/studio.css?v=2.0" />
+    <link rel="stylesheet" href="assets/css/control.css?v=2.1" />
+    <link rel="stylesheet" href="assets/css/studio.css?v=2.1" />
   </head>
   <body data-tab="0">
     <a class="skip-link" href="#search-input">Aller à la recherche</a>
@@ -253,6 +253,28 @@
               ><span class="cp-loading" id="version-loading" hidden></span>
             </div>
           </div>
+          <div class="bilingual-controls">
+            <label class="bilingual-switch"
+              ><input id="bilingual-toggle" type="checkbox" disabled /> Deux
+              versions</label
+            >
+            <label id="secondary-version-field" hidden
+              >Deuxième version<select
+                id="secondary-version"
+                class="cp-select"
+                aria-label="Deuxième version de la Bible"
+              ></select
+            ></label>
+            <span class="bilingual-order"
+              >La première au-dessus, la seconde en dessous</span
+            >
+          </div>
+          <p
+            id="bilingual-status"
+            class="bilingual-status"
+            role="status"
+            hidden
+          ></p>
           <div class="search-suggestions">
             <span>Accès rapide</span
             ><button data-reference="Jean 3:16">Jean 3:16</button
@@ -345,14 +367,14 @@
                 <iframe
                   class="cp-preview-frame"
                   id="preview-frame"
-                  src="browser_source.html?preview=1&v=2.0"
+                  src="browser_source.html?preview=1&v=2.1"
                   title="Aperçu du passage préparé"
                   tabindex="-1"
                 ></iframe
                 ><iframe
                   class="cp-preview-frame"
                   id="program-frame"
-                  src="browser_source.html?monitor=1&v=2.0"
+                  src="browser_source.html?monitor=1&v=2.1"
                   title="Retour des commandes de diffusion"
                   tabindex="-1"
                   hidden
@@ -376,6 +398,11 @@
                     Mise en forme
                   </button>
                 </div>
+                <span
+                  id="primary-version-label"
+                  class="translation-caption"
+                  hidden
+                ></span>
                 <div
                   class="cp-format-toolbar"
                   id="format-toolbar"
@@ -445,6 +472,34 @@
                   >
                     Chargement du passage…
                   </div>
+                  <section
+                    id="secondary-preparation"
+                    class="secondary-preparation"
+                    hidden
+                  >
+                    <div class="section-heading">
+                      <h3 id="secondary-reference">Deuxième traduction</h3>
+                      <button
+                        id="secondary-retry"
+                        class="format-toggle"
+                        title="Recharger le texte original de la deuxième version"
+                      >
+                        Recharger
+                      </button>
+                    </div>
+                    <label
+                      id="secondary-version-label"
+                      class="translation-caption"
+                      for="secondary-text"
+                      >Deuxième version</label
+                    >
+                    <textarea
+                      id="secondary-text"
+                      class="secondary-text"
+                      rows="4"
+                      aria-label="Texte de la deuxième traduction"
+                    ></textarea>
+                  </section>
                 </div>
               </div>
               <div class="cp-actions">
@@ -1010,7 +1065,7 @@
               <iframe
                 class="cp-preview-frame"
                 id="settings-preview-frame"
-                src="browser_source.html?preview=1&v=2.0"
+                src="browser_source.html?preview=1&v=2.1"
                 title="Aperçu en direct de l'overlay"
                 tabindex="-1"
                 aria-hidden="true"
@@ -1591,20 +1646,22 @@
     ></div>
 
     <!-- Scripts: shared first, then control modules, then app -->
-    <script src="assets/js/shared/constants.js?v=2.0"></script>
-    <script src="assets/js/shared/books.js?v=2.0"></script>
-    <script src="assets/js/shared/html.js?v=2.0"></script>
-    <script src="assets/js/shared/channel.js?v=2.0"></script>
-    <script src="assets/js/control/bible-loader.js?v=2.0"></script>
-    <script src="assets/js/control/search.js?v=2.0"></script>
-    <script src="assets/js/control/navigation.js?v=2.0"></script>
-    <script src="assets/js/control/settings.js?v=2.0"></script>
-    <script src="assets/js/control/history.js?v=2.0"></script>
-    <script src="assets/js/control/favorites.js?v=2.0"></script>
-    <script src="assets/js/control/freetext.js?v=2.0"></script>
-    <script src="assets/js/control/queue.js?v=2.0"></script>
-    <script src="assets/js/control/backup.js?v=2.0"></script>
-    <script src="assets/js/control/studio.js?v=2.0"></script>
-    <script src="assets/js/control/app.js?v=2.0"></script>
+    <script src="assets/js/shared/constants.js?v=2.1"></script>
+    <script src="assets/js/shared/books.js?v=2.1"></script>
+    <script src="assets/js/shared/html.js?v=2.1"></script>
+    <script src="assets/js/shared/secondary.js?v=2.1"></script>
+    <script src="assets/js/shared/channel.js?v=2.1"></script>
+    <script src="assets/js/control/bible-loader.js?v=2.1"></script>
+    <script src="assets/js/control/search.js?v=2.1"></script>
+    <script src="assets/js/control/navigation.js?v=2.1"></script>
+    <script src="assets/js/control/settings.js?v=2.1"></script>
+    <script src="assets/js/control/history.js?v=2.1"></script>
+    <script src="assets/js/control/favorites.js?v=2.1"></script>
+    <script src="assets/js/control/freetext.js?v=2.1"></script>
+    <script src="assets/js/control/queue.js?v=2.1"></script>
+    <script src="assets/js/control/backup.js?v=2.1"></script>
+    <script src="assets/js/control/studio.js?v=2.1"></script>
+    <script src="assets/js/control/bilingual.js?v=2.1"></script>
+    <script src="assets/js/control/app.js?v=2.1"></script>
   </body>
 </html>

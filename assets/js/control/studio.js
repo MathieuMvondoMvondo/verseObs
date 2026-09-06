@@ -96,6 +96,12 @@
         el("queue-selection-text").innerHTML = V.sanitizeHtml(selected.html);
       else
         el("queue-selection-text").textContent = selected ? selected.text : "";
+      if (selected && selected.secondary) {
+        var second = document.createElement("span");
+        second.className = "queue-secondary-text";
+        second.textContent = V.secondaryText(selected);
+        el("queue-selection-text").appendChild(second);
+      }
     }
     el("session-saved").textContent = !state.saved
       ? "Non enregistré · exportez votre session"
@@ -665,7 +671,10 @@
     el("preview-caption").textContent =
       el("preview-ref").textContent +
       " · " +
-      el("version-select").value.toUpperCase();
+      el("version-select").value.toUpperCase() +
+      (el("bilingual-toggle").checked
+        ? " + " + el("secondary-version").value.toUpperCase()
+        : "");
   }
   V.Studio = {
     init: init,

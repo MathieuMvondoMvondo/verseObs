@@ -45,6 +45,12 @@ Le moniteur **Préparation** représente votre prochain passage ; **Sortie** rep
 
 Les réglages d’habillage s’appliquent au contenu diffusé du même type. Les textes et chants ont leur propre habillage, accessible dans leur onglet, avec les styles Chant, Annonce, Prière et Citation. Ajuster le style biblique ne modifie pas un chant à l’antenne.
 
+## Deux traductions en même temps
+
+Dans Bible, activez **Deux versions**, puis choisissez la seconde traduction. La première version apparaît au-dessus, la seconde en dessous, chacune identifiée. Louis Segond + King James est le choix initial ; toutes les combinaisons de versions locales sont possibles.
+
+Les deux textes suivent le même livre, chapitre et numéro de verset, y compris les plages. Le deuxième texte reste modifiable avant diffusion. Le conducteur, son export, l’historique et la copie conservent les deux traductions. Changer une version ou désactiver le mode prépare le prochain rendu sans remplacer le direct. Si un passage manque dans la deuxième version, la diffusion est bloquée jusqu’à correction du choix. Les différences de numérotation entre traductions ne font pas l’objet d’une correspondance automatique. En mode bilingue, l’effet machine à écrire est remplacé par un fondu commun.
+
 ## Un conducteur pour l’équipe
 
 Ajoutez vos passages et textes avec **Ajouter au conducteur**. Sur grand écran, le conducteur reste visible à côté de votre préparation.

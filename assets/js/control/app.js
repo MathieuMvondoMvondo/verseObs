@@ -17,6 +17,7 @@
     history,
     freeText,
     freeTextStyle,
+    bilingual,
     queue,
     favorites;
   var channel = null;
@@ -162,6 +163,19 @@
 
   function _initModules() {
     bibleLoader = new window.VerseObs.BibleLoader();
+    bilingual = new window.VerseObs.Bilingual({
+      loader: bibleLoader,
+      notify: _notify,
+      changed: _sendPreview,
+      selection: function () {
+        if (!currentBibleId) return null;
+        var sel = navigation.getSelection();
+        return Object.assign({}, sel, {
+          version: currentBibleId,
+          end: _pendingRange ? _pendingRange.end : sel.verse,
+        });
+      },
+    });
     search = new window.VerseObs.Search();
 
     navigation = new window.VerseObs.Navigation({
@@ -258,6 +272,7 @@
           _sendMessage(MSG.SHOW_VERSE, {
             text: item.text,
             html: item.html || "",
+            secondary: item.secondary || null,
             reference: item.reference,
             version: item.version || "",
             settings: settings.getAll(),
@@ -702,8 +717,9 @@
 
   function _addCurrentVerseToQueue() {
     var disp = _activeDisplay();
-    if (!disp) return;
+    if (!disp || !bilingual.ready()) return;
     queue.add({
+      secondary: bilingual.value(),
       type: "verse",
       text: dom.previewText.innerText || disp.text,
       html: _getFormattedHtml() || "",
@@ -986,6 +1002,7 @@
       }
     }
     _updateFavButton();
+    bilingual.refresh();
     _sendPreview();
     if (window.VerseObs.Studio) window.VerseObs.Studio.refreshChapter();
     try {
@@ -1118,12 +1135,13 @@
 
   function _showCurrentVerse() {
     var disp = _activeDisplay();
-    if (!disp) return;
+    if (!disp || !bilingual.ready()) return;
 
     var sel = navigation.getSelection();
     var versionName = disp.version;
 
     var msgData = {
+      secondary: bilingual.value(),
       text: dom.previewText ? dom.previewText.innerText : disp.text,
       reference: disp.reference,
       version: versionName,
@@ -1152,6 +1170,7 @@
     history.add({
       reference: disp.reference,
       text: msgData.text,
+      secondary: msgData.secondary,
       html: msgData.html || "",
       version: versionName,
     });
@@ -1169,6 +1188,7 @@
     queue.add({
       type: "verse",
       text: entry.text,
+      secondary: entry.secondary || null,
       html: entry.html || "",
       reference: entry.reference,
       version: entry.version || "",
@@ -1529,8 +1549,9 @@
       }
     } else {
       var disp = _activeDisplay();
-      if (disp) {
+      if (disp && bilingual.ready()) {
         data = {
+          secondary: bilingual.value(),
           text: dom.previewText ? dom.previewText.innerText : disp.text,
           reference: disp.reference,
           version: disp.version,
@@ -1576,6 +1597,7 @@
       " (" +
       item.version +
       ")";
+    str += window.VerseObs.secondaryText({ secondary: bilingual.value() });
     var done = function () {
       _notify("Verset copié", "success");
     };
@@ -1744,6 +1766,7 @@
       }
 
       _populateVersionSelector(index);
+      bilingual.init(index);
 
       var defaultId = "lsg";
       try {

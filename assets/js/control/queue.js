@@ -259,14 +259,17 @@
         var titleEl = document.createElement("div");
         titleEl.className = "cp-queue-title";
         if (item.type === "verse") {
-          titleEl.textContent = item.reference || "Verset";
+          titleEl.textContent =
+            (item.reference || "Verset") +
+            (item.secondary ? " · 2 versions" : "");
         } else {
           titleEl.textContent = item.title || "Texte libre";
         }
 
         var previewEl = document.createElement("div");
         previewEl.className = "cp-queue-preview";
-        previewEl.textContent = item.text || "";
+        previewEl.textContent =
+          (item.text || "") + window.VerseObs.secondaryText(item);
 
         info.appendChild(titleEl);
         info.appendChild(previewEl);
@@ -374,6 +377,8 @@
               : item[k] || "";
         },
       );
+      if (item.secondary != null)
+        clean.secondary = window.VerseObs.validateSecondary(item.secondary);
       return clean;
     });
   };

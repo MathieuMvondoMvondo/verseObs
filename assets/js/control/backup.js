@@ -13,6 +13,7 @@
     "verseobs_queue",
     "verseobs_session_name",
     "verseobs_selection",
+    "verseobs_bilingual",
     "verseobs_draft",
   ];
   function validate(payload) {
@@ -92,6 +93,8 @@
               entry[k] = item[k];
             }
           });
+          if (item.secondary)
+            entry.secondary = V.validateSecondary(item.secondary);
           if (item.html) entry.html = V.sanitizeHtml(item.html);
           return entry;
         });
@@ -133,6 +136,15 @@
           subtitle: String(value.subtitle || "").slice(0, 500),
           html: V.sanitizeHtml(value.html || ""),
         };
+      } else if (key === "verseobs_bilingual") {
+        if (
+          !value ||
+          typeof value.enabled !== "boolean" ||
+          typeof value.version !== "string" ||
+          !/^[a-z0-9_-]{1,30}$/.test(value.version)
+        )
+          throw new Error("Choix des traductions invalide.");
+        value = { enabled: value.enabled, version: value.version };
       } else if (key === "verseobs_selection") {
         if (
           !value ||

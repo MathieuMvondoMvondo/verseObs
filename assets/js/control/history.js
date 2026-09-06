@@ -55,6 +55,9 @@
       timestamp: entry.timestamp || Date.now(),
     };
 
+    if (entry.secondary)
+      item.secondary = window.VerseObs.validateSecondary(entry.secondary);
+
     // Add to front
     this._entries.unshift(item);
 
@@ -121,7 +124,9 @@
         meta.className = "cp-history-meta";
 
         var version = document.createElement("span");
-        version.textContent = entry.version || "";
+        version.textContent =
+          (entry.version || "") +
+          (entry.secondary ? " + " + entry.secondary.version : "");
 
         var time = document.createElement("span");
         time.textContent = _formatTime(entry.timestamp);

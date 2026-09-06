@@ -73,6 +73,7 @@
       style = styleFor(msg.settings);
     var data = {
       text: msg.text || "",
+      secondary: msg.secondary || null,
       html: msg.html || "",
       reference: msg.reference || "",
       version: msg.version || "",

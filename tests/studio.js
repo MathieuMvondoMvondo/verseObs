@@ -427,8 +427,171 @@ async function run() {
   check("Local relay rejects commands from other web origins", () =>
     assert.equal(forbidden, 403),
   );
+  await testBilingual(cp, output);
   await testDedup();
   console.log("\n✓ Studio integration: " + passed + " checks passed.");
+}
+async function testBilingual(cp, output) {
+  click(cp, "#tab-btn-0");
+  input(cp, "#version-select", "lsg", "change");
+  await until(
+    () => cp.d.querySelector("#version-select").disabled === false,
+    "primary version loaded",
+  );
+  input(cp, "#settings-container [data-setting=animation]", "none", "change");
+  input(cp, "#search-input", "Jean 3:16-18");
+  click(cp, "#bilingual-toggle");
+  await until(
+    () =>
+      cp.d.querySelector("#secondary-text").value.includes("For God so loved"),
+    "English translation prepared",
+  );
+  check(
+    "FR and EN ranges are prepared together with the English reference",
+    () => {
+      assert(
+        cp.d
+          .querySelector("#secondary-text")
+          .value.includes("condemned already"),
+      );
+      assert(
+        cp.d
+          .querySelector("#secondary-reference")
+          .textContent.endsWith("3:16-18"),
+      );
+      assert.equal(cp.d.querySelector("#btn-show").disabled, false);
+    },
+  );
+  click(cp, "#btn-show");
+  await until(
+    () => output.d.querySelector(".verse-secondary-text"),
+    "bilingual broadcast",
+  );
+  check(
+    "A real output receives French above English with both version labels",
+    () => {
+      const texts = output.d.querySelectorAll(".verse-text");
+      assert(texts[0].textContent.includes("Dieu a tant aimé"));
+      assert(texts[1].textContent.includes("For God so loved"));
+      assert.equal(
+        output.d.querySelectorAll(".verse-translation-label").length,
+        2,
+      );
+      assert.equal(output.d.querySelector(".verse-secondary").lang, "en");
+    },
+  );
+  const live = output.d.querySelector(".verse-secondary-text").textContent;
+  input(cp, "#secondary-version", "dby", "change");
+  await until(
+    () =>
+      cp.d.querySelector("#secondary-version-label").textContent ===
+      "Darby English",
+    "secondary changed",
+  );
+  await wait(150);
+  check("Changing the second version never replaces live content", () =>
+    assert.equal(
+      output.d.querySelector(".verse-secondary-text").textContent,
+      live,
+    ),
+  );
+  input(cp, "#secondary-text", "Edited English translation");
+  click(cp, "#btn-show");
+  await until(
+    () =>
+      output.d.querySelector(".verse-secondary-text")?.textContent ===
+      "Edited English translation",
+    "edited second translation",
+  );
+  click(cp, "#btn-add-queue");
+  const stored = JSON.parse(
+    cp.w.localStorage.getItem("verseobs_queue"),
+  ).items.at(-1);
+  const roundtrip = cp.w.VerseObs.Queue.validateItems(
+    JSON.parse(JSON.stringify([stored])),
+  )[0];
+  check("Conductor export/import retains the exact edited translation", () => {
+    assert.equal(roundtrip.secondary.text, "Edited English translation");
+    assert.equal(roundtrip.secondary.version, "Darby English");
+  });
+  check("History retains both translations", () =>
+    assert.equal(
+      JSON.parse(cp.w.localStorage.getItem("verseobs_history"))[0].secondary
+        .text,
+      "Edited English translation",
+    ),
+  );
+  const backup = cp.w.VerseObs.Backup.validate({
+    app: "verseobs",
+    version: 1,
+    data: {
+      verseobs_bilingual: cp.w.localStorage.getItem("verseobs_bilingual"),
+    },
+  });
+  check("Backup retains the bilingual version choice", () =>
+    assert.equal(JSON.parse(backup.verseobs_bilingual).version, "dby"),
+  );
+  check(
+    "Imported second translations reject invalid payloads and strip executable markup",
+    () => {
+      assert.throws(() =>
+        cp.w.VerseObs.Queue.validateItems([
+          { type: "verse", text: "test", secondary: { text: 42 } },
+        ]),
+      );
+      const value = cp.w.VerseObs.validateSecondary({
+        text: "safe",
+        html: '<script>bad()</script><b onclick="bad()">safe</b>',
+      });
+      assert.equal(value.html, "<b>safe</b>");
+    },
+  );
+  input(cp, "#secondary-version", "lsg", "change");
+  check("Selecting the same version blocks accidental duplicate output", () =>
+    assert.equal(cp.d.querySelector("#btn-show").disabled, true),
+  );
+  input(cp, "#secondary-version", "kjv", "change");
+  await until(
+    () => cp.d.querySelector("#btn-show").disabled === false,
+    "KJV ready",
+  );
+  const proto = cp.w.VerseObs.BibleLoader.prototype,
+    original = proto.getVerse;
+  proto.getVerse = function (id, book, chapter, verse) {
+    if (id === "kjv" && Number(verse) === 18) return null;
+    return original.apply(this, arguments);
+  };
+  click(cp, "#secondary-retry");
+  check("A missing verse blocks a partially translated range", () => {
+    assert(cp.d.querySelector("#btn-show").disabled);
+    assert(cp.d.querySelector("#btn-add-queue").disabled);
+    assert(
+      cp.d
+        .querySelector("#bilingual-status")
+        .textContent.includes("pas complet"),
+    );
+  });
+  proto.getVerse = original;
+  click(cp, "#secondary-retry");
+  await until(
+    () => cp.d.querySelector("#btn-show").disabled === false,
+    "retry restored",
+  );
+  click(cp, "#bilingual-toggle");
+  check("Disabling bilingual mode hides the second editor", () =>
+    assert(cp.d.querySelector("#secondary-preparation").hidden),
+  );
+  click(cp, "#btn-show");
+  await until(
+    () => !output.d.querySelector(".verse-secondary-text"),
+    "single version restored",
+  );
+  check("The next explicit broadcast returns to a single translation", () =>
+    assert.equal(output.d.querySelectorAll(".verse-text").length, 1),
+  );
+  check("No script errors in the bilingual workflow", () =>
+    assert.equal(cp.errors.length + output.errors.length, 0),
+  );
 }
 async function testDedup() {
   let interval,
