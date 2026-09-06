@@ -7,7 +7,21 @@
 
   var SETTINGS_KEY = window.VerseObs.SETTINGS_KEY || "verseobs_settings";
 
-  function Settings() {
+  /**
+   * @param {object} [opts]
+   * @param {string} [opts.storageKey] - localStorage key (defaults to the verse key)
+   * @param {object} [opts.defaults]   - full defaults object (overrides DEFAULTS)
+   * @param {object} [opts.templates]  - preset map (overrides TEMPLATES)
+   */
+  function Settings(opts) {
+    opts = opts || {};
+    this._storageKey = opts.storageKey || SETTINGS_KEY;
+    this._imageKey =
+      this._storageKey === SETTINGS_KEY
+        ? "verseobs_bgimage"
+        : this._storageKey + "_bgimage";
+    this._defaultsObj = opts.defaults || null;
+    this._templates = opts.templates || null;
     this._settings = {};
     this.onChange = null; // callback(settings)
     this.onNotify = null; // callback(message, type) — surfaced to the UI toast
@@ -23,6 +37,16 @@
    * Get default settings.
    */
   Settings.prototype._getDefaults = function () {
+    // A custom defaults object (e.g. free-text style) short-circuits the
+    // verse defaults below.
+    if (this._defaultsObj) {
+      var clone = {};
+      for (var k in this._defaultsObj) {
+        if (this._defaultsObj.hasOwnProperty(k))
+          clone[k] = this._defaultsObj[k];
+      }
+      return clone;
+    }
     var D = window.VerseObs.DEFAULTS || {};
     return {
       position: D.position || "lower-third",
@@ -58,7 +82,7 @@
   Settings.prototype.load = function () {
     var defaults = this._getDefaults();
     try {
-      var raw = localStorage.getItem(SETTINGS_KEY);
+      var raw = localStorage.getItem(this._storageKey);
       if (raw) {
         var saved = JSON.parse(raw);
         for (var key in defaults) {
@@ -76,9 +100,7 @@
     }
     try {
       this._settings.bgImage =
-        localStorage.getItem("verseobs_bgimage") ||
-        this._settings.bgImage ||
-        "";
+        localStorage.getItem(this._imageKey) || this._settings.bgImage || "";
     } catch (e) {}
     return this._settings;
   };
@@ -96,7 +118,7 @@
           toStore[key] = this._settings[key];
         }
       }
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(toStore));
+      localStorage.setItem(this._storageKey, JSON.stringify(toStore));
     } catch (e) {
       // ignore quota errors
     }
@@ -139,7 +161,7 @@
   Settings.prototype.reset = function () {
     this._settings = this._getDefaults();
     try {
-      localStorage.removeItem("verseobs_bgimage");
+      localStorage.removeItem(this._imageKey);
     } catch (e) {}
     this.save();
     this._updateUI();
@@ -225,7 +247,7 @@
    * Apply a template by name.
    */
   Settings.prototype.applyTemplate = function (templateKey) {
-    var TEMPLATES = window.VerseObs.TEMPLATES || {};
+    var TEMPLATES = this._templates || window.VerseObs.TEMPLATES || {};
     var tmpl = TEMPLATES[templateKey];
     if (!tmpl) return;
 
@@ -238,7 +260,7 @@
     this._settings.template = templateKey;
     if (!this._settings.bgImage) {
       try {
-        localStorage.removeItem("verseobs_bgimage");
+        localStorage.removeItem(this._imageKey);
       } catch (e) {}
     }
     this.save();
@@ -283,7 +305,7 @@
           // Store ONLY in the dedicated key (kept out of the settings blob).
           var stored = false;
           try {
-            localStorage.setItem("verseobs_bgimage", dataUrl);
+            localStorage.setItem(self._imageKey, dataUrl);
             stored = true;
           } catch (err) {
             stored = false;
@@ -309,7 +331,7 @@
         self.save();
         self._notifyChange();
         try {
-          localStorage.removeItem("verseobs_bgimage");
+          localStorage.removeItem(self._imageKey);
         } catch (e) {}
         if (imageInput) imageInput.value = "";
       });

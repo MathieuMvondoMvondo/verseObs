@@ -4,6 +4,8 @@
   var V = window.VerseObs;
   var KEYS = [
     "verseobs_settings",
+    "verseobs_freetext_style",
+    "verseobs_freetext_style_bgimage",
     "verseobs_bgimage",
     "verseobs_favorites",
     "verseobs_history",
@@ -33,7 +35,10 @@
         clean[key] = raw;
         return;
       }
-      if (key === "verseobs_bgimage") {
+      if (
+        key === "verseobs_bgimage" ||
+        key === "verseobs_freetext_style_bgimage"
+      ) {
         if (
           raw &&
           !/^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(raw)
@@ -90,18 +95,23 @@
           if (item.html) entry.html = V.sanitizeHtml(item.html);
           return entry;
         });
-      } else if (key === "verseobs_settings") {
+      } else if (
+        key === "verseobs_settings" ||
+        key === "verseobs_freetext_style"
+      ) {
         if (!value || typeof value !== "object" || Array.isArray(value))
           throw new Error("Réglages invalides.");
         var settings = {};
-        Object.keys(V.DEFAULTS).forEach(function (k) {
+        var defaults =
+          key === "verseobs_settings" ? V.DEFAULTS : V.FREETEXT_DEFAULTS;
+        Object.keys(defaults).forEach(function (k) {
           if (
             !Object.prototype.hasOwnProperty.call(value, k) ||
             k === "bgImage"
           )
             return;
           if (
-            typeof value[k] !== typeof V.DEFAULTS[k] ||
+            typeof value[k] !== typeof defaults[k] ||
             (typeof value[k] === "number" && !Number.isFinite(value[k]))
           )
             throw new Error("Réglage invalide : " + k);

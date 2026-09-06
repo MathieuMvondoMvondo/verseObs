@@ -260,6 +260,36 @@
       }
     } catch (e) {}
     fonts.replaceWith(select);
+    var songFont = document.querySelector(
+      '#freetext-style-container [data-setting="fontFamily"]',
+    );
+    if (songFont) {
+      var songSelect = select.cloneNode(true);
+      ["'Georgia', 'Times New Roman', serif"].forEach(function (value) {
+        var option = document.createElement("option");
+        option.value = value;
+        option.textContent = "Georgia · Classique";
+        songSelect.appendChild(option);
+      });
+      try {
+        var songSaved = JSON.parse(
+          localStorage.getItem(V.FREETEXT_SETTINGS_KEY),
+        );
+        if (
+          songSaved &&
+          songSaved.fontFamily &&
+          !Array.from(songSelect.options).some(function (o) {
+            return o.value === songSaved.fontFamily;
+          })
+        ) {
+          var option = document.createElement("option");
+          option.value = songSaved.fontFamily;
+          option.textContent = "Votre police personnalisée";
+          songSelect.appendChild(option);
+        }
+      } catch (e) {}
+      songFont.replaceWith(songSelect);
+    }
     rows.position.querySelectorAll("option").forEach(function (o) {
       o.textContent =
         {

@@ -89,7 +89,9 @@ async function run() {
   );
   check("Initial verse and setting labels match their values", () => {
     assert.equal(cp.d.querySelector("#preview-ref").textContent, "Jean 3:16");
-    const slider = cp.d.querySelector("[data-setting=fontSize]");
+    const slider = cp.d.querySelector(
+      "#settings-container [data-setting=fontSize]",
+    );
     assert.equal(
       slider.parentElement.querySelector(".cp-setting-value").textContent,
       slider.value + "px",
@@ -101,7 +103,8 @@ async function run() {
       true,
     );
     assert.equal(
-      cp.d.querySelector("[data-setting=fontFamily]").tagName,
+      cp.d.querySelector("#settings-container [data-setting=fontFamily]")
+        .tagName,
       "SELECT",
     );
   });
@@ -138,7 +141,7 @@ async function run() {
     () => cp.d.querySelector("#connection-dot").classList.contains("connected"),
     "output connected",
   );
-  input(cp, "[data-setting=animation]", "none", "change");
+  input(cp, "#settings-container [data-setting=animation]", "none", "change");
   click(cp, "#btn-show");
   await until(() => output.d.querySelector(".verse-text"), "show");
   check("Local relay sends the prepared range to an isolated output", () =>
@@ -234,6 +237,46 @@ async function run() {
     assert.equal(items[2].subtitle, "1 / 2");
     assert.equal(items[3].text, "Refrain");
   });
+  click(cp, '[data-ft-preset="annonce"]');
+  input(cp, "#freetext-style-container [data-setting=fontSize]", "51");
+  click(cp, "#btn-free-show");
+  await until(
+    () =>
+      output.d.documentElement.style.getPropertyValue("--font-size") === "51px",
+    "free-text style sent",
+  );
+  check("Free-text broadcast uses its independent style", () => {
+    assert.equal(
+      output.d
+        .querySelector("#verse-container")
+        .classList.contains("lower-third"),
+      true,
+    );
+    assert.equal(
+      JSON.parse(cp.w.localStorage.getItem("verseobs_settings")).fontSize,
+      40,
+    );
+  });
+  input(cp, "#settings-container [data-setting=fontSize]", "42");
+  await wait(150);
+  check("Changing the Bible style does not restyle an on-air song", () =>
+    assert.equal(
+      output.d.documentElement.style.getPropertyValue("--font-size"),
+      "51px",
+    ),
+  );
+  const songBackup = cp.w.VerseObs.Backup.validate({
+    app: "verseobs",
+    version: 1,
+    data: {
+      verseobs_freetext_style: cp.w.localStorage.getItem(
+        "verseobs_freetext_style",
+      ),
+    },
+  });
+  check("Backup preserves independent song settings", () =>
+    assert.equal(JSON.parse(songBackup.verseobs_freetext_style).fontSize, 51),
+  );
   const imported = {
     app: "verseobs-session",
     version: 1,
@@ -268,8 +311,8 @@ async function run() {
     assert.equal(cp.d.querySelector("#onair-bar").hidden, true),
   );
   // Race regression: hide must win even during a long entrance transition.
-  input(cp, "[data-setting=animation]", "fade", "change");
-  input(cp, "[data-setting=animationDuration]", "1000");
+  input(cp, "#settings-container [data-setting=animation]", "fade", "change");
+  input(cp, "#settings-container [data-setting=animationDuration]", "1000");
   click(cp, "#btn-show");
   click(cp, "#btn-hide");
   await wait(1250);

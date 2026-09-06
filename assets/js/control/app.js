@@ -16,6 +16,7 @@
     settings,
     history,
     freeText,
+    freeTextStyle,
     queue,
     favorites;
   var channel = null;
@@ -129,6 +130,14 @@
     dom.freeTextSaveName = document.getElementById("freetext-save-name");
     dom.savedTextsContainer = document.getElementById("saved-texts-container");
 
+    dom.freeTextStyleContainer = document.getElementById(
+      "freetext-style-container",
+    );
+    dom.freeTextPresets = document.getElementById("freetext-presets");
+    dom.btnResetFreeTextStyle = document.getElementById(
+      "btn-reset-freetext-style",
+    );
+
     // Queue tab
     dom.queueContainer = document.getElementById("queue-container");
     dom.queueCounter = document.getElementById("queue-counter");
@@ -168,7 +177,8 @@
     settings.bindExtras(dom.settingsContainer);
     settings._updateUI();
     settings.onChange = function (s) {
-      _sendMessage(MSG.UPDATE_STYLE, { settings: s });
+      if (_onAirItem && _onAirItem.type !== "text")
+        _sendMessage(MSG.UPDATE_STYLE, { settings: settings.getAll() });
       _sendPreview();
     };
     settings.onNotify = function (message, type) {
@@ -205,7 +215,7 @@
           text: data.text,
           title: data.title,
           subtitle: data.subtitle,
-          settings: settings.getForMessage(),
+          settings: freeTextStyle.getAll(),
         };
         if (data.html) {
           msgData.html = data.html;
@@ -218,6 +228,28 @@
     });
     freeText.renderSavedList();
 
+    // Independent free-text style (own storage key, defaults and presets)
+    freeTextStyle = new window.VerseObs.Settings({
+      storageKey: window.VerseObs.FREETEXT_SETTINGS_KEY,
+      defaults: window.VerseObs.FREETEXT_DEFAULTS,
+      templates: window.VerseObs.FREETEXT_STYLES,
+    });
+    freeTextStyle.load();
+    freeTextStyle.bindUI(dom.freeTextStyleContainer);
+    freeTextStyle.bindExtras(dom.freeTextStyleContainer);
+    freeTextStyle._updateUI();
+    freeTextStyle.onNotify = function (message, type) {
+      _notify(message, type);
+    };
+    freeTextStyle.onChange = function (s) {
+      // Reflect live in the dock preview, and on the overlay if free text is on air.
+      if (_onAirItem && _onAirItem.type === "text") {
+        _sendMessage(MSG.UPDATE_STYLE, { settings: freeTextStyle.getAll() });
+      }
+      _sendPreview();
+    };
+    _initFreeTextPresets();
+
     queue = new window.VerseObs.Queue({
       container: dom.queueContainer,
       counterEl: dom.queueCounter,
@@ -228,14 +260,14 @@
             html: item.html || "",
             reference: item.reference,
             version: item.version || "",
-            settings: settings.getForMessage(),
+            settings: settings.getAll(),
           });
         } else {
           var msgData = {
             text: item.text,
             title: item.title || "",
             subtitle: item.subtitle || "",
-            settings: settings.getForMessage(),
+            settings: freeTextStyle.getAll(),
           };
           if (item.html) {
             msgData.html = item.html;
@@ -528,6 +560,80 @@
           }
         });
       })(titles[i]);
+    }
+  }
+
+  // ---- Free-text style presets ("styles type") ----
+
+  function _initFreeTextPresets() {
+    // Preset chips
+    if (dom.freeTextPresets) {
+      var chips = dom.freeTextPresets.querySelectorAll("[data-ft-preset]");
+      for (var i = 0; i < chips.length; i++) {
+        (function (chip) {
+          chip.addEventListener("click", function () {
+            freeTextStyle.applyTemplate(chip.getAttribute("data-ft-preset"));
+            _syncFreeTextPresetChips();
+            _sendPreview();
+            _notify("Style « " + chip.textContent + " » appliqué", "success");
+          });
+        })(chips[i]);
+      }
+    }
+
+    if (dom.freeTextStyleContainer) {
+      // Collapsible "Personnaliser" group(s)
+      var titles = dom.freeTextStyleContainer.querySelectorAll(
+        ".cp-setting-group-title",
+      );
+      for (var t = 0; t < titles.length; t++) {
+        (function (title) {
+          title.setAttribute("role", "button");
+          title.setAttribute("tabindex", "0");
+          var toggle = function () {
+            var group = title.closest(".cp-setting-group");
+            if (group) group.classList.toggle("collapsed");
+          };
+          title.addEventListener("click", toggle);
+          title.addEventListener("keydown", function (e) {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              toggle();
+            }
+          });
+        })(titles[t]);
+      }
+
+      // A manual tweak flips the preset to "Personnalisé" — refresh chip state
+      // once all binding handlers have run.
+      var refresh = function () {
+        setTimeout(_syncFreeTextPresetChips, 0);
+      };
+      dom.freeTextStyleContainer.addEventListener("input", refresh);
+      dom.freeTextStyleContainer.addEventListener("change", refresh);
+    }
+
+    if (dom.btnResetFreeTextStyle) {
+      dom.btnResetFreeTextStyle.addEventListener("click", function () {
+        freeTextStyle.reset();
+        _syncFreeTextPresetChips();
+        _sendPreview();
+        _notify("Style du texte libre réinitialisé", "info");
+      });
+    }
+
+    _syncFreeTextPresetChips();
+  }
+
+  function _syncFreeTextPresetChips() {
+    if (!dom.freeTextPresets) return;
+    var active = (freeTextStyle && freeTextStyle.getAll().template) || "custom";
+    var chips = dom.freeTextPresets.querySelectorAll("[data-ft-preset]");
+    for (var i = 0; i < chips.length; i++) {
+      var key = chips[i].getAttribute("data-ft-preset");
+      if (key === active) chips[i].classList.add("active");
+      else chips[i].classList.remove("active");
+      chips[i].setAttribute("aria-pressed", String(key === active));
     }
   }
 
@@ -1021,7 +1127,7 @@
       text: dom.previewText ? dom.previewText.innerText : disp.text,
       reference: disp.reference,
       version: versionName,
-      settings: settings.getForMessage(),
+      settings: settings.getAll(),
     };
 
     if (disp.isRange) {
@@ -1111,8 +1217,8 @@
   function _sendMessage(type, data) {
     var msg = Object.assign({ type: type }, data || {});
     // Carry the background with the command for isolated OBS browser contexts.
-    if (msg.settings && settings)
-      msg.settings.bgImage = settings.getAll().bgImage || "";
+    if (msg.settings && msg.settings.bgImage === undefined)
+      msg.settings.bgImage = "";
     if (channel) channel.send(msg);
     if ([MSG.SHOW_VERSE, MSG.SHOW_TEXT].indexOf(type) !== -1) {
       document.querySelector(".cp-onair-label").textContent =
@@ -1414,7 +1520,8 @@
     var activeTab = document.querySelector(".cp-tab-content.active");
     var data = null;
 
-    if (activeTab && activeTab.id === "tab-freetext" && freeText) {
+    var isFreeText = activeTab && activeTab.id === "tab-freetext";
+    if (isFreeText && freeText) {
       var ft = freeText.getData();
       if (ft.text || ft.title) {
         data = { text: ft.text, title: ft.title, subtitle: ft.subtitle };
@@ -1441,7 +1548,7 @@
       _sendMessage(MSG.PREVIEW_HIDE, {});
       return;
     }
-    data.settings = settings.getForMessage();
+    data.settings = (isFreeText ? freeTextStyle : settings).getAll();
     _sendMessage(MSG.PREVIEW, data);
   }
 

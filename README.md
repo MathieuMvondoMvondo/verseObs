@@ -43,7 +43,7 @@ Référence officielle : [source Navigateur d’OBS](https://obsproject.com/kb/b
 
 Le moniteur **Préparation** représente votre prochain passage ; **Sortie** représente les dernières commandes de diffusion reçues. Ce moniteur ne capture pas la composition OBS. L’aperçu est recentré sur le bandeau ; **Voir le cadre complet** affiche le format 16:9. Dans un petit dock, l’aperçu s’ouvre à la demande et les commandes de diffusion restent en bas de l’écran.
 
-Les réglages d’habillage s’appliquent immédiatement aux sorties ouvertes. Ils ne changent pas le passage diffusé.
+Les réglages d’habillage s’appliquent au contenu diffusé du même type. Les textes et chants ont leur propre habillage, accessible dans leur onglet, avec les styles Chant, Annonce, Prière et Citation. Ajuster le style biblique ne modifie pas un chant à l’antenne.
 
 ## Un conducteur pour l’équipe
 

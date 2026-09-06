@@ -649,6 +649,253 @@
             </button>
           </div>
 
+          <details class="freetext-style-panel">
+            <summary>
+              Habillage des textes et chants
+              <span>Indépendant des versets</span>
+            </summary>
+            <div
+              class="cp-ft-presets"
+              id="freetext-presets"
+              role="group"
+              aria-label="Styles type"
+            >
+              <button class="cp-ft-preset" data-ft-preset="chant">Chant</button>
+              <button class="cp-ft-preset" data-ft-preset="annonce">
+                Annonce
+              </button>
+              <button class="cp-ft-preset" data-ft-preset="priere">
+                Prière
+              </button>
+              <button class="cp-ft-preset" data-ft-preset="citation">
+                Citation
+              </button>
+            </div>
+
+            <div id="freetext-style-container">
+              <div class="cp-setting-group">
+                <div class="cp-setting-row">
+                  <span class="cp-setting-label">Position</span>
+                  <div class="cp-setting-control">
+                    <select class="cp-select" data-setting="position">
+                      <option value="lower-third">Bas de l’écran</option>
+                      <option value="upper-third">Haut de l’écran</option>
+                      <option value="center">Centre</option>
+                      <option value="fullscreen">Plein écran</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="cp-setting-row">
+                  <span class="cp-setting-label">Animation</span>
+                  <div class="cp-setting-control">
+                    <select class="cp-select" data-setting="animation">
+                      <option value="fade">Fondu</option>
+                      <option value="slide">Glissement</option>
+                      <option value="typewriter">Machine à écrire</option>
+                      <option value="none">Aucune</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="cp-setting-row">
+                  <span class="cp-setting-label">Auto-masquer</span>
+                  <div class="cp-setting-control">
+                    <select class="cp-select" data-setting="autoHide">
+                      <option value="0">Désactivé</option>
+                      <option value="5000">5 secondes</option>
+                      <option value="10000">10 secondes</option>
+                      <option value="15000">15 secondes</option>
+                      <option value="30000">30 secondes</option>
+                      <option value="60000">60 secondes</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="cp-setting-row">
+                  <span class="cp-setting-label">Police</span>
+                  <div class="cp-setting-control">
+                    <input
+                      type="text"
+                      class="cp-input"
+                      data-setting="fontFamily"
+                      placeholder="'Segoe UI', sans-serif"
+                      style="width: 100%"
+                    />
+                  </div>
+                </div>
+
+                <div class="cp-setting-row">
+                  <span class="cp-setting-label">Taille texte</span>
+                  <div class="cp-setting-control">
+                    <input
+                      type="range"
+                      data-setting="fontSize"
+                      min="14"
+                      max="80"
+                      step="1"
+                    />
+                    <span class="cp-setting-value">34px</span>
+                  </div>
+                </div>
+
+                <div class="cp-setting-row">
+                  <span class="cp-setting-label">Couleur texte</span>
+                  <div class="cp-setting-control">
+                    <input
+                      type="color"
+                      data-setting="textColor"
+                      value="#ffffff"
+                    />
+                  </div>
+                </div>
+
+                <div class="cp-setting-row">
+                  <span class="cp-setting-label">Alignement</span>
+                  <div class="cp-setting-control">
+                    <select class="cp-select" data-setting="textAlign">
+                      <option value="left">Gauche</option>
+                      <option value="center">Centre</option>
+                      <option value="right">Droite</option>
+                      <option value="justify">Justifié</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="cp-setting-row">
+                  <span class="cp-setting-label">Interligne</span>
+                  <div class="cp-setting-control">
+                    <input
+                      type="range"
+                      data-setting="lineHeight"
+                      min="1"
+                      max="2.5"
+                      step="0.05"
+                    />
+                    <span class="cp-setting-value">1.5</span>
+                  </div>
+                </div>
+
+                <div class="cp-setting-row">
+                  <span class="cp-setting-label">Couleur fond</span>
+                  <div class="cp-setting-control">
+                    <input
+                      type="color"
+                      data-setting="bgColor"
+                      value="#101018"
+                    />
+                  </div>
+                </div>
+
+                <div class="cp-setting-row">
+                  <span class="cp-setting-label">Opacité fond</span>
+                  <div class="cp-setting-control">
+                    <input
+                      type="range"
+                      data-setting="bgOpacity"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                    />
+                    <span class="cp-setting-value">85%</span>
+                  </div>
+                </div>
+
+                <div class="cp-setting-row">
+                  <span class="cp-setting-label">Couleur bordure</span>
+                  <div class="cp-setting-control">
+                    <input
+                      type="color"
+                      data-setting="borderColor"
+                      value="#8b8f9b"
+                    />
+                  </div>
+                </div>
+
+                <div class="cp-setting-row">
+                  <span class="cp-setting-label">Épaisseur bord.</span>
+                  <div class="cp-setting-control">
+                    <input
+                      type="range"
+                      data-setting="borderWidth"
+                      min="0"
+                      max="8"
+                      step="1"
+                    />
+                    <span class="cp-setting-value">0px</span>
+                  </div>
+                </div>
+
+                <div class="cp-setting-row">
+                  <span class="cp-setting-label">Rayon bordure</span>
+                  <div class="cp-setting-control">
+                    <input
+                      type="range"
+                      data-setting="borderRadius"
+                      min="0"
+                      max="30"
+                      step="1"
+                    />
+                    <span class="cp-setting-value">16px</span>
+                  </div>
+                </div>
+
+                <div class="cp-setting-row">
+                  <span class="cp-setting-label">Marge intérieure</span>
+                  <div class="cp-setting-control">
+                    <input
+                      type="range"
+                      data-setting="padding"
+                      min="5"
+                      max="60"
+                      step="1"
+                    />
+                    <span class="cp-setting-value">32px</span>
+                  </div>
+                </div>
+
+                <div class="cp-setting-row">
+                  <span class="cp-setting-label">Largeur max</span>
+                  <div class="cp-setting-control">
+                    <input
+                      type="range"
+                      data-setting="maxWidth"
+                      min="30"
+                      max="100"
+                      step="5"
+                    />
+                    <span class="cp-setting-value">80%</span>
+                  </div>
+                </div>
+
+                <div class="cp-setting-row">
+                  <span class="cp-setting-label">Surlignage</span>
+                  <div class="cp-setting-control">
+                    <input
+                      type="color"
+                      data-setting="highlightColor"
+                      value="#ffd54a"
+                    />
+                  </div>
+                </div>
+
+                <div class="cp-setting-row">
+                  <span class="cp-setting-label">Ombre</span>
+                  <div class="cp-setting-control">
+                    <label class="cp-toggle">
+                      <input type="checkbox" data-setting="shadow" checked />
+                      <span class="cp-toggle-slider"></span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <button class="cp-reset-btn" id="btn-reset-freetext-style">
+                Réinitialiser le style
+              </button>
+            </div>
+          </details>
+
           <!-- Saved Texts -->
           <div class="cp-section" style="margin-top: 10px">
             <span class="cp-section-label">Textes sauvegardés</span>
