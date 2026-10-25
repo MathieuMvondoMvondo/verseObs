@@ -2620,7 +2620,8 @@ body[data-tab="2"] .cp-queue-preview {
   color: #b6c9f4;
 }
 .queue-selection-preview sup {
-  font-size: 0.65em;
+  /* Verse numbers: 12 px at least, like every text of the régie. */
+  font-size: max(12px, 0.65em);
   margin-right: 4px;
 }
 

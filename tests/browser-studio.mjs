@@ -1092,6 +1092,76 @@ try {
   await sc.ctx.close();
   }
 
+  // ---- The type floor holds in a filled conductor: passages, plans, two
+  // translations, a song, and the verse numbers of the selection.
+  if (run("garni")) {
+  const full = await open(1920, 1080);
+  const { studio } = full;
+  const labels = () =>
+    studio.evaluate(() => Array.from(document.querySelectorAll("#queue-container .cp-queue-item")).map((r) => r.dataset.label));
+  /** Split the prepared passage from the Bible: its plans join the conductor. */
+  const bible = () => studio.evaluate(() => document.querySelector("#tab-btn-0").click());
+  const splitInto = async (reference) => {
+    const n = (await labels()).length;
+    await bible();
+    await prepare(studio, reference);
+    await studio.waitForFunction(() => /Découper en \d+ plans/.test(document.querySelector("#btn-split")?.textContent || ""));
+    await studio.click("#btn-split");
+    await studio.waitForFunction((n) => document.querySelectorAll("#queue-container .cp-queue-item").length > n + 1, n);
+  };
+  await check("In a filled conductor, no visible text under 12 px (selection's verse numbers included) and no overflow at 1920, 1280 and 390 px", async () => {
+    for (const reference of ["Jean 3:16", "Psaumes 23:1-6"]) {
+      const n = (await labels()).length;
+      await bible();
+      await prepare(studio, reference);
+      await studio.click("#btn-add-queue");
+      await studio.waitForFunction((n) => document.querySelectorAll("#queue-container .cp-queue-item").length > n, n);
+    }
+    await splitInto("Psaumes 119:1-24");
+    await bible();
+    await studio.check("#bilingual-toggle");
+    await studio.selectOption("#secondary-version", "kjv");
+    await splitInto("Romains 8:28-39");
+    await bible();
+    await studio.uncheck("#bilingual-toggle");
+    await studio.evaluate(() => document.querySelector("#tab-btn-1").click());
+    await studio.fill("#freetext-title", "Chant d’entrée");
+    await studio.evaluate(() => {
+      const e = document.querySelector("#freetext-editable");
+      e.textContent = "Saint, saint, saint est le Seigneur";
+      e.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    const n = (await labels()).length;
+    await studio.click("#btn-free-add-queue");
+    await studio.waitForFunction((n) => document.querySelectorAll("#queue-container .cp-queue-item").length > n, n);
+    const rows = await labels();
+    console.log("    conductor: " + rows.length + " items · " + rows.slice(0, 4).join(" · ") + " · …");
+    // A passage, a plan (« Regrouper ») and a plan in two translations.
+    const picks = [/^Psaumes 23:1-6$/, /^Psaumes 119:1-/, /^Romains 8:28/].map((re) => rows.findIndex((l) => re.test(l)));
+    assert.ok(picks.every((i) => i >= 0), "items found: " + picks);
+    const small = [];
+    for (const [w, h] of [[1920, 1080], [1280, 800], [390, 844]]) {
+      await studio.setViewportSize({ width: w, height: h });
+      for (const i of picks) {
+        await studio.evaluate(() => document.querySelector("#tab-btn-2").click());
+        await studio.evaluate((i) => document.querySelectorAll("#queue-container .cp-queue-item")[i].click(), i);
+        for (const tab of [2, 0]) {
+          await studio.evaluate((t) => document.querySelector("#tab-btn-" + t).click(), tab);
+          await studio.waitForTimeout(250);
+          if (tab === 2)
+            assert.ok(await studio.evaluate(() => !!document.querySelector("#queue-selection-text sup")), "verse numbers in the selection");
+          (await studio.evaluate(SMALL_TEXT)).forEach((s) => small.push(w + " px, tab " + tab + ", " + rows[i] + ": " + s));
+          const overflow = await studio.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+          assert.ok(overflow <= 0, w + " px, tab " + tab + ", " + rows[i] + ": overflows by " + overflow + " px");
+        }
+      }
+    }
+    assert.deepEqual([...new Set(small)], []);
+  });
+  assert.deepEqual(full.errors, []);
+  await full.ctx.close();
+  }
+
   // ---- Régie readability: type floor, keyboard focus, phone targets.
   if (run("regie")) {
   for (const [w, h] of [[1920, 1080], [1280, 800], [390, 844]]) {
