@@ -5173,3 +5173,62 @@ body:not([data-tab="2"]) #tab-queue .cp-queue-title {
     transition: none;
   }
 }
+/* An empty preview: the take is dimmed and says why (brief §4). */
+.take-reason {
+  font: 500 12px/16px var(--cp-font);
+  color: #3b3f49;
+}
+.take-reason:empty {
+  display: none;
+}
+.take-go:disabled {
+  opacity: 0.5;
+}
+/* No shortcut is offered for an action that cannot run. */
+.take-go:disabled kbd {
+  display: none;
+}
+/* ---- Finish (hostile review of the captures) ---- */
+.command-trigger {
+  gap: 8px;
+}
+.command-trigger kbd {
+  margin-left: 12px;
+}
+.queue-strip {
+  margin-bottom: 0;
+}
+.monitor-foot .fit-hint {
+  flex: 1 1 280px;
+}
+/* The dock: the Antenne band names the product's purpose; the wordmark row
+   would push the monitor 56 px down. */
+@media (max-width: 620px) {
+  .studio-sidebar .brand {
+    display: none;
+  }
+  .studio-sidebar {
+    padding-top: 8px;
+  }
+  .studio-sidebar .cp-tabs {
+    margin-top: 0;
+    padding-bottom: 8px;
+  }
+  /* Conducteur in the dock: the list first, the session tools after it. */
+  body[data-tab="2"] #tab-queue {
+    display: flex;
+    flex-direction: column;
+  }
+  body[data-tab="2"] #tab-queue > .cp-section:has(#queue-container) {
+    order: 1;
+  }
+  body[data-tab="2"] #tab-queue > .queue-selection-preview {
+    order: 2;
+  }
+  body[data-tab="2"] #tab-queue > :is(.session-meta, .session-toolbar, .plan-open) {
+    order: 3;
+  }
+  body[data-tab="2"] #tab-queue > :is(.queue-tip, #btn-clear-queue, #undo-clear) {
+    order: 4;
+  }
+}

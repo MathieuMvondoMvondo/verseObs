@@ -152,6 +152,38 @@
         ? "Fin du conducteur"
         : "";
   }
+  var lastTake = null,
+    TAKES = ["btn-show", "btn-free-show", "btn-queue-show"],
+    EMPTY = ["Choisissez un passage", "Écrivez un texte", "Conducteur vide"];
+  function paintTake() {
+    if (!lastTake) return;
+    var tab = lastTake.tab,
+      data = lastTake.data,
+      button = el(TAKES[tab]),
+      cue = el("take-cue-" + tab);
+    if (!button || !cue) return;
+    var label = data ? data.reference || data.title || "Texte libre" : "",
+      again =
+        !!data &&
+        output.visible &&
+        (data.cue
+          ? data.cue === output.cue
+          : !output.cue.indexOf("b") &&
+            label === output.label &&
+            (data.version || "") === output.version);
+    cue.textContent = label;
+    button.querySelector(".take-label").textContent = again ? "Rediffuser" : "Diffuser";
+    var reason = button.querySelector(".take-reason");
+    if (!reason) {
+      reason = document.createElement("span");
+      reason.className = "take-reason";
+      button.insertBefore(reason, button.querySelector("kbd"));
+    }
+    reason.textContent = data ? "" : EMPTY[tab];
+    // The conductor's own rule (empty conductor) stays; the text view waits
+    // for a text.
+    if (tab === 1) button.disabled = !data;
+  }
   /** The plans of the selected item's split passage, in conductor order. */
   function groupOf(selected) {
     if (!selected || !selected.group) return [];
@@ -930,6 +962,7 @@
           : "";
       }
       if (api) markLive();
+      paintTake();
     },
     /**
      * The prepared text changed: until the preview reports on it, « Découper »
@@ -964,15 +997,16 @@
         );
       });
     },
+    /**
+     * The take names what it sends; with nothing prepared it is disabled and
+     * says why; when the preview holds what is on air it says « Rediffuser »
+     * (same action).
+     */
     setTake: function (prepared) {
       var tab = Number(document.body.dataset.tab) || 0;
       if (tab > 2) return;
-      var data = prepared && prepared.data,
-        cue = el("take-cue-" + tab);
-      if (!cue) return;
-      cue.textContent = data
-        ? data.reference || data.title || "Texte libre"
-        : "";
+      lastTake = { tab: tab, data: (prepared && prepared.data) || null };
+      paintTake();
     },
     setFitStale: function () {
       var split = el("btn-split");

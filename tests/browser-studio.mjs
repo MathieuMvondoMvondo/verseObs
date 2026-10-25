@@ -246,7 +246,7 @@ const META = [
   ".search-suggestions > span", ".translation-caption", "#chapter-count", ".cp-queue-counter", ".queue-position",
   ".cp-queue-num", ".cp-queue-part", ".session-meta label", "#session-saved", ".plan-open-hint", ".queue-tip",
   ".favorites-strip .muted", ".freetext-style-panel summary span", ".monitor-tag", ".cp-onair-tally",
-  ".editor-badge", ".take-cue", ".cp-queue-preview",
+  ".editor-badge", ".take-cue", ".take-reason", ".cp-queue-preview",
 ].join(", ");
 /** A filled conductor (passage, verse, split plans, two translations, song). */
 function regieConductor() {
@@ -1554,6 +1554,42 @@ try {
   });
   assert.deepEqual(dock.errors, []);
   await dock.ctx.close();
+  // Brief §4: the take says when it cannot send, and « Rediffuser » when the
+  // preview already holds what is on air (same action).
+  const tk = await openRegie(1920, 1080);
+  await check("The take is disabled with its reason when the preview is empty, and says « Rediffuser » for the item on air", async () => {
+    const st = tk.studio;
+    const take = () =>
+      st.evaluate(() => {
+        const b = Array.from(document.querySelectorAll("#btn-show, #btn-free-show, #btn-queue-show")).find((e) => e.getClientRects().length);
+        return { id: b.id, disabled: b.disabled, label: b.querySelector(".take-label").textContent, reason: (b.querySelector(".take-reason")?.textContent || "").trim(), opacity: getComputedStyle(b).opacity, reasonSize: b.querySelector(".take-reason") ? getComputedStyle(b.querySelector(".take-reason")).fontSize : "" };
+      });
+    await showView(st, 1);
+    let t = await take();
+    assert.equal(t.id, "btn-free-show");
+    assert.ok(t.disabled, "empty text: take disabled");
+    assert.equal(t.reason, "Écrivez un texte");
+    assert.equal(t.reasonSize, "12px");
+    assert.equal(Number(t.opacity), 0.5);
+    await st.fill("#freetext-title", "Annonce");
+    await st.waitForFunction(() => !document.querySelector("#btn-free-show").disabled);
+    t = await take();
+    assert.equal(t.reason, "", "no reason once there is a text");
+    // Conducteur: plan 1 is on air; selecting it turns the take into « Rediffuser ».
+    await showView(st, 2);
+    t = await take();
+    assert.equal(t.label, "Diffuser", "plan 2 selected");
+    await st.evaluate(() => document.querySelectorAll("#queue-container .cp-queue-item")[2].click());
+    await st.waitForFunction(() => document.querySelector("#btn-queue-show .take-label").textContent === "Rediffuser");
+    const live = await st.evaluate(() => document.querySelector("#onair-ref").textContent);
+    await st.click("#btn-queue-show");
+    await tk.output.waitForTimeout(400);
+    assert.equal(await st.evaluate(() => document.querySelector("#onair-ref").textContent), live, "same item still on air");
+    await st.evaluate(() => document.querySelectorAll("#queue-container .cp-queue-item")[3].click());
+    await st.waitForFunction(() => document.querySelector("#btn-queue-show .take-label").textContent === "Diffuser");
+  });
+  assert.deepEqual(tk.errors, []);
+  await tk.ctx.close();
   // ---- Review 2, brief §6: the interface moves little, fast, and never
   // the antenna. WAAPI calls are recorded from the first script on.
   const RECORD = () => {
