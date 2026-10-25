@@ -74,6 +74,16 @@
     return m ? m[1] : "chapitre entier";
   }
 
+  function fill() {
+    var f = document.querySelector(".output-fill");
+    if (!f || typeof f.animate !== "function") return;
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+      return;
+    f.animate(
+      [{ clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0 0 0)" }],
+      { duration: 180, easing: "cubic-bezier(0.23, 1, 0.32, 1)" },
+    );
+  }
   function render() {
     var s = lastState,
       online = link === "online" && s && s.studio;
@@ -120,6 +130,8 @@
             : out.connected
               ? "hidden"
               : "offline";
+    // Command sent → confirmed: the red tag fills once (brief §6).
+    if ($("output").dataset.state === "pending" && outState === "confirmed") fill();
     $("output").dataset.state = outState;
     $("output-label").textContent = {
       unknown: "État de la sortie inconnu",

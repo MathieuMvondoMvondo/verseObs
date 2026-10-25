@@ -935,6 +935,35 @@
      * The prepared text changed: until the preview reports on it, « Découper »
      * is inactive (no layout change, no plans of the previous text).
      */
+    /**
+     * New plans enter the conductor: 160 ms, opacity and 4 px, 30 ms apart
+     * (at most 240 ms of delay); opacity only in reduced motion.
+     */
+    enterRows: function (cues) {
+      var reduce =
+        window.matchMedia &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      cues.forEach(function (cue, i) {
+        var row = document.querySelector(
+          '#queue-container .cp-queue-item[data-cue="' + cue + '"]',
+        );
+        if (!row || typeof row.animate !== "function") return;
+        row.animate(
+          reduce
+            ? [{ opacity: 0 }, { opacity: 1 }]
+            : [
+                { opacity: 0, transform: "translateY(4px)" },
+                { opacity: 1, transform: "none" },
+              ],
+          {
+            duration: 160,
+            delay: Math.min(i, 8) * 30,
+            easing: "cubic-bezier(0.23, 1, 0.32, 1)",
+            fill: "backwards",
+          },
+        );
+      });
+    },
     setTake: function (prepared) {
       var tab = Number(document.body.dataset.tab) || 0;
       if (tab > 2) return;

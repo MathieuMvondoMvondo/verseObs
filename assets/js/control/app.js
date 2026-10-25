@@ -898,6 +898,11 @@
       );
       return;
     }
+    // The plans that « Découper » adds enter the conductor (brief §6).
+    var known = {};
+    queue.getItems().forEach(function (it) {
+      known[it.id] = true;
+    });
     try {
       if (inQueue && item.group) {
         var items = queue.getItems();
@@ -922,6 +927,17 @@
       "success",
     );
     if (!inQueue) _switchTab(2);
+    if (window.VerseObs.Studio && window.VerseObs.Studio.enterRows)
+      window.VerseObs.Studio.enterRows(
+        queue
+          .getItems()
+          .filter(function (it) {
+            return !known[it.id];
+          })
+          .map(function (it) {
+            return it.id;
+          }),
+      );
   }
 
   function _addFreeTextToQueue() {
@@ -1941,6 +1957,20 @@
     live: "Sortie confirmée",
     partial: "Sortie partielle",
   };
+  /**
+   * Command sent → confirmed: the red tally fills once, left to right, in
+   * 180 ms (brief §6). Nothing in reduced motion: the colour just changes.
+   */
+  function _fillTally() {
+    var fill = dom.onairBar && dom.onairBar.querySelector(".cp-onair-fill");
+    if (!fill || typeof fill.animate !== "function") return;
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+      return;
+    fill.animate(
+      [{ clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0 0 0)" }],
+      { duration: 180, easing: "cubic-bezier(0.23, 1, 0.32, 1)" },
+    );
+  }
   function _paintOnAir() {
     var state = !_output.visible
       ? "off"
@@ -1948,6 +1978,7 @@
         ? "live"
         : "pending";
     if (dom.onairBar) {
+      if (dom.onairBar.dataset.state === "pending" && state === "live") _fillTally();
       dom.onairBar.dataset.state = state;
       var label = dom.onairBar.querySelector(".cp-onair-label");
       if (label)

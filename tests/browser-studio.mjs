@@ -281,8 +281,9 @@ function regieConductor() {
  * Studio at the given size with a filled conductor, plan 1 of Psaumes 119 on
  * air and plan 2 selected; the Bible view prepares Psaumes 23:1-6.
  */
-async function openRegie(width, height) {
-  const ctx = await browser.newContext({ viewport: { width, height } });
+async function openRegie(width, height, opts = {}) {
+  const ctx = await browser.newContext({ viewport: { width, height }, reducedMotion: opts.reduced ? "reduce" : "no-preference" });
+  if (opts.init) await ctx.addInitScript(opts.init);
   await ctx.addInitScript((q) => {
     if (location.pathname.endsWith("control_panel.html") && !sessionStorage.getItem("__seeded")) {
       localStorage.setItem("verseobs_queue", q);
@@ -1553,6 +1554,88 @@ try {
   });
   assert.deepEqual(dock.errors, []);
   await dock.ctx.close();
+  // ---- Review 2, brief §6: the interface moves little, fast, and never
+  // the antenna. WAAPI calls are recorded from the first script on.
+  const RECORD = () => {
+    window.__anims = [];
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (keyframes, options) {
+      const frames = Array.isArray(keyframes) ? keyframes : [];
+      window.__anims.push({
+        target: (this.id ? "#" + this.id : "") + "." + String(this.className).split(" ").join("."),
+        props: [...new Set(frames.flatMap((f) => Object.keys(f)).filter((k) => !["offset", "easing", "composite"].includes(k)))],
+        first: frames[0] || null,
+        duration: typeof options === "number" ? options : options && options.duration,
+        delay: (options && options.delay) || 0,
+      });
+      return animate.call(this, keyframes, options);
+    };
+  };
+  for (const reduced of [false, true]) {
+    const mo = await openRegie(1920, 1080, { init: RECORD, reduced });
+    const st = mo.studio;
+    await check(`Interface motion (§6)${reduced ? ", reduced" : ""}: press 120 ms, tally colours 160 ms without blinking, ${reduced ? "no fill" : "180 ms fill"} on confirmation, plans enter after Découper, nothing on selection`, async () => {
+      // Press and tally transitions.
+      const css = await st.evaluate(() => {
+        const t = (s) => getComputedStyle(document.querySelector(s)).transition;
+        return { show: t("#btn-show"), hide: t("#btn-hide"), next: t("#btn-queue-next"), tab: t("#tab-btn-0"), onair: t("#onair-bar"), tally: t(".cp-onair-tally") };
+      });
+      if (!reduced) {
+        for (const k of ["show", "hide", "next", "tab"])
+          assert.match(css[k], /transform 0\.12s cubic-bezier\(0\.23, 1, 0\.32, 1\)/, k + " press: " + css[k]);
+        for (const k of ["onair", "tally"]) assert.match(css[k], /background-color 0\.16s ease-out/, k + ": " + css[k]);
+      }
+      for (const k of Object.keys(css)) assert.doesNotMatch(css[k], /\b(width|height|all)\b/, k + " never animates its size: " + css[k]);
+      // A new take: amber without blinking, then red, filled once.
+      await showView(st, 0);
+      const before = await st.evaluate(() => window.__anims.length);
+      const pending = await st.evaluate(() => {
+        document.querySelector("#btn-show").click();
+        return { state: document.querySelector("#onair-bar").dataset.state, dot: getComputedStyle(document.querySelector(".cp-onair-dot")).animationName };
+      });
+      assert.equal(pending.state, "pending");
+      assert.equal(pending.dot, "none", "the amber state does not blink");
+      await st.waitForFunction(() => document.querySelector("#onair-bar").dataset.state === "live" && document.querySelector("#onair-ref").textContent.startsWith("Psaumes 23"), null, { timeout: 10000 });
+      await st.waitForTimeout(300);
+      const fills = await st.evaluate((n) => window.__anims.slice(n).filter((a) => a.target.includes("cp-onair-fill")), before);
+      if (reduced) assert.deepEqual(fills, [], "no fill in reduced motion");
+      else {
+        assert.equal(fills.length, 1, "one fill: " + JSON.stringify(fills));
+        assert.equal(fills[0].duration, 180);
+        assert.deepEqual(fills[0].props, ["clipPath"]);
+        assert.match(fills[0].first.clipPath, /inset\(0(px)? 100% 0(px)? 0(px)?\)/);
+      }
+      // Selecting in the conductor never animates.
+      await showView(st, 2);
+      const n0 = await st.evaluate(() => window.__anims.length);
+      const sel = await st.evaluate(() => {
+        document.querySelectorAll("#queue-container .cp-queue-item")[4].click();
+        return document.getAnimations().filter((a) => a.effect && a.effect.target && a.effect.target.closest && a.effect.target.closest("#queue-container")).length;
+      });
+      assert.equal(sel, 0, "CSS animations on selection");
+      assert.equal(await st.evaluate(() => window.__anims.length), n0, "WAAPI on selection");
+      // « Découper »: the new plans enter, 160 ms, 30 ms apart.
+      await showView(st, 0);
+      await prepare(st, "Psaumes 23:1-6");
+      await st.waitForFunction(() => /Découper en \d+ plans/.test(document.querySelector("#btn-split")?.textContent || "") && !document.querySelector("#btn-split").disabled, null, { timeout: 20000 });
+      const n1 = await st.evaluate(() => window.__anims.length);
+      const plans = Number((await st.textContent("#btn-split")).match(/\d+/)[0]);
+      await st.click("#btn-split");
+      await st.waitForFunction((n) => window.__anims.length >= n, n1 + plans, { timeout: 5000 });
+      const rows = await st.evaluate((n) => window.__anims.slice(n).filter((a) => a.target.includes("cp-queue-item")), n1);
+      console.log("    " + (reduced ? "reduced: " : "") + "fill " + JSON.stringify(fills.map((f) => f.duration)) + " · rows " + JSON.stringify(rows.map((r) => [r.duration, r.delay, r.props.join("+")])));
+      assert.equal(rows.length, plans, "one entrance per new plan");
+      rows.forEach((r, i) => {
+        assert.equal(r.duration, 160);
+        assert.equal(r.delay, Math.min(i, 8) * 30);
+        assert.deepEqual(r.props.sort(), reduced ? ["opacity"] : ["opacity", "transform"]);
+      });
+      const all = await st.evaluate(() => window.__anims.flatMap((a) => a.props));
+      assert.deepEqual([...new Set(all)].filter((p) => !["opacity", "transform", "clipPath"].includes(p)), [], "only transform, opacity and clip-path");
+    });
+    assert.deepEqual(mo.errors, []);
+    await mo.ctx.close();
+  }
   }
 
   console.log("\n✓ Browser studio: " + passed + " checks passed.");

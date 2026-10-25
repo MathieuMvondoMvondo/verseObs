@@ -781,3 +781,24 @@ body[data-output="pending"] .control-hide {
   font-size: 15px;
   color: #fff;
 }
+
+.output-tag {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.output-fill {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--pgm);
+  opacity: 0;
+}
+.output[data-state="confirmed"] .output-fill,
+.output[data-state="partial"] .output-fill {
+  opacity: 1;
+}
+.output[data-state="confirmed"] .output-tag,
+.output[data-state="partial"] .output-tag {
+  background-color: transparent;
+}

@@ -5055,3 +5055,121 @@ body:not([data-tab="2"]) #tab-queue .cp-queue-title {
   font-size: 14px;
   line-height: 20px;
 }
+
+/* ==========================================================================
+   Interface motion (review 2, brief §6) — régie only, never the output.
+   Press: scale 0.97 in 120 ms. Hover: colour only, 150 ms, fine pointers.
+   Tally: background, border and text colours in 160 ms, never blinking.
+   Command sent → confirmed: the red tally fills once (WAAPI, 180 ms).
+   Selection, the 390 px monitor switch and the keyboard: no animation.
+   ========================================================================== */
+.take-go,
+.take .take-hide,
+.take-nav,
+.cp-tab,
+.sidebar-help,
+.monitor-action,
+.cp-btn-nav,
+.cp-btn-queue-add,
+.format-toggle,
+.cp-btn-fav,
+.queue-strip button,
+.queue-merge,
+.session-toolbar button,
+.plan-open,
+.cp-onair-hide,
+.command-trigger,
+.connect-top,
+.search-suggestions button,
+.cp-mini-btn,
+.cp-format-btn,
+.cp-btn-clear,
+.cp-queue-btn {
+  transition:
+    transform 120ms cubic-bezier(0.23, 1, 0.32, 1),
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+}
+:is(
+    .take-go,
+    .take .take-hide,
+    .take-nav,
+    .cp-tab,
+    .sidebar-help,
+    .monitor-action,
+    .cp-btn-nav,
+    .cp-btn-queue-add,
+    .format-toggle,
+    .cp-btn-fav,
+    .queue-strip button,
+    .queue-merge,
+    .session-toolbar button,
+    .plan-open,
+    .cp-onair-hide,
+    .command-trigger,
+    .connect-top,
+    .search-suggestions button,
+    .cp-mini-btn,
+    .cp-format-btn,
+    .cp-btn-clear,
+    .cp-queue-btn
+  ):active:not(:disabled) {
+  transform: scale(0.97);
+}
+.monitor-switch button {
+  transition: none;
+}
+.cp-onair,
+.monitor-bay > .cp-onair,
+.monitor-head,
+.cp-onair-tally,
+.monitor-tag {
+  transition:
+    background-color 160ms ease-out,
+    border-color 160ms ease-out,
+    color 160ms ease-out;
+}
+.cp-onair[data-state="pending"] .cp-onair-dot {
+  animation: none;
+}
+.cp-onair-tally {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.cp-onair-fill {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--pgm);
+  opacity: 0;
+}
+.cp-onair[data-state="live"] .cp-onair-fill {
+  opacity: 1;
+}
+.cp-onair[data-state="live"] .cp-onair-tally {
+  background-color: transparent;
+}
+/* The conductor's live tally changes colour; its selection does not move. */
+.cp-queue-item.is-live,
+.cp-queue-item.is-live-pending {
+  transition:
+    background-color 160ms ease-out,
+    border-color 160ms ease-out,
+    box-shadow 160ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .take-go,
+  .take .take-hide,
+  .take-nav,
+  .cp-onair,
+  .monitor-bay > .cp-onair,
+  .monitor-head,
+  .cp-onair-tally,
+  .monitor-tag,
+  .cp-queue-item.is-live,
+  .cp-queue-item.is-live-pending {
+    transition: none;
+  }
+}
