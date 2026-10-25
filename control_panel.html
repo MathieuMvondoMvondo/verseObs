@@ -15,7 +15,10 @@
   <body data-tab="0">
     <a class="skip-link" href="#search-input">Aller à la recherche</a>
     <aside class="studio-sidebar">
-      <a class="brand" href="control_panel.html"
+      <a
+        class="brand"
+        href="control_panel.html"
+        title="VerseObs Studio 2.0 · Votre espace local : vos préparations restent sur cet ordinateur"
         ><img
           class="icon"
           src="assets/icons/radio.svg"
@@ -133,25 +136,25 @@
         </button>
       </nav>
       <div class="sidebar-bottom">
-        <div class="local-badge">
-          <span class="status-dot"></span> Votre espace local
-        </div>
-        <p>Vos préparations restent<br />sur cet ordinateur.</p>
-        <button class="sidebar-help" id="btn-help">
+        <button
+          class="sidebar-help"
+          id="btn-help"
+          title="Aide et raccourcis (?)"
+          aria-keyshortcuts="?"
+        >
           <img
             class="icon"
             src="assets/icons/keyboard.svg"
             alt=""
             width="18"
             height="18"
-          />
-          Aide & raccourcis <kbd>?</kbd>
+          /><span class="rail-label">Aide</span>
         </button>
-        <div class="sidebar-version">VerseObs Studio <span>2.0</span></div>
       </div>
     </aside>
     <div class="studio-shell">
       <header class="cp-header">
+        <h1 class="sr-only" id="studio-title">Préparer un passage</h1>
         <div class="breadcrumb">
           Espace de travail <span>/</span>
           <strong id="workspace-label">Bible</strong>
@@ -184,6 +187,16 @@
             ></span
             ><span id="connection-text">Aucune sortie connectée</span>
           </div>
+          <button class="command-trigger" id="command-trigger">
+            <img
+              class="icon"
+              src="assets/icons/search.svg"
+              alt=""
+              width="18"
+              height="18"
+            />
+            Recherche rapide <kbd>⌘ K</kbd>
+          </button>
           <button class="connect-top" data-open-connections>
             Connecter OBS
             <img
@@ -196,24 +209,6 @@
           </button>
         </div>
       </header>
-      <div class="studio-heading">
-        <div>
-          <h1 id="studio-title">Préparer un passage</h1>
-          <p id="studio-subtitle">
-            Votre Bible, votre prochain passage, votre diffusion.
-          </p>
-        </div>
-        <button class="command-trigger" id="command-trigger">
-          <img
-            class="icon"
-            src="assets/icons/search.svg"
-            alt=""
-            width="18"
-            height="18"
-          />
-          Recherche rapide <kbd>⌘ K</kbd>
-        </button>
-      </div>
       <!--
         Studio Mode (OBS): what you prepare on the left, what the audience
         sees on the right. Both frames always keep their 1920×1080 layout, so
@@ -273,6 +268,46 @@
             title="Aperçu du passage préparé"
             tabindex="-1"
           ></iframe>
+        </div>
+        <!--
+          The take (OBS Studio Mode's « Transition »): one « Diffuser » per view,
+          between what is prepared (left) and what the audience sees (right).
+          It sends what the preview shows: the passage (Bible), the text
+          (Textes & chants) or the selection (Conducteur).
+        -->
+        <div class="take" id="take" role="group" aria-label="Prise">
+          <button class="take-go" id="btn-show" type="button" data-take="0">
+            <span class="take-label">Diffuser</span>
+            <span class="take-cue" id="take-cue-0"></span>
+            <kbd>⌘ ↵</kbd>
+          </button>
+          <button class="take-go" id="btn-free-show" type="button" data-take="1">
+            <span class="take-label">Diffuser</span>
+            <span class="take-cue" id="take-cue-1"></span>
+            <kbd>⌘ ↵</kbd>
+          </button>
+          <button class="take-go" id="btn-queue-show" type="button" data-take="2">
+            <span class="take-label">Diffuser</span>
+            <span class="take-cue" id="take-cue-2"></span>
+            <kbd>⌘ ↵</kbd>
+          </button>
+          <button class="take-hide cp-btn-hide" id="btn-hide" type="button" aria-keyshortcuts="Escape">
+            <img
+              class="icon"
+              src="assets/icons/eye-off.svg"
+              alt=""
+              width="16"
+              height="16"
+            /><span>Masquer</span> <kbd>Esc</kbd>
+          </button>
+          <div class="take-step" role="group" aria-label="Sélection du conducteur">
+            <button class="take-nav" id="btn-queue-prev" type="button" title="Élément précédent du conducteur">
+              &lsaquo; Préc.
+            </button>
+            <button class="take-nav" id="btn-queue-next" type="button" title="Élément suivant du conducteur">
+              Suiv. &rsaquo;
+            </button>
+          </div>
         </div>
         <div class="cp-preview-stage is-program" id="program-stage">
           <iframe
@@ -428,6 +463,15 @@
                   >
                     Mise en forme
                   </button>
+                  <button
+                    class="cp-btn-fav"
+                    id="btn-fav"
+                    type="button"
+                    aria-label="Ajouter aux favoris"
+                    aria-pressed="false"
+                  >
+                    ☆
+                  </button>
                 </div>
                 <span
                   id="primary-version-label"
@@ -533,33 +577,6 @@
                   </section>
                 </div>
               </div>
-              <div class="cp-actions">
-                <button class="cp-btn cp-btn-show" id="btn-show">
-                  <img
-                    class="icon"
-                    src="assets/icons/play.svg"
-                    alt=""
-                    width="18"
-                    height="18"
-                  />
-                  Diffuser le passage <kbd>⌘ ↵</kbd></button
-                ><button class="cp-btn cp-btn-hide" id="btn-hide">
-                  <img
-                    class="icon"
-                    src="assets/icons/eye-off.svg"
-                    alt=""
-                    width="16"
-                    height="16"
-                  />Masquer <kbd>Esc</kbd></button
-                ><button
-                  class="cp-btn cp-btn-fav"
-                  id="btn-fav"
-                  aria-label="Ajouter aux favoris"
-                  aria-pressed="false"
-                >
-                  ☆
-                </button>
-              </div>
               <div class="prepare-actions">
                 <button class="cp-btn-queue-add" id="btn-add-queue">
                   + Ajouter au conducteur
@@ -581,10 +598,6 @@
                   </button>
                 </div>
               </div>
-              <p class="prep-hint">
-                Préparez librement. Seul « Diffuser » change le passage à
-                l’antenne.
-              </p>
               <div class="quick-styles">
                 <div class="section-heading">
                   <h2>Habillage express</h2>
@@ -719,21 +732,6 @@
               aria-label="Contenu du texte libre"
               data-placeholder="Saisissez votre texte ici... Paroles de chants, annonces, prières..."
             ></div>
-          </div>
-
-          <div class="cp-actions">
-            <button class="cp-btn cp-btn-show" id="btn-free-show">
-              Diffuser le texte<span class="shortcut">Ctrl+Enter</span>
-            </button>
-            <button class="cp-btn cp-btn-hide" id="btn-free-hide">
-              <img
-                class="icon"
-                src="assets/icons/eye-off.svg"
-                alt=""
-                width="16"
-                height="16"
-              />Masquer<span class="shortcut">Esc</span>
-            </button>
           </div>
 
           <div class="cp-actions" style="margin-top: 0">
@@ -1064,28 +1062,6 @@
             /><span class="plan-open-label">Coller un plan</span
             ><span class="plan-open-hint">Toutes les références d’un message</span>
           </button>
-          <div class="cp-queue-controls">
-            <button
-              class="cp-btn cp-btn-nav"
-              id="btn-queue-prev"
-              title="Précédent"
-            >
-              &lsaquo; Préc.
-            </button>
-            <button
-              class="cp-btn cp-btn-show cp-btn-queue-show"
-              id="btn-queue-show"
-            >
-              Diffuser la sélection
-            </button>
-            <button
-              class="cp-btn cp-btn-nav"
-              id="btn-queue-next"
-              title="Suivant"
-            >
-              Suiv. &rsaquo;
-            </button>
-          </div>
 
           <div class="cp-section">
             <div id="queue-container"></div>

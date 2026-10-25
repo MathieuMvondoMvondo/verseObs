@@ -156,6 +156,139 @@ const SMALL_TEXT = () => {
 const inFrame = async (studio, frameId) =>
   (await (await studio.$("#" + frameId)).contentFrame()).evaluate(ON_AIR);
 
+/**
+ * The régie as the operator sees it (review 2, brief §7): visible take and
+ * Masquer buttons, monitors, bay, controls on the first screen and the type
+ * histogram of the visible texts.
+ */
+const REGIE = () => {
+  const shown = (e) => {
+    if (!e || !e.getClientRects().length) return false;
+    const r = e.getBoundingClientRect();
+    if (r.width < 2 || r.height < 2) return false;
+    for (let o = e; o && o !== document.documentElement; o = o.parentElement) {
+      const s = getComputedStyle(o);
+      if (s.display === "none" || s.visibility === "hidden" || Number(s.opacity) === 0) return false;
+    }
+    return true;
+  };
+  const box = (e) => {
+    const r = e.getBoundingClientRect();
+    return { top: r.top, bottom: r.bottom, left: r.left, right: r.right, width: r.width, height: r.height };
+  };
+  const name = (e) => (e.getAttribute("aria-label") || e.textContent || "").replace(/\s+/g, " ").trim();
+  const buttons = Array.from(document.querySelectorAll("button, [role=button]")).filter(shown);
+  const pick = (re) => buttons.filter((b) => re.test(name(b))).map((b) => ({ id: b.id, text: name(b).slice(0, 60), fixed: !!b.closest(".take-bar, .take") && getComputedStyle(b.closest(".take-bar, .take")).position === "fixed", disabled: b.disabled, ...box(b) }));
+  const onScreen = (e) => {
+    const r = e.getBoundingClientRect();
+    return r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth;
+  };
+  const controls = Array.from(document.querySelectorAll("button, input, select, textarea, [role=button], a[href]")).filter((e) => shown(e) && onScreen(e));
+  const hist = {};
+  const meta = [];
+  const seen = new Set();
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  while (walker.nextNode()) {
+    const el = walker.currentNode.parentElement;
+    if (!walker.currentNode.textContent.trim() || !el || seen.has(el) || !shown(el) || !onScreen(el)) continue;
+    seen.add(el);
+    const px = Math.round(parseFloat(getComputedStyle(el).fontSize) * 2) / 2;
+    hist[px] = (hist[px] || 0) + 1;
+    if (px < 14) meta.push(el);
+  }
+  const total = Object.values(hist).reduce((a, b) => a + b, 0);
+  const large = Object.entries(hist).reduce((n, [k, v]) => n + (Number(k) >= 14 ? v : 0), 0);
+  const stage = (id) => {
+    const e = document.getElementById(id);
+    return e && shown(e) ? box(e) : null;
+  };
+  return {
+    vh: innerHeight,
+    clientWidth: document.documentElement.clientWidth,
+    takes: pick(/^(Re)?[Dd]iffuser\b/),
+    hides: pick(/^Masquer\b/),
+    preview: stage("preview-stage"),
+    program: stage("program-stage"),
+    bay: box(document.getElementById("monitor-bay")),
+    controls: controls.length,
+    controlNames: controls.map((e) => e.id || name(e).slice(0, 24) || e.tagName),
+    hist,
+    sizes: Object.keys(hist).length,
+    share14: total ? large / total : 0,
+    // 12-13 px texts must be meta (kbd, captions, verse numbers, counters, tally chips).
+    smallNotMeta: meta
+      .filter((e) => !e.closest("kbd, .meta, [data-meta], .verse-number, .verse-num, sup, .cp-queue-num, .cp-queue-part, .muted, .chip, .monitor-meta, .take-cue, .take-reason, .rail-label, .cp-queue-preview"))
+      .map((e) => (e.id ? "#" + e.id : e.tagName.toLowerCase() + "." + String(e.className).split(" ")[0]) + " " + getComputedStyle(e).fontSize + " « " + e.textContent.trim().slice(0, 30) + " »")
+      .slice(0, 40),
+  };
+};
+/** A filled conductor (passage, verse, split plans, two translations, song). */
+function regieConductor() {
+  const LSG = require(path.join(ROOT, "data/bibles/lsg.json")).books;
+  const book = (name) => Object.values(LSG).find((b) => b.name === name);
+  const verses = (name, chapter, from, to) =>
+    book(name).chapters.find((c) => c.chapter === chapter).verses.filter((v) => v.verse >= from && v.verse <= to);
+  const item = (id, name, chapter, from, to, extra = {}) => {
+    const vs = verses(name, chapter, from, to);
+    return {
+      id,
+      type: "verse",
+      text: vs.map((v) => v.text).join(" "),
+      html: vs.map((v) => `<sup class="verse-num">${v.verse}</sup> ${v.text}`).join(" "),
+      reference: `${name} ${chapter}:${from}${to > from ? "-" + to : ""}`,
+      version: "Louis Segond 1910",
+      ...extra,
+    };
+  };
+  const plans = [1, 5, 9, 13, 17, 21].map((from, i) =>
+    item("ps119plan" + (i + 1), "Psaumes", 119, from, from + 3, { group: "ps119group", part: i + 1, parts: 6, whole: "Psaumes 119:1-24" }),
+  );
+  return [
+    item("jean316item", "Jean", 3, 16, 16),
+    item("psaume23item", "Psaumes", 23, 1, 6),
+    ...plans,
+    item("romains828it", "Romains", 8, 28, 30),
+    { id: "chantentree1", type: "text", title: "Chant d’entrée", subtitle: "1 / 2", text: "Saint, saint, saint est le Seigneur" },
+  ];
+}
+/**
+ * Studio at the given size with a filled conductor, plan 1 of Psaumes 119 on
+ * air and plan 2 selected; the Bible view prepares Psaumes 23:1-6.
+ */
+async function openRegie(width, height) {
+  const ctx = await browser.newContext({ viewport: { width, height } });
+  await ctx.addInitScript((q) => {
+    if (location.pathname.endsWith("control_panel.html") && !sessionStorage.getItem("__seeded")) {
+      localStorage.setItem("verseobs_queue", q);
+      sessionStorage.setItem("__seeded", "1");
+    }
+  }, JSON.stringify({ items: regieConductor(), currentIndex: 2 }));
+  const errors = [];
+  const output = await ctx.newPage();
+  await output.setViewportSize({ width: 1920, height: 1080 });
+  output.on("pageerror", (e) => errors.push("output: " + e.message));
+  await output.goto(`${BASE}/browser_source.html`);
+  const studio = await ctx.newPage();
+  studio.on("pageerror", (e) => errors.push("studio: " + e.message));
+  await studio.goto(`${BASE}/control_panel.html`);
+  await studio.waitForSelector(".chapter-verse");
+  await studio.waitForFunction(() => document.querySelector("#connection-dot").classList.contains("connected"));
+  await studio.evaluate(() => document.querySelector("#tab-btn-2").click());
+  await studio.evaluate(() => document.querySelectorAll("#queue-container .cp-queue-item")[2].click());
+  await studio.evaluate(() => document.querySelector("#btn-queue-show").click());
+  await output.waitForFunction(() => !!document.querySelector(".verse-card"));
+  await studio.waitForFunction(() => document.body.dataset.onair === "live", null, { timeout: 10000 });
+  await studio.evaluate(() => document.querySelectorAll("#queue-container .cp-queue-item")[3].click());
+  await studio.evaluate(() => document.querySelector("#tab-btn-0").click());
+  await prepare(studio, "Psaumes 23:1-6");
+  return { ctx, studio, output, errors };
+}
+async function showView(studio, tab) {
+  await studio.evaluate((t) => document.querySelector("#tab-btn-" + t).click(), tab);
+  await studio.evaluate(() => scrollTo(0, 0));
+  await studio.waitForTimeout(300);
+}
+
 // Sections can be run alone while working (STUDIO_ONLY=output,merge …);
 // verify-parent.py and `npm run test:browser` always run all of them.
 const ONLY = (process.env.STUDIO_ONLY || "").split(",").filter(Boolean);
@@ -872,7 +1005,8 @@ try {
     // How long each input waited for the Studio's main thread: from the
     // moment the browser received it (event.timeStamp) to its handler.
     const lag = (name) => (e) => {
-      if (name === "Escape" ? e.key === "Escape" : e.target.closest && e.target.closest("#onair-hide"))
+      // Masquer: the take's (régie) or the program head's (narrow dock).
+      if (name === "Escape" ? e.key === "Escape" : e.target.closest && e.target.closest("#btn-hide, #onair-hide"))
         window.__lat.push({ name, t: e.timeStamp, wait: Math.round(performance.now() - e.timeStamp), at: Date.now() });
     };
     addEventListener("keydown", lag("Escape"), true);
@@ -926,7 +1060,10 @@ try {
         };
       }
       fw.__slices = [];
-      const r = document.querySelector("#onair-hide").getBoundingClientRect();
+      // The Masquer the operator sees (one per view).
+      const r = Array.from(document.querySelectorAll("#btn-hide, #onair-hide"))
+        .map((e) => e.getBoundingClientRect())
+        .find((b) => b.width > 0 && b.height > 0);
       return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
     });
     const t0 = await ms.evaluate(() => performance.now());
@@ -1226,6 +1363,42 @@ try {
     lanServer.close();
   }
   }
+  // ---- Review 2, brief §7: « Préparer à gauche → Prendre au centre →
+  // Antenne à droite ». One take per view, between the monitors, measured
+  // with a filled conductor and a plan on air.
+  if (run("take")) {
+  const views = [[0, "Bible"], [1, "Textes"], [2, "Conducteur"]];
+  for (const [w, h] of [[1920, 1080], [1280, 800]]) {
+    const r = await openRegie(w, h);
+    await check(`Régie at ${w}×${h}: exactly one Diffuser and one Masquer in each view, both on the first screen`, async () => {
+      for (const [tab, name] of views) {
+        await showView(r.studio, tab);
+        const g = await r.studio.evaluate(REGIE);
+        const where = `${w} px, ${name}: `;
+        assert.equal(g.takes.length, 1, where + "takes " + JSON.stringify(g.takes));
+        assert.equal(g.hides.length, 1, where + "Masquer " + JSON.stringify(g.hides));
+        for (const b of [g.takes[0], g.hides[0]])
+          assert.ok(b.top >= 0 && b.bottom <= g.vh, where + b.text + " off the first screen: " + JSON.stringify(b));
+      }
+    });
+    if (w === 1920)
+      await check("Régie at 1920 px: the take sits between the monitors, monitors ≥ 720 px, the bay reaches the content edge", async () => {
+        for (const [tab, name] of views) {
+          await showView(r.studio, tab);
+          const g = await r.studio.evaluate(REGIE);
+          const t = g.takes[0];
+          const where = name + ": ";
+          assert.ok(t.left >= g.preview.right && t.right <= g.program.left, where + "take " + JSON.stringify(t) + " between " + g.preview.right + " and " + g.program.left);
+          assert.ok(t.top >= g.preview.top && t.bottom <= g.preview.bottom, where + "take within the monitors' band " + g.preview.top + "-" + g.preview.bottom);
+          assert.ok(g.preview.width >= 720 && g.program.width >= 720, where + "monitors " + g.preview.width + " / " + g.program.width);
+          assert.ok(g.clientWidth - g.bay.right <= 32, where + "bay ends " + (g.clientWidth - g.bay.right) + " px before the edge");
+        }
+      });
+    assert.deepEqual(r.errors, []);
+    await r.ctx.close();
+  }
+  }
+
   console.log("\n✓ Browser studio: " + passed + " checks passed.");
 } catch (err) {
   console.error(err);

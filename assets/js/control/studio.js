@@ -16,14 +16,6 @@
     "Habillage de diffusion",
     "Connexions & sorties",
   ];
-  var subtitles = [
-    "Votre Bible, votre prochain passage, votre diffusion.",
-    "Des paroles, une annonce, un moment à partager.",
-    "Une célébration préparée. Une équipe sereine.",
-    "Retrouvez un passage et préparez-le à nouveau.",
-    "Un habillage à votre image, jusque dans les détails.",
-    "Reliez votre préparation à votre écran de diffusion.",
-  ];
   function el(id) {
     return document.getElementById(id);
   }
@@ -440,7 +432,7 @@
     selectedPreview.innerHTML =
       '<span class="editor-badge" id="queue-selection-badge">PRÊT À DIFFUSER</span><h3 id="queue-selection-title"></h3><p id="queue-selection-text"></p>' +
       '<button class="queue-merge" id="btn-merge" type="button" hidden>Regrouper</button>';
-    el("btn-queue-show").parentElement.before(selectedPreview);
+    el("queue-container").parentElement.before(selectedPreview);
     // « Regrouper » undoes « Découper »: the plans become the passage again.
     on("btn-merge", function () {
       var items = api.queue.getItems(),
@@ -476,6 +468,17 @@
     });
     api.queue.onChange = updateQueue;
     updateQueue();
+    // An item picked in the conductor column of another view is loaded in the
+    // preview the same way as in the Conducteur view: the take sends it.
+    function openPicked(e) {
+      if (document.body.dataset.tab === "2") return;
+      if (e.type === "keydown" && e.key !== "Enter" && e.key !== " ") return;
+      var row = e.target.closest && e.target.closest(".cp-queue-item");
+      if (!row || e.target.closest("button")) return;
+      api.switchTab(2);
+    }
+    el("queue-container").addEventListener("click", openPicked);
+    el("queue-container").addEventListener("keydown", openPicked);
     on("command-trigger", api.openPalette);
     on("toggle-format", function () {
       var hidden = el("format-toolbar").hidden;
@@ -810,7 +813,6 @@
         "Connexions",
       ][index];
       el("studio-title").textContent = titles[index];
-      el("studio-subtitle").textContent = subtitles[index];
     },
     setRelay: function (connected) {
       if (!el("relay-status")) return;
@@ -850,6 +852,16 @@
      * The prepared text changed: until the preview reports on it, « Découper »
      * is inactive (no layout change, no plans of the previous text).
      */
+    setTake: function (prepared) {
+      var tab = Number(document.body.dataset.tab) || 0;
+      if (tab > 2) return;
+      var data = prepared && prepared.data,
+        cue = el("take-cue-" + tab);
+      if (!cue) return;
+      cue.textContent = data
+        ? data.reference || data.title || "Texte libre"
+        : "";
+    },
     setFitStale: function () {
       var split = el("btn-split");
       if (split) split.disabled = true;

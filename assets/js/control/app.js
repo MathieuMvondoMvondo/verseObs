@@ -1879,6 +1879,8 @@
       isQueue = prepared.isQueue,
       caption = prepared.caption;
     if (caption && dom.previewCaption) dom.previewCaption.textContent = caption;
+    if (window.VerseObs.Studio && window.VerseObs.Studio.setTake)
+      window.VerseObs.Studio.setTake(prepared);
     // From now on, the last report describes another text: « Découper »
     // waits for the report of this one.
     _previewSeq++;
