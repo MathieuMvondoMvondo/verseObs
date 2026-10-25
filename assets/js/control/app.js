@@ -43,6 +43,11 @@
   // report counts only when no program output has answered for PROGRAM_TTL.
   var _programSeen = 0;
   var PROGRAM_TTL = 7000;
+  // Each preview command carries a number; the preview's report echoes the
+  // number of what it measured. « Découper » applies only the report of the
+  // latest preview, and only if the prepared text is still that one (key).
+  var _previewSeq = 0;
+  var _previewKey = "";
   var _lastSent = { label: "", version: "" };
   var currentBibleId = null;
   var currentBibleData = null;
@@ -839,6 +844,14 @@
     var P = window.VerseObs.Passage,
       pages = _fitInfo && _fitInfo.pages;
     if (!P || !pages || pages.length < 2) return;
+    // Only a measurement of the text prepared now (selection, version, words).
+    if (!_fitIsFresh(_fitInfo)) {
+      _notify(
+        "L’aperçu n’a pas fini de mesurer ce passage : réessayez dans un instant.",
+        "info",
+      );
+      return;
+    }
     var group = "g" + window.VerseObs.Queue.newId(),
       inQueue = document.body.dataset.tab === "2",
       index = queue.getState().current - 1,
@@ -857,6 +870,23 @@
             };
           })();
     if (!item || item.type !== "verse") return;
+    // The plans must cover the item's verses exactly: never lose one.
+    var nums = P.verses(item.html).map(function (v) {
+        return v.num;
+      }),
+      covered = [];
+    pages.forEach(function (r) {
+      nums.forEach(function (n) {
+        if (n >= r[0] && n <= r[1]) covered.push(n);
+      });
+    });
+    if (!nums.length || covered.join(",") !== nums.join(",")) {
+      _notify(
+        "Découpage refusé : la mesure ne correspond pas à tous les versets de ce passage. Réessayez dans un instant.",
+        "error",
+      );
+      return;
+    }
     // A plan split again (a larger style) stays in its passage: same group,
     // and the group is numbered again in reading order below.
     if (inQueue && item.group) group = item.group;
@@ -1725,7 +1755,9 @@
         return;
       _fitInfo = e.data;
       if (window.VerseObs.Studio && window.VerseObs.Studio.setFit)
-        window.VerseObs.Studio.setFit(e.data);
+        window.VerseObs.Studio.setFit(
+          Object.assign({}, e.data, { fresh: _fitIsFresh(e.data) }),
+        );
     });
 
     _scalePreviewFrame();
@@ -1767,8 +1799,8 @@
    * Push the current Bible/free-text selection to the preview iframe so the
    * mini overlay mirrors exactly what "Afficher" would show.
    */
-  function _sendPreview() {
-    _scalePreviewFrame();
+  /** What the preview monitor shows: what the operator is about to send. */
+  function _previewData() {
     var activeTab = document.querySelector(".cp-tab-content.active");
     var data = null;
 
@@ -1782,6 +1814,7 @@
       if (item) {
         isFreeText = item.type !== "verse";
         data = {
+          cue: item.id || "",
           text: item.text,
           html: item.html || "",
           secondary: item.secondary || null,
@@ -1823,17 +1856,54 @@
       }
     }
 
+    return { data: data, isFreeText: isFreeText, isQueue: isQueue, caption: caption };
+  }
+  /** Identity of a prepared text: item, version, words of both translations. */
+  function _previewKeyOf(data) {
+    if (!data) return "";
+    var second = data.secondary || null;
+    return JSON.stringify([
+      data.cue || "",
+      data.reference || "",
+      data.version || "",
+      data.html || "",
+      data.text || "",
+      second ? [second.version || "", second.html || "", second.text || ""] : null,
+    ]);
+  }
+  function _sendPreview() {
+    _scalePreviewFrame();
+    var prepared = _previewData(),
+      data = prepared.data,
+      isFreeText = prepared.isFreeText,
+      isQueue = prepared.isQueue,
+      caption = prepared.caption;
     if (caption && dom.previewCaption) dom.previewCaption.textContent = caption;
+    // From now on, the last report describes another text: « Découper »
+    // waits for the report of this one.
+    _previewSeq++;
+    _previewKey = _previewKeyOf(data);
+    if (window.VerseObs.Studio && window.VerseObs.Studio.setFitStale)
+      window.VerseObs.Studio.setFitStale();
     if (!data) {
       if (dom.previewCaption && (isQueue || isFreeText))
         dom.previewCaption.textContent = isQueue
           ? "Conducteur vide"
           : "Écrivez un texte";
-      _sendMessage(MSG.PREVIEW_HIDE, {});
+      _sendMessage(MSG.PREVIEW_HIDE, { seq: _previewSeq });
       return;
     }
     data.settings = (isFreeText ? freeTextStyle : settings).getAll();
+    data.seq = _previewSeq;
     _sendMessage(MSG.PREVIEW, data);
+  }
+  /** Is the preview's last report about the text prepared right now? */
+  function _fitIsFresh(info) {
+    return (
+      !!info &&
+      info.seq === _previewSeq &&
+      _previewKeyOf(_previewData().data) === _previewKey
+    );
   }
 
   // ---- On-air tracking ----

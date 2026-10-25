@@ -758,6 +758,95 @@ try {
   await tc.close();
   }
 
+  // ---- « Découper » applies only a measurement of the selected item, as it
+  // is now (race between a selection change and the preview's report).
+  if (run("race")) {
+  const LSGr = require(path.join(ROOT, "data/bibles/lsg.json")).books;
+  const ps119 = Object.values(LSGr).find((b) => b.name === "Psaumes").chapters.find((c) => c.chapter === 119).verses;
+  const wholeOf = (id, end) => {
+    const vs = ps119.filter((v) => v.verse <= end);
+    return {
+      id,
+      type: "verse",
+      text: vs.map((v) => v.text).join(" "),
+      html: vs.map((v) => `<sup class="verse-num">${v.verse}</sup> ${v.text}`).join(" "),
+      reference: "Psaumes 119:1-" + end,
+      version: "Louis Segond 1910",
+    };
+  };
+  const seeded = JSON.stringify({ items: [wholeOf("raceA11948", 48), wholeOf("raceB11960", 60)], currentIndex: 0 });
+  const rc = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  await rc.addInitScript((q) => {
+    if (location.pathname.endsWith("control_panel.html") && !sessionStorage.getItem("__seeded")) {
+      localStorage.setItem("verseobs_queue", q);
+      sessionStorage.setItem("__seeded", "1");
+    }
+  }, seeded);
+  const rerrors = [];
+  const rs = await rc.newPage();
+  rs.on("pageerror", (e) => rerrors.push("studio: " + e.message));
+  await rs.goto(`${BASE}/control_panel.html`);
+  await rs.waitForSelector(".chapter-verse");
+  await rs.evaluate(() => document.querySelector("#tab-btn-2").click());
+  const splitReady = (n) =>
+    rs.waitForFunction(
+      (n) => {
+        const b = document.querySelector("#btn-split");
+        return !b.hidden && !b.disabled && b.textContent === "Découper en " + n + " plans";
+      },
+      n,
+      { timeout: 20000 },
+    );
+  const versesByItem = () =>
+    rs.evaluate(() =>
+      JSON.parse(localStorage.getItem("verseobs_queue")).items.map((i) => ({
+        ref: i.reference,
+        nums: [...i.html.matchAll(/<sup class="verse-num">(\d+)<\/sup>/g)].map((m) => Number(m[1])),
+      })),
+    );
+  await check("Découper right after a selection change never applies the previous item's plans", async () => {
+    await rs.evaluate(() => document.querySelectorAll("#queue-container .cp-queue-item")[0].click());
+    await splitReady(12);
+    // The operator selects 119:1-60 and clicks « Découper » at once, in the
+    // same instant (before any new report can arrive).
+    const seen = await rs.evaluate(() => {
+      document.querySelectorAll("#queue-container .cp-queue-item")[1].click();
+      const b = document.querySelector("#btn-split");
+      const state = { hidden: b.hidden, disabled: b.disabled, text: b.textContent };
+      if (!b.hidden && !b.disabled) b.click();
+      return state;
+    });
+    await rs.waitForTimeout(600);
+    const items = await versesByItem();
+    const all = items.flatMap((i) => i.nums);
+    console.log("    at the click: " + JSON.stringify(seen) + "; conductor: " + items.map((i) => i.ref).join(", "));
+    assert.ok(seen.hidden || seen.disabled, "the stale button is not usable: " + JSON.stringify(seen));
+    assert.equal(items.length, 2, "nothing split on a stale measurement");
+    assert.equal(all.filter((n) => n > 48).length, 12, "verses 49-60 still in the conductor");
+  });
+  await check("A forced click on a stale measurement is refused; the fresh one splits 119:1-60 whole", async () => {
+    await rs.evaluate(() => document.querySelectorAll("#queue-container .cp-queue-item")[0].click());
+    await splitReady(12);
+    await rs.evaluate(() => {
+      document.querySelectorAll("#queue-container .cp-queue-item")[1].click();
+      document.querySelector("#btn-split").click(); // even hidden or disabled
+    });
+    await rs.waitForTimeout(300);
+    assert.equal((await versesByItem()).length, 2, "refused while the report is stale");
+    await rs.waitForFunction(() => {
+      const b = document.querySelector("#btn-split");
+      return !b.hidden && !b.disabled && /Découper en \d+ plans/.test(b.textContent) && b.textContent !== "Découper en 12 plans";
+    }, null, { timeout: 20000 });
+    await rs.click("#btn-split");
+    await rs.waitForFunction(() => document.querySelectorAll("#queue-container .cp-queue-item").length > 2);
+    const items = await versesByItem();
+    const fromB = items.slice(1).flatMap((i) => i.nums);
+    assert.equal(fromB.join(","), Array.from({ length: 60 }, (_, i) => i + 1).join(","), "every verse of 119:1-60, once, in order");
+  });
+  assert.deepEqual(rerrors, []);
+  await rc.close();
+  }
+
   // ---- Régie readability: type floor, keyboard focus, phone targets.
   if (run("regie")) {
   for (const [w, h] of [[1920, 1080], [1280, 800], [390, 844]]) {

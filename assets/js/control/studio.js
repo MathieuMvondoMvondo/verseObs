@@ -847,6 +847,14 @@
       if (api) markLive();
     },
     /**
+     * The prepared text changed: until the preview reports on it, « Découper »
+     * is inactive (no layout change, no plans of the previous text).
+     */
+    setFitStale: function () {
+      var split = el("btn-split");
+      if (split) split.disabled = true;
+    },
+    /**
      * What the preview monitor reports about the prepared text: reduced, too
      * long for the band (with the plans « Découper » would create), or too
      * long even for the whole frame.
@@ -862,6 +870,8 @@
         split.textContent = split.hidden
           ? "Découper"
           : "Découper en " + pages.length + " plans";
+        // A report about another text (or an older version of this one).
+        split.disabled = !(info && info.fresh !== false);
       }
       if (
         !info ||

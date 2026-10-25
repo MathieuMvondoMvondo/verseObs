@@ -10,6 +10,8 @@
     label = "",
     // Echoed to the Studio: which conductor item (cue), in which version,
     // after which command — so a duplicate label is never marked on air.
+    // Preview: number of the preview command whose text is measured.
+    previewSeq = 0,
     cue = "",
     version = "",
     command = "";
@@ -46,6 +48,7 @@
       window.parent.postMessage(
         {
           type: "verseobs:fit",
+          seq: previewSeq,
           visible: visible,
           fit: renderer ? renderer.fit : 1,
           overflow: renderer ? renderer.overflow : false,
@@ -115,6 +118,7 @@
     }
     if (preview) {
       if (msg.type === MSG.PREVIEW_HIDE) {
+        previewSeq = Number(msg.seq) || 0;
         hide();
         return;
       }
@@ -148,6 +152,7 @@
       .show(data, function () {
         if (token !== generation) return;
         visible = true;
+        if (preview) previewSeq = Number(msg.seq) || 0;
         label = msg.reference || msg.title || "Texte libre";
         cue = String(msg.cue || "");
         version = String(msg.version || "");
