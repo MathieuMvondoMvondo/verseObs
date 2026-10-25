@@ -1711,6 +1711,34 @@ try {
       }
       console.log("    type at " + w + " px: " + JSON.stringify(seen));
     });
+    if (w === 1280)
+      await check("Régie at 1280×800, Conducteur: at least 6 conductor rows whole on the first screen, rows ≤ 56 px, the selection card no longer repeats the preview (≤ 2 lines of text)", async () => {
+        await showView(r.studio, 2);
+        const c = await r.studio.evaluate(() => {
+          const rows = Array.from(document.querySelectorAll("#queue-container .cp-queue-item"));
+          const whole = rows.filter((row) => {
+            const b = row.getBoundingClientRect();
+            return b.height > 0 && b.top >= 0 && b.bottom <= innerHeight;
+          });
+          const card = document.querySelector("#queue-selection-preview");
+          const text = document.querySelector("#queue-selection-text");
+          const shown = (e) => !!e && e.getClientRects().length > 0 && getComputedStyle(e).visibility === "visible";
+          const lh = text ? parseFloat(getComputedStyle(text).lineHeight) : 0;
+          return {
+            rows: rows.length,
+            whole: whole.length,
+            heights: whole.map((row) => Math.round(row.getBoundingClientRect().height)),
+            listTop: rows.length ? Math.round(rows[0].getBoundingClientRect().top) : null,
+            card: shown(card) ? Math.round(card.getBoundingClientRect().height) : 0,
+            lines: shown(text) && lh ? Math.round(text.getBoundingClientRect().height / lh) : 0,
+          };
+        });
+        console.log("    conductor at 1280×800: " + JSON.stringify(c));
+        assert.ok(c.rows >= 10, "a filled conductor");
+        assert.ok(c.whole >= 6, c.whole + " rows whole on the first screen: " + JSON.stringify(c));
+        assert.ok(c.heights.every((h) => h <= 56), "rows of 56 px at most: " + c.heights);
+        assert.ok(c.lines <= 2, "the card shows " + c.lines + " lines of the text the preview already shows");
+      });
     if (w === 1920)
       await check("Régie at 1920 px: the take sits between the monitors, monitors ≥ 720 px, the bay reaches the content edge", async () => {
         for (const [tab, name] of views) {

@@ -5419,3 +5419,79 @@ body:not([data-tab="2"]) #tab-queue .cp-queue-group {
 body:not([data-tab="2"]) #tab-queue .cp-queue-group .queue-merge {
   display: none;
 }
+/* ---- Conductor density (brief §4; 1280×800: at least 6 rows) ----
+   A row's tools sit side by side: stacked, they made rows 85 px tall (the
+   dock keeps them stacked: its rows are narrow). */
+@media (min-width: 621px) {
+  .cp-queue-actions {
+    flex-direction: row;
+    align-items: center;
+    gap: 2px;
+  }
+  .cp-queue-btn {
+    width: 28px;
+    height: 28px;
+  }
+}
+/* The selection card repeats the preview monitor: the reference and the
+   first two lines, enough to check the text before the take. */
+@media (min-width: 621px) {
+  body[data-tab="2"] .queue-selection-preview:not([hidden]) {
+    padding: 12px 14px;
+  }
+  .queue-selection-preview h3 {
+    margin: 4px 0;
+  }
+  #queue-selection-text {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    max-height: 56px;
+    overflow: hidden;
+    white-space: normal;
+  }
+}
+/* Laptop screens (up to 900 px high): one line per row — the reference,
+   then the start of the text — and no list heading (the preview's head
+   already says « Sélection 4/10 »), so six rows show under the monitors. */
+@media (min-width: 621px) and (max-height: 900px) {
+  body[data-tab="2"] #tab-queue .cp-queue-item {
+    min-height: 44px;
+    padding: 4px 8px 4px 12px;
+    margin-bottom: 4px;
+  }
+  body[data-tab="2"] #tab-queue .cp-queue-info {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+  body[data-tab="2"] #tab-queue .cp-queue-title {
+    flex: 0 1 auto;
+    min-width: 0;
+    margin: 0;
+  }
+  body[data-tab="2"] #tab-queue .cp-queue-preview {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  body[data-tab="2"] #tab-queue .cp-queue-group {
+    min-height: 32px;
+    margin: 4px 0 2px;
+  }
+  body[data-tab="2"] #tab-queue {
+    padding-top: 12px;
+  }
+  body[data-tab="2"] #tab-queue > .cp-section:first-child {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+@media (min-width: 1280px) and (max-height: 900px) {
+  body[data-tab="2"] #tab-queue > .cp-section:has(#queue-container) {
+    grid-row: 1 / span 12;
+  }
+}
