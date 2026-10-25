@@ -75,6 +75,26 @@ Dans le conducteur, **Coller un plan** ouvre une fenêtre où vous collez votre 
 - Si **Deux versions** est actif, chaque passage reçoit la deuxième traduction, exactement comme un ajout manuel ; un passage absent de la deuxième version n’est pas ajouté.
 - Au plus 200 passages et 20 000 caractères par collage. L’ajout est complet ou n’a pas lieu (limite de 500 éléments du conducteur).
 
+## Télécommande sur téléphone
+
+Un téléphone connecté au même Wi-Fi peut piloter le conducteur : **Précédent**, **Suivant**, **Diffuser la sélection** et **Masquer**. La télécommande affiche le nom de la session, l’élément sélectionné, le suivant et l’état de la sortie (**Sortie confirmée** comme dans le Studio).
+
+La télécommande demande le serveur local : elle ne fonctionne pas avec la version GitHub Pages ni avec un hébergement statique.
+
+1. Lancez `npm start -- --lan`, ou lancez `npm start` puis, dans **Connexions**, cliquez **Activer le mode réseau local**. Le mode est désactivé par défaut et reste limité à cette exécution du serveur.
+2. Scannez le QR code affiché dans **Connexions** avec l’appareil photo du téléphone. Gardez la page ouverte pendant le culte : elle se reconnecte seule et signale clairement une connexion perdue.
+3. Après le culte, cliquez **Désactiver le mode réseau** (ou arrêtez le serveur).
+
+Sécurité :
+
+- Le serveur écoute alors sur les adresses privées de l’ordinateur (Wi-Fi/Ethernet), sur le même port que le Studio, ou un port libre s’il est pris. L’avertissement reste visible tant que le mode est actif. Sur Mac, autorisez Node.js dans la demande du pare-feu si elle apparaît.
+- Le QR code contient un code d’appairage aléatoire (144 bits), différent à chaque activation et jamais écrit dans la console. **Révoquer et changer le code** coupe immédiatement les télécommandes connectées. Ne montrez pas le QR code à l’écran.
+- Sans code valide, la connexion est refusée ; les échecs répétés sont bloqués temporairement. Une télécommande ne peut envoyer que les quatre commandes, avec une limite de débit ; elle ne peut ni modifier le texte ni l’habillage, ni ouvrir le Studio. Les adresses réseau ne servent que la page de télécommande.
+- Le trafic du réseau local n’est pas chiffré (HTTP) : utilisez un Wi-Fi de confiance.
+- Si plusieurs fenêtres du Studio sont ouvertes, la première reçoit les commandes ; **Piloter cette fenêtre** transfère la main.
+
+Le QR code est généré localement (`assets/js/shared/qrcode.js`, adapté de la bibliothèque MIT de Project Nayuki, licence dans `assets/js/shared/qrcode.LICENSE.txt`), sans CDN ni appel réseau.
+
 ## Textes et chants
 
 Préparez des paroles, une annonce ou une prière. Votre brouillon est conservé lorsque vous rechargez le studio. Les textes nommés restent disponibles dans votre bibliothèque.
@@ -116,7 +136,7 @@ Les outils de téléchargement/conversion se trouvent dans `tools/`. Leurs fourn
 
 Le studio reste compatible avec GitHub Pages et d’autres serveurs statiques. Les routes historiques `control_panel.html` et `browser_source.html` sont conservées ; la racine ouvre le studio.
 
-En hébergement statique, la communication utilise BroadcastChannel et localStorage. Le panneau et la sortie doivent partager la même origine et un espace navigateur compatible. Un navigateur externe et OBS peuvent être isolés : utilisez alors `npm start` avec les adresses locales. Le relais ne fonctionne pas sur GitHub Pages.
+En hébergement statique, la communication utilise BroadcastChannel et localStorage. Le panneau et la sortie doivent partager la même origine et un espace navigateur compatible. Un navigateur externe et OBS peuvent être isolés : utilisez alors `npm start` avec les adresses locales. Le relais et la télécommande sur téléphone ne fonctionnent pas sur GitHub Pages.
 
 ## Développement et vérification
 
@@ -126,8 +146,8 @@ npm test
 ```
 
 - `check` vérifie la syntaxe JavaScript, les identifiants HTML et la présence des assets.
-- Les tests couvrent recherche, plages de versets, repérage des références d’un plan (faux positifs compris), préparation distincte du direct, conducteur, import, animations concurrentes, déduplication et relais local.
+- Les tests couvrent recherche, plages de versets, repérage des références d’un plan (faux positifs compris), préparation distincte du direct, conducteur, import, animations concurrentes, déduplication, relais local, QR code et télécommande (refus sans code ou après révocation, liste blanche, limite de débit, parcours complet jusqu’à la source).
 - Aucun framework ni dépendance JavaScript tiers n’est chargé par le frontend. `ws` est utilisé uniquement par le serveur local ; `jsdom` sert uniquement aux tests.
 - Les icônes Lucide sont incluses dans `assets/icons/`, avec leur licence.
 
-Le serveur local n’expose que les pages et assets du produit, refuse les origines WebSocket externes et ne conserve pas les commandes en mémoire après redémarrage. Aucun service d’analyse ni collecte de données n’est ajouté.
+Le serveur local n’expose que les pages et assets du produit, refuse les origines WebSocket externes et ne conserve pas les commandes en mémoire après redémarrage. Hors mode réseau local, il n’écoute que sur `127.0.0.1`. Aucun service d’analyse ni collecte de données n’est ajouté.

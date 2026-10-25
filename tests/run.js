@@ -417,6 +417,176 @@ var withSecond = resolveText(
 eq("deux versions : la deuxième suit le passage", withSecond.item.secondary.range, "43:3:16:16");
 
 // ===================================================================
+group("QR code local (appairage)");
+
+load("assets/js/shared/qrcode.js");
+var crypto = require("crypto");
+function matrixHash(qr) {
+  var rows = [];
+  for (var y = 0; y < qr.size; y++) {
+    var row = "";
+    for (var x = 0; x < qr.size; x++) row += qr.isDark(x, y) ? "1" : "0";
+    rows.push(row);
+  }
+  return crypto.createHash("sha256").update(rows.join("\n")).digest("hex");
+}
+// Reference matrices produced by Project Nayuki's qrcodegen 1.8.0 (Python).
+[
+  ["http://192.168.1.24:8080/remote.html?code=Q2xlZi1kZS10ZXN0LTEyMzQ1Ng", "M", 5, 6, "17c760bb28cf330098b91bfd8d0e98658af39d9494fb018fa4c09725a94e31f2"],
+  ["VerseObs", "L", 1, 3, "0705b6af75de504b9a9d4b02e6ffb122a7c92e6560a5657a3a076d26fe2514b5"],
+  ["Ésaïe 53:5 — « Il était blessé pour nos péchés »", "Q", 5, 6, "6a3962c961e438a30471fa8f4ae078c1682ee3be70ae5d80163eca3bf83c1ddc"],
+  [new Array(23).join("Jean 3:16 "), "H", 15, 4, "c29160d4a249164c543c29f7db2efb9375f7e491fb896b256eae3ad16bf3d5cc"],
+  [new Array(1201).join("x"), "L", 25, 0, "5f0dd4aeadb08b5728bd578462821e6b0d75bb498f18de52a32c4447179a8db9"],
+].forEach(function (c) {
+  var qr = VerseObs.QR.encode(c[0], { ecl: c[1] });
+  eq(
+    "QR " + c[1] + " v" + c[2] + " identique à la référence",
+    qr.version + "/" + qr.mask + "/" + matrixHash(qr),
+    c[2] + "/" + c[3] + "/" + c[4],
+  );
+});
+
+// Independent reader: function modules, unmasking, Reed-Solomon syndromes.
+var QR_BLOCKS = {
+  // version: [total codewords, { level: [ecc per block, blocks] }]
+  4: [100, { M: [18, 2] }],
+  5: [134, { M: [24, 2] }],
+  6: [172, { M: [16, 4] }],
+};
+function gfMul(a, b) {
+  var z = 0;
+  for (var i = 7; i >= 0; i--) {
+    z = (z << 1) ^ ((z >>> 7) * 0x11d);
+    z ^= ((b >>> i) & 1) * a;
+  }
+  return z & 0xff;
+}
+function readQr(qr) {
+  var size = qr.size,
+    v = qr.version,
+    reserved = {};
+  if (v < 2 || v > 6) throw new Error("readQr covers versions 2 to 6");
+  function mark(x, y) {
+    reserved[x + "," + y] = true;
+  }
+  for (var i = 0; i < size; i++) {
+    mark(6, i);
+    mark(i, 6);
+  }
+  [[0, 0], [size - 8, 0], [0, size - 8]].forEach(function (o) {
+    for (var dy = 0; dy < 8; dy++)
+      for (var dx = 0; dx < 8; dx++) mark(o[0] + dx, o[1] + dy);
+  });
+  for (var k = 0; k <= 8; k++) {
+    mark(8, k);
+    mark(k, 8);
+  }
+  for (var k2 = 0; k2 < 8; k2++) {
+    mark(size - 1 - k2, 8);
+    mark(8, size - 1 - k2);
+  }
+  for (var ay = -2; ay <= 2; ay++)
+    for (var ax = -2; ax <= 2; ax++) mark(size - 7 + ax, size - 7 + ay);
+  var format = 0;
+  for (var b = 0; b <= 5; b++) format |= (qr.isDark(8, b) ? 1 : 0) << b;
+  format |= (qr.isDark(8, 7) ? 1 : 0) << 6;
+  format |= (qr.isDark(8, 8) ? 1 : 0) << 7;
+  format |= (qr.isDark(7, 8) ? 1 : 0) << 8;
+  for (var c = 9; c < 15; c++) format |= (qr.isDark(14 - c, 8) ? 1 : 0) << c;
+  format ^= 0x5412;
+  var mask = (format >> 10) & 7,
+    level = ["M", "L", "H", "Q"][format >> 13];
+  var masks = [
+    function (x, y) { return (x + y) % 2 === 0; },
+    function (x, y) { return y % 2 === 0; },
+    function (x) { return x % 3 === 0; },
+    function (x, y) { return (x + y) % 3 === 0; },
+    function (x, y) { return (Math.floor(x / 3) + Math.floor(y / 2)) % 2 === 0; },
+    function (x, y) { return ((x * y) % 2) + ((x * y) % 3) === 0; },
+    function (x, y) { return (((x * y) % 2) + ((x * y) % 3)) % 2 === 0; },
+    function (x, y) { return (((x + y) % 2) + ((x * y) % 3)) % 2 === 0; },
+  ];
+  var bits = [];
+  for (var right = size - 1; right >= 1; right -= 2) {
+    if (right === 6) right = 5;
+    for (var vert = 0; vert < size; vert++)
+      for (var j = 0; j < 2; j++) {
+        var x = right - j,
+          y = ((right + 1) & 2) === 0 ? size - 1 - vert : vert;
+        if (!reserved[x + "," + y])
+          bits.push((qr.isDark(x, y) ? 1 : 0) ^ (masks[mask](x, y) ? 1 : 0));
+      }
+  }
+  var spec = QR_BLOCKS[v],
+    total = spec[0],
+    ecc = spec[1][level][0],
+    count = spec[1][level][1],
+    words = [];
+  for (var w = 0; w < total; w++) {
+    var byte = 0;
+    for (var t = 0; t < 8; t++) byte = (byte << 1) | bits[w * 8 + t];
+    words.push(byte);
+  }
+  // Undo the interleaving: column by column, short blocks skip one data slot.
+  var shortCount = count - (total % count),
+    shortLen = Math.floor(total / count),
+    padded = [],
+    pos = 0;
+  for (var bi = 0; bi < count; bi++) padded.push([]);
+  for (var col = 0; col <= shortLen; col++)
+    for (var bk = 0; bk < count; bk++) {
+      if (col === shortLen - ecc && bk < shortCount) continue;
+      padded[bk][col] = words[pos++];
+    }
+  var syndromes = 0,
+    data = [];
+  padded.forEach(function (block, index) {
+    if (index < shortCount) block.splice(shortLen - ecc, 1);
+    for (var i = 0, root = 1; i < ecc; i++, root = gfMul(root, 2)) {
+      var sum = 0;
+      block.forEach(function (cw) {
+        sum = gfMul(sum, root) ^ cw;
+      });
+      syndromes |= sum;
+    }
+    data = data.concat(block.slice(0, block.length - ecc));
+  });
+  var stream = data
+    .map(function (d) {
+      return ("0000000" + d.toString(2)).slice(-8);
+    })
+    .join("");
+  var length = parseInt(stream.slice(4, 12), 2),
+    payload = [];
+  for (var p = 0; p < length; p++)
+    payload.push(parseInt(stream.slice(12 + p * 8, 20 + p * 8), 2));
+  return {
+    level: level,
+    mode: stream.slice(0, 4),
+    syndromes: syndromes,
+    text: Buffer.from(payload).toString("utf8"),
+  };
+}
+var roundTrips = 0;
+for (var trip = 0; trip < 12; trip++) {
+  var pairing =
+    "http://192.168." + trip + "." + (20 + trip) + ":8080/remote.html?code=" +
+    crypto.randomBytes(18).toString("base64url");
+  var decoded = readQr(VerseObs.QR.encode(pairing, { ecl: "M" }));
+  if (decoded.level === "M" && decoded.mode === "0100" && decoded.syndromes === 0 && decoded.text === pairing)
+    roundTrips++;
+}
+eq("12 adresses d'appairage aléatoires relues sans erreur", roundTrips, 12);
+ok(
+  "le SVG est autonome (aucune ressource externe)",
+  !/https?:|href|<image|url\(/.test(
+    VerseObs.QR.toSvg("http://192.168.1.2:8080/remote.html?code=abc")
+      .replace(/<path d="[^"]*"/, "")
+      .replace(' xmlns="http://www.w3.org/2000/svg"', ""),
+  ),
+);
+
+// ===================================================================
 group("control messaging fallback");
 
 var controlAppSource = fs.readFileSync(

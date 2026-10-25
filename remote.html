@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#111214" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="robots" content="noindex" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="VerseObs" />
+    <title>Télécommande · VerseObs</title>
+    <link rel="icon" href="assets/icons/radio.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="assets/css/remote.css?v=2.2" />
+  </head>
+  <body data-link="connecting">
+    <main class="remote" aria-labelledby="session-name">
+      <header class="remote-top">
+        <div class="remote-brand">
+          <img
+            class="icon"
+            src="assets/icons/radio.svg"
+            alt=""
+            width="16"
+            height="16"
+          />VerseObs <span>Télécommande</span>
+        </div>
+        <span class="link-pill" id="link-pill" role="status" aria-live="polite"
+          >Connexion…</span
+        >
+      </header>
+
+      <section class="session">
+        <p class="eyebrow">SESSION</p>
+        <h1 id="session-name">Connexion au Studio…</h1>
+        <p class="output" id="output" data-state="unknown" aria-live="polite">
+          <span class="output-dot" aria-hidden="true"></span
+          ><span class="output-label" id="output-label">État de la sortie inconnu</span
+          ><span class="output-ref" id="output-ref"></span>
+        </p>
+      </section>
+
+      <p class="banner" id="banner" role="alert" hidden></p>
+
+      <section class="slot slot-current" aria-labelledby="current-title">
+        <div class="slot-head">
+          <h2 id="current-title">Sélection</h2>
+          <span class="slot-live" id="current-live" hidden>À l’écran</span>
+          <span class="slot-position" id="position"></span>
+        </div>
+        <p class="slot-ref" id="current-ref">—</p>
+        <p class="slot-text" id="current-text"></p>
+      </section>
+      <section class="slot slot-next" aria-labelledby="next-title">
+        <div class="slot-head"><h2 id="next-title">Ensuite</h2></div>
+        <p class="slot-ref" id="next-ref">—</p>
+        <p class="slot-text" id="next-text"></p>
+      </section>
+
+      <nav class="controls" aria-label="Commandes du conducteur">
+        <button class="control control-nav" id="btn-prev" data-command="prev" type="button" disabled>
+          <img class="icon" src="assets/icons/chevron-left.svg" alt="" width="22" height="22" />
+          <span>Précédent</span>
+        </button>
+        <button class="control control-nav" id="btn-next" data-command="next" type="button" disabled>
+          <span>Suivant</span>
+          <img class="icon" src="assets/icons/chevron-right.svg" alt="" width="22" height="22" />
+        </button>
+        <button class="control control-show" id="btn-show" data-command="show" type="button" disabled>
+          <img class="icon" src="assets/icons/play.svg" alt="" width="20" height="20" />
+          <span>Diffuser la sélection</span>
+        </button>
+      </nav>
+    </main>
+    <footer class="hide-bar">
+      <button class="control control-hide" id="btn-hide" data-command="hide" type="button">
+        <img class="icon" src="assets/icons/eye-off.svg" alt="" width="20" height="20" />
+        <span>Masquer</span>
+      </button>
+    </footer>
+    <script src="assets/js/remote/remote.js?v=2.2"></script>
+  </body>
+</html>

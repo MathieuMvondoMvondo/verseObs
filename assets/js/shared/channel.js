@@ -111,6 +111,27 @@ window.VerseObs.Channel = function (opts) {
     } catch (e) {}
     return msg.id;
   };
+  /** Local relay only (phone remote administration): never other tabs. */
+  self.sendRelay = function (msg) {
+    if (stopped || !ws || ws.readyState !== 1) return false;
+    try {
+      ws.send(
+        JSON.stringify(
+          Object.assign({}, msg, {
+            sender: sender,
+            id: sender + ":" + ++seq,
+            ts: Date.now(),
+          }),
+        ),
+      );
+      return true;
+    } catch (e) {
+      return false;
+    }
+  };
+  self.relayConnected = function () {
+    return !!ws && ws.readyState === 1;
+  };
   self.onMessage = function (fn) {
     if (typeof fn === "function") listeners.push(fn);
   };

@@ -160,6 +160,21 @@
           <span class="save-status" id="save-status"
             >Enregistré sur cet appareil</span
           >
+          <button
+            class="remote-header-badge"
+            id="remote-header-badge"
+            type="button"
+            title="Mode réseau local actif : ouvrir Connexions"
+            hidden
+          >
+            <img
+              class="icon"
+              src="assets/icons/smartphone.svg"
+              alt=""
+              width="14"
+              height="14"
+            />Télécommande active
+          </button>
           <div class="cp-connection" aria-live="polite">
             <span
               class="cp-connection-dot"
@@ -1532,6 +1547,129 @@
               >
             </article>
           </div>
+          <article
+            class="integration-card remote-card"
+            id="remote-card"
+            data-state="unavailable"
+            aria-labelledby="remote-title"
+          >
+            <div class="remote-card-head">
+              <span class="remote-card-icon">
+                <img
+                  class="icon"
+                  src="assets/icons/smartphone.svg"
+                  alt=""
+                  width="18"
+                  height="18"
+                />
+              </span>
+              <div>
+                <h3 id="remote-title">Télécommande sur téléphone</h3>
+                <p>
+                  Passez au passage suivant, diffusez ou masquez depuis un
+                  téléphone connecté au même Wi-Fi que cet ordinateur.
+                </p>
+              </div>
+              <span class="remote-optional" id="remote-badge">Facultatif</span>
+            </div>
+            <div id="remote-off">
+              <p class="remote-note">
+                Désactivé par défaut. Une fois activé, le Studio devient
+                joignable sur le réseau local, protégé par un code d’appairage
+                qui change à chaque activation.
+              </p>
+              <button class="remote-enable" id="remote-enable" type="button" disabled>
+                <img
+                  class="icon"
+                  src="assets/icons/wifi.svg"
+                  alt=""
+                  width="15"
+                  height="15"
+                /><span id="remote-enable-label">Activer le mode réseau local</span>
+              </button>
+              <p class="remote-unavailable" id="remote-unavailable">
+                Disponible uniquement avec le serveur local : lancez
+                <code>npm start</code> sur cet ordinateur et ouvrez le Studio à
+                l’adresse 127.0.0.1. La version en ligne (GitHub Pages) ne peut
+                pas recevoir de télécommande.
+              </p>
+              <p class="remote-error" id="remote-error" role="alert" hidden></p>
+            </div>
+            <div id="remote-on" hidden>
+              <div class="remote-warning" role="note">
+                <img
+                  class="icon"
+                  src="assets/icons/triangle-alert.svg"
+                  alt=""
+                  width="16"
+                  height="16"
+                />
+                <p>
+                  <strong>Mode réseau local actif.</strong> Toute personne de ce
+                  Wi-Fi qui obtient ce QR code peut changer ce qui est diffusé.
+                  Ne le montrez pas à l’écran et désactivez ce mode après le
+                  culte.
+                </p>
+              </div>
+              <div class="remote-pairing">
+                <div
+                  class="remote-qr"
+                  id="remote-qr"
+                  role="img"
+                  aria-label="QR code d’appairage de la télécommande"
+                ></div>
+                <div class="remote-pairing-info">
+                  <ol class="remote-steps">
+                    <li>Connectez le téléphone au même Wi-Fi.</li>
+                    <li>Scannez le QR code avec l’appareil photo.</li>
+                    <li>Gardez la page ouverte pendant le culte.</li>
+                  </ol>
+                  <label for="remote-url">ADRESSE DE LA TÉLÉCOMMANDE</label>
+                  <div class="copy-url">
+                    <input id="remote-url" readonly /><button
+                      data-copy-url="remote-url"
+                      type="button"
+                    >
+                      Copier
+                    </button>
+                  </div>
+                  <p class="remote-other" id="remote-other-addresses" hidden></p>
+                  <p class="remote-count" id="remote-count" aria-live="polite">
+                    Aucun téléphone connecté
+                  </p>
+                  <p class="remote-here" id="remote-here">
+                    Cette fenêtre reçoit les commandes de la télécommande.
+                  </p>
+                  <p class="remote-elsewhere" id="remote-elsewhere" hidden>
+                    Une autre fenêtre du Studio reçoit les commandes.
+                    <button id="remote-claim" type="button">
+                      Piloter cette fenêtre
+                    </button>
+                  </p>
+                </div>
+              </div>
+              <div class="remote-actions">
+                <button class="remote-revoke" id="remote-revoke" type="button">
+                  <img
+                    class="icon"
+                    src="assets/icons/refresh-cw.svg"
+                    alt=""
+                    width="14"
+                    height="14"
+                  />Révoquer et changer le code
+                </button>
+                <button class="remote-disable" id="remote-disable" type="button">
+                  <img
+                    class="icon"
+                    src="assets/icons/power.svg"
+                    alt=""
+                    width="14"
+                    height="14"
+                  />Désactiver le mode réseau
+                </button>
+              </div>
+            </div>
+          </article>
           <div class="relay-info">
             <span class="status-dot"></span>
             <div>
@@ -1747,6 +1885,7 @@
     <script src="assets/js/shared/html.js?v=2.2"></script>
     <script src="assets/js/shared/secondary.js?v=2.2"></script>
     <script src="assets/js/shared/channel.js?v=2.2"></script>
+    <script src="assets/js/shared/qrcode.js?v=2.2"></script>
     <script src="assets/js/control/bible-loader.js?v=2.2"></script>
     <script src="assets/js/control/search.js?v=2.2"></script>
     <script src="assets/js/control/plan.js?v=2.2"></script>
@@ -1759,6 +1898,7 @@
     <script src="assets/js/control/backup.js?v=2.2"></script>
     <script src="assets/js/control/studio.js?v=2.2"></script>
     <script src="assets/js/control/bilingual.js?v=2.2"></script>
+    <script src="assets/js/control/remote-link.js?v=2.2"></script>
     <script src="assets/js/control/app.js?v=2.2"></script>
   </body>
 </html>

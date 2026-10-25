@@ -10,7 +10,8 @@ const PORT = 18484,
   origin = "http://127.0.0.1:" + PORT;
 let passed = 0;
 const windows = [];
-const server = createServer(PORT);
+// The phone remote binds to loopback in tests; off until explicitly enabled.
+const server = createServer(PORT, { lan: { addresses: ["127.0.0.1"], port: 0 } });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 async function until(fn, label) {
   for (let i = 0; i < 120; i++) {
@@ -429,6 +430,7 @@ async function run() {
   );
   await testBilingual(cp, output);
   await testPlan(cp, output);
+  await testRemote(cp, output);
   await testDedup();
   console.log("\n✓ Studio integration: " + passed + " checks passed.");
 }
@@ -705,6 +707,232 @@ async function testPlan(cp, output) {
   });
 }
 
+function remoteSocket(url, originHeader) {
+  return new Promise((resolve) => {
+    const socket = new WebSocket(url, { origin: originHeader });
+    const messages = [];
+    socket.on("message", (raw) => messages.push(JSON.parse(raw.toString())));
+    socket.on("open", () => resolve({ socket, messages, status: 101 }));
+    socket.on("unexpected-response", (req, res) => {
+      resolve({ status: res.statusCode });
+      socket.terminate();
+    });
+    socket.on("error", () => resolve({ status: 0 }));
+  });
+}
+async function testRemote(cp, output) {
+  const logged = [];
+  const spies = ["log", "info", "warn", "error"].map((name) => {
+    const original = console[name];
+    console[name] = (...args) => {
+      logged.push(args.join(" "));
+      original.apply(console, args);
+    };
+    return () => (console[name] = original);
+  });
+  try {
+    await runRemoteChecks(cp, output, logged);
+  } finally {
+    spies.forEach((restore) => restore());
+  }
+}
+async function runRemoteChecks(cp, output, logged) {
+  check("Without --lan, nothing is exposed and the relay is unchanged", () =>
+    assert.equal(server.remote.status().active, false),
+  );
+  assert.equal((await fetch(origin + "/remote.html")).status, 404);
+  const loopbackRemote = await remoteSocket(
+    "ws://127.0.0.1:" + PORT + "/verseobs-remote",
+    origin,
+  );
+  check("The loopback server never accepts a phone remote", () =>
+    assert.equal(loopbackRemote.status, 403),
+  );
+
+  // Prepare a conductor: Ps 23, Jean 3:16, Rm 8:28-30.
+  click(cp, "#tab-btn-2");
+  click(cp, "#btn-clear-queue");
+  click(cp, "#btn-open-plan");
+  input(cp, "#plan-text", "Ps 23\nJean 3:16\nRm 8.28-30");
+  click(cp, "#plan-submit");
+  click(cp, ".cp-queue-item");
+
+  click(cp, "#tab-btn-5");
+  await until(
+    () => cp.d.querySelector("#remote-enable").disabled === false,
+    "remote button ready",
+  );
+  click(cp, "#remote-enable");
+  await until(
+    () => cp.d.querySelector("#remote-on").hidden === false,
+    "LAN mode active",
+  );
+  const pairing = new URL(cp.d.querySelector("#remote-url").value);
+  const code = pairing.searchParams.get("code");
+  const lan = "http://" + pairing.host;
+  const wsBase = "ws://" + pairing.host + "/verseobs-remote";
+  check("Enabling shows a local QR code, a strong code and a warning", () => {
+    assert(cp.d.querySelector("#remote-qr svg path"));
+    assert(/^[A-Za-z0-9_-]{24,}$/.test(code));
+    assert(
+      cp.d.querySelector(".remote-warning").textContent.includes("Mode réseau local actif"),
+    );
+    assert.equal(cp.d.querySelector("#remote-header-badge").hidden, false);
+  });
+
+  const noCode = await remoteSocket(wsBase, lan);
+  const badCode = await remoteSocket(wsBase + "?code=" + "x".repeat(24), lan);
+  const foreign = await remoteSocket(
+    wsBase + "?code=" + code,
+    "http://evil.example",
+  );
+  check("A remote without a valid code is refused", () => {
+    assert.equal(noCode.status, 401);
+    assert.equal(badCode.status, 401);
+    assert.equal(foreign.status, 403);
+  });
+  const lanStatuses = [];
+  for (const route of [
+    "/control_panel.html",
+    "/data/bibles/lsg.json",
+    "/assets/js/control/app.js",
+    "/remote.html",
+    "/api/remote/check?code=" + code,
+  ])
+    lanStatuses.push((await fetch(lan + route)).status);
+  check("The LAN listener serves the remote page only", () =>
+    assert.deepEqual(lanStatuses, [404, 404, 404, 200, 204]),
+  );
+
+  // A real remote page, as on the phone.
+  const phone = await page(pairing.pathname.slice(1) + pairing.search, lan);
+  await until(
+    () =>
+      phone.d.body.dataset.link === "online" &&
+      phone.d.querySelector("#position").textContent === "1 / 3",
+    "remote online",
+  );
+  check("The remote shows the session, selection, next item and output", () => {
+    assert.equal(
+      phone.d.querySelector("#session-name").textContent,
+      cp.d.querySelector("#session-name").value,
+    );
+    assert.equal(phone.d.querySelector("#current-ref").textContent, "Psaumes 23");
+    assert.equal(phone.d.querySelector("#next-ref").textContent, "Jean 3:16");
+    assert.notEqual(phone.d.querySelector("#output").dataset.state, "unknown");
+    assert(!phone.w.location.search.includes(code));
+  });
+  phone.d.querySelector("#btn-next").click();
+  await until(
+    () => phone.d.querySelector("#current-ref").textContent === "Jean 3:16",
+    "remote next",
+  );
+  phone.d.querySelector("#btn-show").click();
+  await until(
+    () => output.d.querySelector(".verse-reference")?.textContent === "Jean 3:16",
+    "remote broadcast",
+  );
+  check("End to end: Suivant then Diffuser puts the passage on the source", () =>
+    assert(
+      output.d.querySelector(".verse-text").textContent.includes("Dieu a tant aimé"),
+    ),
+  );
+  await until(
+    () => phone.d.querySelector("#output").dataset.state === "confirmed",
+    "output confirmed on the phone",
+  );
+  check("The phone shows « Sortie confirmée » like the Studio", () =>
+    assert.equal(phone.d.querySelector("#output-label").textContent, "Sortie confirmée"),
+  );
+  phone.d.querySelector("#btn-hide").click();
+  await until(() => !output.d.querySelector(".verse-text"), "remote hide");
+  check("Masquer from the phone clears the output", () =>
+    assert.equal(output.d.querySelector(".verse-text"), null),
+  );
+
+  const raw = await remoteSocket(wsBase + "?code=" + code, lan);
+  const reply = async (msg) => {
+    const before = raw.messages.length;
+    raw.socket.send(JSON.stringify(msg));
+    await until(
+      () => raw.messages.slice(before).some((m) => m.type === "ack" || m.type === "error"),
+      "remote reply",
+    );
+    return raw.messages.slice(before).find((m) => m.type === "ack" || m.type === "error");
+  };
+  const attempts = [
+    { type: "show_verse", text: "PIRATE", reference: "PIRATE" },
+    { type: "command", command: "update_style", settings: { fontSize: 1 } },
+    { type: "remote_admin", action: "disable" },
+    { type: "command", command: "preview" },
+  ];
+  const answers = [];
+  for (const attempt of attempts) answers.push(await reply(attempt));
+  const smuggled = await reply({ type: "command", command: "show", text: "PIRATE", reference: "PIRATE" });
+  await wait(150);
+  check("Only previous, next, show and hide are accepted from a remote", () => {
+    assert(answers.every((a) => a.type === "error" && a.reason === "forbidden"));
+    assert.equal(smuggled.type, "ack");
+    assert(!output.d.body.textContent.includes("PIRATE"));
+    assert.equal(server.remote.status().active, true);
+  });
+
+  const burst = await remoteSocket(wsBase + "?code=" + code, lan);
+  for (let i = 0; i < 14; i++)
+    burst.socket.send(JSON.stringify({ type: "command", command: "hide", ref: "b" + i }));
+  await until(
+    () => burst.messages.filter((m) => m.ref && m.ref.startsWith("b")).length === 14,
+    "burst replies",
+  );
+  const limited = burst.messages.filter((m) => m.reason === "rate_limited").length;
+  const flood = await remoteSocket(wsBase + "?code=" + code, lan);
+  const closed = new Promise((resolve) => flood.socket.on("close", (c) => resolve(c)));
+  for (let i = 0; i < 40; i++) flood.socket.send("{}");
+  const floodCode = await closed;
+  check("Commands are rate limited and a flood closes the connection", () => {
+    assert(limited >= 4, "rate limited replies: " + limited);
+    assert.equal(floodCode, 4429);
+  });
+
+  const revoked = new Promise((resolve) => raw.socket.on("close", (c) => resolve(c)));
+  click(cp, "#remote-revoke");
+  const revokedCode = await revoked;
+  await until(
+    () => new URL(cp.d.querySelector("#remote-url").value).searchParams.get("code") !== code,
+    "new code shown",
+  );
+  const newCode = new URL(cp.d.querySelector("#remote-url").value).searchParams.get("code");
+  const oldAgain = await remoteSocket(wsBase + "?code=" + code, lan);
+  await until(() => phone.d.body.dataset.link === "refused", "phone told");
+  const fresh = await remoteSocket(wsBase + "?code=" + newCode, lan);
+  check("Revoking disconnects remotes and refuses the old code", () => {
+    assert.equal(revokedCode, 4401);
+    assert.equal(oldAgain.status, 401);
+    assert.equal(fresh.status, 101);
+    assert(phone.d.querySelector("#banner").textContent.includes("révoqué"));
+  });
+  fresh.socket.close();
+  burst.socket.close();
+
+  check("No pairing code is ever written to the console", () => {
+    const text = logged.join("\n");
+    assert(!text.includes(code) && !text.includes(newCode));
+  });
+  click(cp, "#remote-disable");
+  await until(() => server.remote.status().active === false, "LAN off");
+  const afterOff = await remoteSocket(wsBase + "?code=" + newCode, lan);
+  check("Disabling closes the network listener", () =>
+    assert.equal(afterOff.status, 0),
+  );
+  await until(
+    () => cp.d.querySelector("#remote-on").hidden === true,
+    "Studio shows off",
+  );
+  check("No script errors in the plan and remote workflows", () =>
+    assert.equal(cp.errors.length + output.errors.length + phone.errors.length, 0),
+  );
+  phone.w.close();
+}
 async function testDedup() {
   let interval,
     storageCb,

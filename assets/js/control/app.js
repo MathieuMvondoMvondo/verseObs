@@ -20,8 +20,11 @@
     bilingual,
     queue,
     planImport,
+    remoteLink,
     favorites;
   var channel = null;
+  // What the output is doing, as the Studio shows it (shared with the phone remote).
+  var _output = { connected: false, visible: false, confirmed: false, label: "" };
   var currentBibleId = null;
   var currentBibleData = null;
   var _onAirItem = null; // { type:'verse', bookId, chapter, verse } currently live
@@ -62,7 +65,45 @@
         return currentBibleData;
       },
     });
+    _initRemote();
     _loadDefaultBible();
+  }
+
+  // ---- Phone remote (local network mode, npm start only) ----
+
+  function _initRemote() {
+    remoteLink = new window.VerseObs.RemoteLink({
+      channel: channel,
+      queue: queue,
+      notify: _notify,
+      output: function () {
+        return _output;
+      },
+      openConnections: function () {
+        _switchTab(5);
+      },
+      // Same actions as the conductor buttons: select, then broadcast explicitly.
+      commands: {
+        prev: function () {
+          queue.selectPrevious();
+        },
+        next: function () {
+          queue.selectNext();
+        },
+        show: function () {
+          queue.showCurrent();
+        },
+        hide: _hideVerse,
+      },
+    });
+    var studioQueueChange = queue.onChange;
+    queue.onChange = function (state) {
+      if (studioQueueChange) studioQueueChange(state);
+      remoteLink.changed();
+    };
+  }
+  function _outputChanged() {
+    if (remoteLink) remoteLink.changed();
   }
 
   // ---- DOM caching ----
@@ -1230,6 +1271,7 @@
       autoPong: false,
       onTransport: function (connected) {
         if (window.VerseObs.Studio) window.VerseObs.Studio.setRelay(connected);
+        if (remoteLink) remoteLink.setRelay(connected);
       },
     });
     channel.onMessage(_handleMessage);
@@ -1252,10 +1294,17 @@
         _setOnAir(msg.label || "Texte libre");
         document.querySelector(".cp-onair-label").textContent =
           "Sortie confirmée";
+        _output.visible = true;
+        _output.confirmed = true;
+        _output.label = String(msg.label || "Texte libre");
       } else {
         _onAirItem = null;
         _clearOnAir();
+        _output.visible = false;
+        _output.confirmed = false;
+        _output.label = "";
       }
+      _outputChanged();
     }
   }
   function _sendMessage(type, data) {
@@ -1268,9 +1317,18 @@
       document.querySelector(".cp-onair-label").textContent =
         "Commande de diffusion";
       if (window.VerseObs.Studio) window.VerseObs.Studio.rememberOutput(msg);
+      _output.visible = true;
+      _output.confirmed = false;
+      _output.label = String(msg.reference || msg.title || "Texte libre");
+      _outputChanged();
     }
-    if (type === MSG.HIDE && window.VerseObs.Studio)
-      window.VerseObs.Studio.rememberOutput(null);
+    if (type === MSG.HIDE) {
+      if (window.VerseObs.Studio) window.VerseObs.Studio.rememberOutput(null);
+      _output.visible = false;
+      _output.confirmed = false;
+      _output.label = "";
+      _outputChanged();
+    }
   }
 
   // ---- Toast notifications ----
@@ -1305,6 +1363,10 @@
 
   function _setConnected(connected) {
     document.body.classList.toggle("output-connected", connected);
+    if (_output.connected !== connected) {
+      _output.connected = connected;
+      _outputChanged();
+    }
     if (dom.connectionDot) {
       if (connected) {
         dom.connectionDot.classList.add("connected");
