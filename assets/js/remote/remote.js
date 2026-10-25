@@ -68,6 +68,12 @@
     banner(message, false);
   }
 
+  /** « Psaumes 119:1-48 » → « 1-48 »; a whole chapter → « chapitre entier ». */
+  function asked(label) {
+    var m = /:(\S+)$/.exec(String(label || ""));
+    return m ? m[1] : "chapitre entier";
+  }
+
   function render() {
     var s = lastState,
       online = link === "online" && s && s.studio;
@@ -102,7 +108,9 @@
       outState = !out
         ? "unknown"
         : out.visible && out.confirmed
-          ? "confirmed"
+          ? out.shown
+            ? "partial"
+            : "confirmed"
           : out.visible
             ? "pending"
             : out.connected
@@ -112,12 +120,19 @@
     $("output-label").textContent = {
       unknown: "État de la sortie inconnu",
       confirmed: "Sortie confirmée",
+      partial: "Partiel",
       pending: "Commande de diffusion",
       hidden: "Rien n’est diffusé",
       offline: "Aucune sortie connectée",
     }[outState];
+    // Too long for the band: the verses really on air, then what was asked
+    // (« Partiel · 119:1-4 (demandé 1-48) »), as the Studio says it.
     $("output-ref").textContent =
-      out && out.visible && out.label ? out.label : "";
+      outState === "partial"
+        ? out.shown + " (demandé " + asked(out.label) + ")"
+        : out && out.visible && out.label
+          ? out.label
+          : "";
     // Same rule as the Studio: the item's identifier, label + version only
     // when the output predates identifiers.
     var currentLive = !!(
@@ -131,7 +146,11 @@
     );
     $("current-live").hidden = !currentLive;
     $("current-live").textContent =
-      out && out.confirmed ? "À l’antenne" : "Envoi…";
+      outState === "partial"
+        ? "Partiel"
+        : out && out.confirmed
+          ? "À l’antenne"
+          : "Envoi…";
     $("current-title").parentNode.parentNode.classList.toggle(
       "is-live",
       currentLive,

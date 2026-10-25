@@ -66,6 +66,8 @@
           label: String(output.label || "").slice(0, 140),
           cue: String(output.cue || "").slice(0, 64),
           version: String(output.version || "").slice(0, 80),
+          // The verses really on air when the passage is shown in part.
+          shown: String(output.shown || "").slice(0, 40),
         },
       };
     }

@@ -97,6 +97,15 @@ function summary(value) {
     version: text(value.version, 80),
   };
 }
+/**
+ * Verses really on air when a passage is too long for its band (« 119:1-4 »):
+ * numbers and separators only, at most 40 characters, else nothing.
+ */
+function shownText(value) {
+  return typeof value === "string" && /^[0-9][0-9:.,\- ]{0,39}$/.test(value)
+    ? value
+    : "";
+}
 /** Only short display data ever reaches a phone. */
 function sanitizeState(state) {
   state = state && typeof state === "object" ? state : {};
@@ -117,6 +126,8 @@ function sanitizeState(state) {
       label: text(output.label, 140),
       cue: text(output.cue, 64),
       version: text(output.version, 80),
+      // Shown in part: the phone says so, as the Studio does.
+      shown: output.visible === true ? shownText(output.shown) : "",
     },
   };
 }

@@ -615,6 +615,92 @@ try {
   await mg.ctx.close();
   }
 
+  // ---- Phone remote over the local network: what it claims for a passage
+  // shown in part must be what the output really shows (same scenario as
+  // review 2: the whole Psaumes 119:1-48 sent, 119:1-4 on air).
+  if (run("phone")) {
+  const LAN_PORT = PORT + 2;
+  const lan = createServer(LAN_PORT, { lan: { addresses: ["127.0.0.1"], port: 0 } });
+  await new Promise((r) => lan.listen(LAN_PORT, "127.0.0.1", r));
+  try {
+    const status = await lan.remote.enable();
+    const LSG = require(path.join(ROOT, "data/bibles/lsg.json")).books;
+    const ps = Object.values(LSG).find((b) => b.name === "Psaumes").chapters.find((c) => c.chapter === 119).verses.filter((v) => v.verse <= 48);
+    const whole = {
+      id: "wholePs119x",
+      type: "verse",
+      text: ps.map((v) => v.text).join(" "),
+      html: ps.map((v) => `<sup class="verse-num">${v.verse}</sup> ${v.text}`).join(" "),
+      reference: "Psaumes 119:1-48",
+      version: "Louis Segond 1910",
+    };
+    const jn = { id: "jean316xx", type: "verse", text: "Car Dieu a tant aimé le monde.", reference: "Jean 3:16", version: "Louis Segond 1910" };
+    const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    await ctx.addInitScript((q) => {
+      if (location.pathname.endsWith("control_panel.html") && !sessionStorage.getItem("__seeded")) {
+        localStorage.setItem("verseobs_queue", q);
+        sessionStorage.setItem("__seeded", "1");
+      }
+    }, JSON.stringify({ items: [whole, jn], currentIndex: 0 }));
+    const errors = [];
+    const output = await ctx.newPage();
+    output.on("pageerror", (e) => errors.push("output: " + e.message));
+    await output.goto(`http://127.0.0.1:${LAN_PORT}/browser_source.html`);
+    const studio = await ctx.newPage();
+    studio.on("pageerror", (e) => errors.push("studio: " + e.message));
+    await studio.goto(`http://127.0.0.1:${LAN_PORT}/control_panel.html`);
+    await studio.waitForSelector(".chapter-verse");
+    await studio.evaluate(() => document.querySelector("#tab-btn-2").click());
+    const phoneCtx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+    const phone = await phoneCtx.newPage();
+    phone.on("pageerror", (e) => errors.push("phone: " + e.message));
+    await phone.goto(status.url);
+    await phone.waitForFunction(() => !document.querySelector("[data-command=show]").disabled, null, { timeout: 20000 });
+    const line = () =>
+      phone.evaluate(() => ({
+        state: document.querySelector("#output").dataset.state,
+        // label · ref, the « · » being drawn by CSS before a non-empty ref
+        text: [document.querySelector("#output-label").textContent, document.querySelector("#output-ref").textContent]
+          .filter(Boolean)
+          .join(getComputedStyle(document.querySelector("#output-ref"), "::before").content === '"· "' ? " · " : " "),
+        live: document.querySelector("#current-live").hidden ? "" : document.querySelector("#current-live").textContent,
+        color: getComputedStyle(document.querySelector("#output-label")).color,
+      }));
+    await check("Phone over the local network: a passage shown in part says « Partiel · 119:1-4 (demandé 1-48) » in amber", async () => {
+      await phone.click("[data-command=show]");
+      await output.waitForFunction(() => document.querySelector(".verse-card")?.dataset.partial === "119:1-48");
+      const shown = await output.evaluate(() => document.querySelector(".vo-nums .vo-roll:not(.is-leaving)").textContent);
+      await phone.waitForFunction(() => document.querySelector("#output").dataset.state !== "pending", null, { timeout: 10000 });
+      await phone.waitForTimeout(400);
+      const l = await line();
+      console.log("    phone: " + JSON.stringify(l) + " · output shows " + shown);
+      assert.equal(l.state, "partial", "partial state on the phone");
+      assert.equal(l.text, `Partiel · ${shown} (demandé 1-48)`);
+      assert.doesNotMatch(l.text, /Sortie confirmée/);
+      assert.notEqual(l.live, "À l’antenne", "the item is not claimed whole on air");
+      // amber (#ecc98f family), not the red/white of a confirmed output
+      const [r, g, b] = l.color.match(/\d+/g).map(Number);
+      assert.ok(r > 200 && g > 160 && b < 170 && r - b > 60, "amber label: " + l.color);
+      await phone.screenshot({ path: path.join(ROOT, "artifacts", "phone-partial-390.png") });
+    });
+    await check("Phone: a passage shown whole is confirmed again, without « Partiel »", async () => {
+      await phone.click("[data-command=next]");
+      await phone.waitForFunction(() => document.querySelector("#current-ref").textContent === "Jean 3:16");
+      await phone.click("[data-command=show]");
+      await phone.waitForFunction(() => document.querySelector("#output").dataset.state === "confirmed", null, { timeout: 10000 });
+      const l = await line();
+      assert.equal(l.text, "Sortie confirmée · Jean 3:16");
+      assert.equal(l.live, "À l’antenne");
+    });
+    assert.deepEqual(errors, []);
+    await phoneCtx.close();
+    await ctx.close();
+  } finally {
+    await lan.remote.disable();
+    lan.close();
+  }
+  }
+
   // ---- Régie readability: type floor, keyboard focus, phone targets.
   if (run("regie")) {
   for (const [w, h] of [[1920, 1080], [1280, 800], [390, 844]]) {

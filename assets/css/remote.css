@@ -535,7 +535,32 @@ body[data-output="pending"] .slot-current.is-live {
   border-color: #4a3537;
   color: #f0d9d6;
 }
+/* Shown in part (passage too long for the band): on air, but amber — the
+   status line says which verses really pass. */
+.output[data-state="partial"] {
+  background: #2a241b;
+  border-color: #5a4728;
+}
+.output[data-state="partial"] .output-dot {
+  background: var(--warn);
+}
+.output[data-state="partial"] .output-label {
+  color: #ecc98f;
+}
+.output[data-state="partial"] .output-ref {
+  color: #e8d6b4;
+}
+body[data-output="partial"] .slot-live {
+  background: #f2b544;
+  color: #1d1606;
+}
+body[data-output="partial"] .slot-current.is-live {
+  border-color: #6a5222;
+  box-shadow: inset 4px 0 0 #f2b544;
+  background: #1f1b14;
+}
 body[data-output="confirmed"] .control-hide,
+body[data-output="partial"] .control-hide,
 body[data-output="pending"] .control-hide {
   background: #2c1819;
   border-color: var(--pgm);

@@ -526,6 +526,23 @@ ok(
     .sanitizeState({ output: { cue: new Array(300).join("x") } })
     .output.cue === new Array(65).join("x"),
 );
+// A passage too long for its band: the phone must say what really passes.
+var partialState = require(path.join(ROOT, "tools/server.js")).sanitizeState({
+  output: { visible: true, confirmed: true, label: "Psaumes 119:1-48", cue: "cue-1", shown: "119:1-4" },
+});
+eq("the phone receives the verses really on air", partialState.output.shown, "119:1-4");
+["<img src=x onerror=alert(1)>", "119:1-4; drop", new Array(60).join("1"), 42, { a: 1 }].forEach(function (bad) {
+  eq(
+    "…and nothing else (" + JSON.stringify(bad).slice(0, 24) + ")",
+    require(path.join(ROOT, "tools/server.js")).sanitizeState({ output: { visible: true, shown: bad } }).output.shown,
+    "",
+  );
+});
+eq(
+  "…nor any partial claim for a hidden output",
+  require(path.join(ROOT, "tools/server.js")).sanitizeState({ output: { visible: false, shown: "119:1-4" } }).output.shown,
+  "",
+);
 
 // ===================================================================
 group("passage — découpage aux frontières de versets");

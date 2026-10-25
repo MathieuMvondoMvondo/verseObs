@@ -1455,6 +1455,7 @@
       if (window.VerseObs.Studio) window.VerseObs.Studio.rememberOutput(null);
       _output.visible = false;
       _output.confirmed = false;
+      _output.shown = "";
       _output.label = "";
       _output.cue = "";
       _output.version = "";

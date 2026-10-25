@@ -82,7 +82,7 @@ Dans le conducteur, **Coller un plan** ouvre une fenêtre où vous collez votre 
 
 ## Télécommande sur téléphone
 
-Un téléphone connecté au même Wi-Fi peut piloter le conducteur : **Précédent**, **Suivant**, **Diffuser la sélection** et **Masquer**. La télécommande affiche le nom de la session, l’élément sélectionné, le suivant et l’état de la sortie (**Sortie confirmée** comme dans le Studio).
+Un téléphone connecté au même Wi-Fi peut piloter le conducteur : **Précédent**, **Suivant**, **Diffuser la sélection** et **Masquer**. La télécommande affiche le nom de la session, l’élément sélectionné, le suivant et l’état de la sortie (**Sortie confirmée** comme dans le Studio). Si un passage est trop long pour le bandeau, elle dit en ambre ce qui passe vraiment : « **Partiel** · 119:1-4 (demandé 1-48) ».
 
 La télécommande demande le serveur local : elle ne fonctionne pas avec la version GitHub Pages ni avec un hébergement statique.
 
