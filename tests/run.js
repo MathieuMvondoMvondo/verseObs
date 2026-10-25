@@ -456,6 +456,78 @@ ok(
 );
 
 // ===================================================================
+group("conducteur — identifiant d'élément (tally sans libellé)");
+
+load("assets/js/control/queue.js");
+var CUE = {
+  test: function (id) {
+    return typeof id === "string" && /^[A-Za-z0-9_-]{6,40}$/.test(id);
+  },
+};
+var cues = VerseObs.Queue.validateItems([
+  { type: "verse", text: "a", reference: "Jean 3:16" },
+  { type: "verse", text: "a", reference: "Jean 3:16" },
+  { type: "text", text: "x" },
+  { type: "text", text: "y" },
+]).map(function (item) {
+  return item.id;
+});
+ok(
+  "every conductor item gets an identifier",
+  cues.every(function (id) {
+    return CUE.test(id);
+  }),
+);
+eq("identical items get distinct identifiers", new Set(cues).size, 4);
+eq(
+  "a valid identifier is kept",
+  VerseObs.Queue.validateItems([{ type: "text", text: "x", id: "cue-123456" }])[0].id,
+  "cue-123456",
+);
+var twice = VerseObs.Queue.validateItems([
+  { type: "text", text: "x", id: "cue-123456" },
+  { type: "text", text: "y", id: "cue-123456" },
+]);
+ok(
+  "a duplicated identifier is replaced",
+  twice[0].id === "cue-123456" && twice[1].id !== "cue-123456" && CUE.test(twice[1].id),
+);
+ok(
+  "an invalid identifier is replaced",
+  CUE.test(VerseObs.Queue.validateItems([{ type: "text", text: "x", id: "<b>" }])[0].id),
+);
+var cueQueue = new VerseObs.Queue({});
+cueQueue.clear();
+cueQueue.add({ type: "text", text: "x", id: "cue-123456" });
+cueQueue.add({ type: "text", text: "y", id: "cue-123456" });
+cueQueue.addMany([{ type: "text", text: "z", id: "cue-123456" }]);
+eq(
+  "adding never duplicates an identifier already in the conductor",
+  new Set(
+    cueQueue.getItems().map(function (item) {
+      return item.id;
+    }),
+  ).size,
+  3,
+);
+cueQueue.clear();
+var serverState = require(path.join(ROOT, "tools/server.js")).sanitizeState({
+  current: { label: "Jean 3:16", text: "t", cue: "cue-1", version: "LSG" },
+  next: { label: "Jean 3:16", text: "t", cue: "cue-2", version: "LSG" },
+  output: { visible: true, confirmed: true, label: "Jean 3:16", cue: "cue-1", version: "LSG" },
+});
+eq("the phone receives the selected item's identifier", serverState.current.cue, "cue-1");
+eq("…the next item's identifier", serverState.next.cue, "cue-2");
+eq("…the live identifier", serverState.output.cue, "cue-1");
+eq("…and the live version", serverState.output.version, "LSG");
+ok(
+  "identifiers sent to the phone stay short",
+  require(path.join(ROOT, "tools/server.js"))
+    .sanitizeState({ output: { cue: new Array(300).join("x") } })
+    .output.cue === new Array(65).join("x"),
+);
+
+// ===================================================================
 group("plan — limites de la version active");
 
 load("assets/js/control/bible-loader.js");

@@ -33,6 +33,13 @@
           data && Array.isArray(data.items)
             ? Queue.validateItems(data.items)
             : [];
+        // Conductors saved before item identifiers keep the ones just given.
+        var unnamed =
+          data &&
+          Array.isArray(data.items) &&
+          data.items.some(function (item, i) {
+            return !item || item.id !== this._items[i].id;
+          }, this);
         this._currentIndex =
           data &&
           Number.isInteger(data.currentIndex) &&
@@ -42,6 +49,7 @@
             : this._items.length
               ? 0
               : -1;
+        if (unnamed) this._save();
       }
     } catch (e) {
       this._items = [];
@@ -65,6 +73,19 @@
     }
   };
 
+  /** New items never reuse the identifier of an item already in the conductor. */
+  Queue.prototype._unique = function (items) {
+    var used = {};
+    this._items.forEach(function (item) {
+      used[item.id] = true;
+    });
+    items.forEach(function (item) {
+      if (used[item.id]) item.id = Queue.newId();
+      used[item.id] = true;
+    });
+    return items;
+  };
+
   /**
    * Add an item to the queue.
    * @param {object} item - { type: 'verse'|'text', text, html, reference, version, title, subtitle }
@@ -72,7 +93,7 @@
   Queue.prototype.add = function (item) {
     if (this._items.length >= 500)
       throw new Error("Le conducteur est limité à 500 éléments.");
-    this._items.push(Queue.validateItems([item])[0]);
+    this._items.push(this._unique(Queue.validateItems([item]))[0]);
     if (this._currentIndex < 0) this._currentIndex = 0;
     this._save();
     this.render();
@@ -84,7 +105,7 @@
    * @returns {number} number of items added
    */
   Queue.prototype.addMany = function (items) {
-    var clean = Queue.validateItems(items);
+    var clean = this._unique(Queue.validateItems(items));
     if (this._items.length + clean.length > 500)
       throw new Error(
         "Le conducteur est limité à 500 éléments : il reste " +
@@ -248,8 +269,11 @@
         var row = document.createElement("div");
         row.className = "cp-queue-item";
         row.tabIndex = 0;
-        // Same label as the output reports: lets the Studio mark the live item.
+        // The output echoes the identifier of the item it shows (« cue »):
+        // the Studio marks that row, never another one with the same label.
+        row.dataset.cue = item.id;
         row.dataset.label = item.reference || item.title || "Texte libre";
+        row.dataset.version = item.version || "";
         row.setAttribute(
           "aria-label",
           "Sélectionner " + (item.reference || item.title || "Texte libre"),
@@ -372,9 +396,22 @@
     this._save();
     this.render();
   };
+  var counter = 0;
+  /** Short unique identifier of a conductor item (its « cue »). */
+  Queue.newId = function () {
+    counter = (counter + 1) % 1679616;
+    return (
+      "q" +
+      Date.now().toString(36) +
+      counter.toString(36) +
+      Math.floor(Math.random() * 1679616).toString(36)
+    );
+  };
+  var ID = /^[A-Za-z0-9_-]{6,40}$/;
   Queue.validateItems = function (items) {
     if (!Array.isArray(items) || items.length > 500)
       throw new Error("Le conducteur doit contenir au maximum 500 éléments.");
+    var seen = {};
     return items.map(function (item) {
       if (
         !item ||
@@ -385,7 +422,14 @@
           !(typeof item.title === "string" && item.title.trim()))
       )
         throw new Error("Un élément du conducteur est invalide.");
-      var clean = { type: item.type, text: item.text };
+      // Identical passages (a verse quoted twice) stay distinct items.
+      var id =
+        typeof item.id === "string" && ID.test(item.id) && !seen[item.id]
+          ? item.id
+          : Queue.newId();
+      while (seen[id]) id = Queue.newId();
+      seen[id] = true;
+      var clean = { id: id, type: item.type, text: item.text };
       ["html", "reference", "version", "title", "subtitle"].forEach(
         function (k) {
           if (

@@ -118,11 +118,16 @@
     }[outState];
     $("output-ref").textContent =
       out && out.visible && out.label ? out.label : "";
+    // Same rule as the Studio: the item's identifier, label + version only
+    // when the output predates identifiers.
     var currentLive = !!(
       current &&
       out &&
       out.visible &&
-      out.label === current.label
+      (out.cue
+        ? out.cue === current.cue
+        : out.label === current.label &&
+          (out.version || "") === (current.version || ""))
     );
     $("current-live").hidden = !currentLive;
     $("current-live").textContent =

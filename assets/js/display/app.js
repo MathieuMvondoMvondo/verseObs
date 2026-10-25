@@ -7,7 +7,12 @@
     channel,
     timer = null,
     generation = 0,
-    label = "";
+    label = "",
+    // Echoed to the Studio: which conductor item (cue), in which version,
+    // after which command — so a duplicate label is never marked on air.
+    cue = "",
+    version = "",
+    command = "";
   var params = new URLSearchParams(location.search);
   var preview = params.get("preview") === "1",
     monitor = params.get("monitor") === "1",
@@ -19,7 +24,14 @@
   }
   function report() {
     if (!preview && !monitor && channel)
-      channel.send({ type: MSG.OUTPUT_STATE, visible: visible, label: label });
+      channel.send({
+        type: MSG.OUTPUT_STATE,
+        visible: visible,
+        label: label,
+        cue: cue,
+        version: version,
+        command: command,
+      });
   }
   /** The Studio's preview monitor tells the operator when a text was reduced. */
   function reportFit() {
@@ -57,19 +69,21 @@
     }
     return result;
   }
-  function hide() {
+  function hide(byCommand) {
     var token = ++generation;
     clearTimer();
+    // An automatic hide answers the show command that started its timer.
+    if (byCommand !== undefined) command = byCommand;
     // The output stops claiming the text as soon as it starts leaving.
     if (visible) {
       visible = false;
-      label = "";
+      label = cue = version = "";
       report();
     }
     renderer.hide().then(function () {
       if (token !== generation) return;
       visible = false;
-      label = "";
+      label = cue = version = "";
       report();
       reportFit();
     });
@@ -93,7 +107,7 @@
       if (msg.type !== MSG.PREVIEW) return;
     } else {
       if (msg.type === MSG.HIDE) {
-        hide();
+        hide(String(msg.command || ""));
         return;
       }
       if (msg.type !== MSG.SHOW_VERSE && msg.type !== MSG.SHOW_TEXT) return;
@@ -121,6 +135,9 @@
         if (token !== generation) return;
         visible = true;
         label = msg.reference || msg.title || "Texte libre";
+        cue = String(msg.cue || "");
+        version = String(msg.version || "");
+        command = String(msg.command || "");
         report();
         reportFit();
       })

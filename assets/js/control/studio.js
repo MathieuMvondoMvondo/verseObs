@@ -7,7 +7,7 @@
     lastVerse = 0,
     undo = null,
     layoutRows = function () {},
-    output = { visible: false, confirmed: false, label: "" };
+    output = { visible: false, confirmed: false, label: "", cue: "", version: "" };
   var titles = [
     "Préparer un passage",
     "Textes & chants",
@@ -116,14 +116,23 @@
         : "Sauvegarde automatique";
   }
   /**
+   * Is this conductor item the one the output shows? By its identifier (cue)
+   * echoed by the output; label + version only for outputs that predate it.
+   * Same rule on the phone remote.
+   */
+  function isLive(cue, label, version) {
+    if (!output.visible) return false;
+    if (output.cue) return cue === output.cue;
+    return label === output.label && (version || "") === (output.version || "");
+  }
+  /**
    * Program tally in the conductor: the item the output shows is marked
-   * « À l’antenne », whatever is selected (same rule as the phone remote).
+   * « À l’antenne », whatever is selected.
    */
   function markLive() {
-    var live = output.visible ? output.label : null;
     document.querySelectorAll("#queue-container .cp-queue-item").forEach(
       function (row) {
-        var on = live !== null && row.dataset.label === live;
+        var on = isLive(row.dataset.cue, row.dataset.label, row.dataset.version);
         row.classList.toggle("is-live", on && output.confirmed);
         row.classList.toggle("is-live-pending", on && !output.confirmed);
         row.setAttribute(
@@ -139,8 +148,11 @@
     if (!preview) return;
     var selectedLive =
       !!selected &&
-      live !== null &&
-      (selected.reference || selected.title || "Texte libre") === live;
+      isLive(
+        selected.id,
+        selected.reference || selected.title || "Texte libre",
+        selected.version,
+      );
     preview.classList.toggle("is-live", selectedLive);
     el("queue-selection-badge").textContent = selectedLive
       ? output.confirmed
@@ -781,6 +793,8 @@
         visible: !!state.visible,
         confirmed: !!state.confirmed,
         label: String(state.label || ""),
+        cue: String(state.cue || ""),
+        version: String(state.version || ""),
       };
       el("monitor-program").classList.toggle("is-live", output.visible);
       if (api) markLive();

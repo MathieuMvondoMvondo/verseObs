@@ -853,11 +853,12 @@ async function runRemoteChecks(cp, output, logged) {
     assert.equal(loopbackRemote.status, 403),
   );
 
-  // Prepare a conductor: Ps 23, Jean 3:16, Rm 8:28-30.
+  // Prepare a conductor: Ps 23, Jean 3:16, Rm 8:28-30 and Jean 3:16 again
+  // (a plan may quote the same verse twice: only the row sent is on air).
   click(cp, "#tab-btn-2");
   click(cp, "#btn-clear-queue");
   click(cp, "#btn-open-plan");
-  input(cp, "#plan-text", "Ps 23\nJean 3:16\nRm 8.28-30");
+  input(cp, "#plan-text", "Ps 23\nJean 3:16\nRm 8.28-30\nJean 3:16");
   click(cp, "#plan-submit");
   click(cp, ".cp-queue-item");
 
@@ -913,7 +914,7 @@ async function runRemoteChecks(cp, output, logged) {
   await until(
     () =>
       phone.d.body.dataset.link === "online" &&
-      phone.d.querySelector("#position").textContent === "1 / 3",
+      phone.d.querySelector("#position").textContent === "1 / 4",
     "remote online",
   );
   check("The remote shows the session, selection, next item and output", () => {
@@ -948,8 +949,12 @@ async function runRemoteChecks(cp, output, logged) {
   check("The phone shows « Sortie confirmée » like the Studio", () =>
     assert.equal(phone.d.querySelector("#output-label").textContent, "Sortie confirmée"),
   );
+  // The phone may still show the previous confirmed broadcast for a moment:
+  // wait for the confirmation of this one on the selected item.
   await until(
-    () => phone.d.querySelector(".slot-current").classList.contains("is-live"),
+    () =>
+      phone.d.querySelector(".slot-current").classList.contains("is-live") &&
+      phone.d.body.dataset.output === "confirmed",
     "phone tally",
   );
   check("The phone marks the live selection in program colours", () => {
@@ -959,8 +964,11 @@ async function runRemoteChecks(cp, output, logged) {
   });
   const liveRows = () =>
     Array.from(cp.d.querySelectorAll("#queue-container .cp-queue-item.is-live"));
+  const queueRows = () =>
+    Array.from(cp.d.querySelectorAll("#queue-container .cp-queue-item"));
   check("The conductor marks the item on air, distinct from the selection", () => {
-    assert.equal(liveRows().length, 1);
+    assert.equal(liveRows().length, 1, "the duplicate « Jean 3:16 » is not on air");
+    assert.equal(liveRows()[0], queueRows()[1]);
     assert.equal(liveRows()[0].dataset.label, "Jean 3:16");
     assert(liveRows()[0].classList.contains("cp-queue-current"));
     assert.match(liveRows()[0].getAttribute("aria-label"), /à l’antenne/);
@@ -975,6 +983,28 @@ async function runRemoteChecks(cp, output, logged) {
     assert.equal(liveRows().length, 1);
     assert.equal(liveRows()[0].dataset.label, "Jean 3:16");
     assert(!liveRows()[0].classList.contains("cp-queue-current"));
+    assert.equal(cp.d.querySelector("#queue-selection-badge").textContent, "PRÊT À DIFFUSER");
+    assert.equal(phone.d.querySelector("#current-live").hidden, true);
+    assert(!phone.d.querySelector(".slot-current").classList.contains("is-live"));
+  });
+  // Select the second « Jean 3:16 », never sent: nothing claims it is live.
+  for (const ref of ["Jean 3:16", "Romains 8:28-30", "Jean 3:16"]) {
+    phone.d.querySelector("#btn-next").click();
+    await until(
+      () => phone.d.querySelector("#current-ref").textContent === ref,
+      "remote next to " + ref,
+    );
+  }
+  await until(
+    () => phone.d.querySelector("#position").textContent === "4 / 4",
+    "duplicate selected",
+  );
+  await wait(150);
+  check("A duplicate of the live verse is not marked on air (Studio and phone)", () => {
+    assert.equal(liveRows().length, 1);
+    assert.equal(liveRows()[0], queueRows()[1]);
+    assert(!queueRows()[3].classList.contains("is-live"));
+    assert.doesNotMatch(queueRows()[3].getAttribute("aria-label"), /à l’antenne/);
     assert.equal(cp.d.querySelector("#queue-selection-badge").textContent, "PRÊT À DIFFUSER");
     assert.equal(phone.d.querySelector("#current-live").hidden, true);
     assert(!phone.d.querySelector(".slot-current").classList.contains("is-live"));
@@ -1068,6 +1098,33 @@ async function runRemoteChecks(cp, output, logged) {
     () => cp.d.querySelector("#remote-on").hidden === true,
     "Studio shows off",
   );
+  // Two free texts without a title are both « Texte libre »: the tally must
+  // follow the row actually sent, not the label.
+  click(cp, "#btn-clear-queue");
+  click(cp, "#tab-btn-1");
+  input(cp, "#freetext-title", "");
+  for (const words of ["Premier texte sans titre", "Second texte sans titre"]) {
+    cp.d.querySelector("#freetext-editable").textContent = words;
+    cp.d.querySelector("#freetext-editable").dispatchEvent(new cp.w.Event("input", { bubbles: true }));
+    click(cp, "#btn-free-add-queue");
+  }
+  click(cp, "#tab-btn-2");
+  await until(() => queueRows().length === 2, "two untitled texts");
+  queueRows()[1].click();
+  click(cp, "#btn-queue-show");
+  await until(
+    () => (output.d.querySelector(".verse-text")?.textContent || "").includes("Second texte"),
+    "second text shown",
+  );
+  await until(() => liveRows().length > 0, "untitled text confirmed");
+  await wait(100);
+  check("Two untitled free texts: only the one sent is on air", () => {
+    assert.equal(liveRows().length, 1);
+    assert.equal(liveRows()[0], queueRows()[1]);
+    assert(!queueRows()[0].classList.contains("is-live-pending"));
+  });
+  click(cp, "#btn-hide");
+  await until(() => !output.d.querySelector(".verse-card"), "untitled hidden");
   check("No script errors in the plan and remote workflows", () =>
     assert.equal(cp.errors.length + output.errors.length + phone.errors.length, 0),
   );

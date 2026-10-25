@@ -89,7 +89,13 @@ function text(value, max) {
 }
 function summary(value) {
   if (!value || typeof value !== "object") return null;
-  return { label: text(value.label, 140), text: text(value.text, 280) };
+  return {
+    label: text(value.label, 140),
+    text: text(value.text, 280),
+    // Identifier of the conductor item: the phone marks the row on air by it.
+    cue: text(value.cue, 64),
+    version: text(value.version, 80),
+  };
 }
 /** Only short display data ever reaches a phone. */
 function sanitizeState(state) {
@@ -109,6 +115,8 @@ function sanitizeState(state) {
       visible: output.visible === true,
       confirmed: output.confirmed === true,
       label: text(output.label, 140),
+      cue: text(output.cue, 64),
+      version: text(output.version, 80),
     },
   };
 }

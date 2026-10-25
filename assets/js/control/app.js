@@ -24,7 +24,19 @@
     favorites;
   var channel = null;
   // What the output is doing, as the Studio shows it (shared with the phone remote).
-  var _output = { connected: false, visible: false, confirmed: false, label: "" };
+  // cue = identifier of the conductor item on air (or of a direct broadcast).
+  var _output = {
+    connected: false,
+    visible: false,
+    confirmed: false,
+    label: "",
+    cue: "",
+    version: "",
+  };
+  // Commands recently sent by this Studio (id, time): a late acknowledgement of
+  // an older one must not confirm the latest command.
+  var _commands = [];
+  var _lastSent = { label: "", version: "" };
   var currentBibleId = null;
   var currentBibleData = null;
   var _onAirItem = null; // { type:'verse', bookId, chapter, verse } currently live
@@ -279,6 +291,8 @@
         if (data.html) {
           msgData.html = data.html;
         }
+        // A direct broadcast never lights a conductor row.
+        msgData.cue = "t" + window.VerseObs.Queue.newId();
         _sendMessage(MSG.SHOW_TEXT, msgData);
         _notify("Texte affiché", "success");
         _onAirItem = { type: "text" };
@@ -315,6 +329,7 @@
       onShow: function (item) {
         if (item.type === "verse") {
           _sendMessage(MSG.SHOW_VERSE, {
+            cue: item.id,
             text: item.text,
             html: item.html || "",
             secondary: item.secondary || null,
@@ -324,6 +339,7 @@
           });
         } else {
           var msgData = {
+            cue: item.id,
             text: item.text,
             title: item.title || "",
             subtitle: item.subtitle || "",
@@ -1206,6 +1222,8 @@
     var versionName = disp.version;
 
     var msgData = {
+      // A direct broadcast never lights a conductor row.
+      cue: "b" + window.VerseObs.Queue.newId(),
       secondary: bilingual.value(),
       text: dom.previewText ? dom.previewText.innerText : disp.text,
       reference: disp.reference,
@@ -1290,32 +1308,70 @@
       }, 7000);
     }
     if (msg.type === MSG.OUTPUT_STATE) {
+      if (_isStale(msg)) return;
       if (msg.visible) {
+        var label = String(msg.label || "Texte libre");
         _output.visible = true;
         _output.confirmed = true;
-        _output.label = String(msg.label || "Texte libre");
+        _output.label = label;
+        // Outputs from before item identifiers: label + version (fallback).
+        _output.cue = typeof msg.cue === "string" ? msg.cue : "";
+        _output.version =
+          typeof msg.version === "string"
+            ? msg.version
+            : label === _lastSent.label
+              ? _lastSent.version
+              : "";
         _setOnAir(msg.label || "Texte libre");
       } else {
         _onAirItem = null;
         _output.visible = false;
         _output.confirmed = false;
         _output.label = "";
+        _output.cue = "";
+        _output.version = "";
         _clearOnAir();
       }
       _outputChanged();
     }
+  }
+  /**
+   * A report about one of this Studio's older commands, while its latest one
+   * is still in flight, describes the past: it must not confirm the latest.
+   * After a few seconds the output's own report is the truth again.
+   */
+  function _isStale(msg) {
+    if (!msg.command || !_commands.length) return false;
+    var last = _commands[_commands.length - 1];
+    if (msg.command === last.id) return false;
+    var ours = _commands.some(function (c) {
+      return c.id === msg.command;
+    });
+    return ours && Date.now() - last.t < 3000;
+  }
+  var _commandCount = 0;
+  function _newCommand() {
+    var id = "k" + (++_commandCount).toString(36) + window.VerseObs.Queue.newId();
+    _commands.push({ id: id, t: Date.now() });
+    if (_commands.length > 30) _commands.shift();
+    return id;
   }
   function _sendMessage(type, data) {
     var msg = Object.assign({ type: type }, data || {});
     // Carry the background with the command for isolated OBS browser contexts.
     if (msg.settings && msg.settings.bgImage === undefined)
       msg.settings.bgImage = "";
+    var show = [MSG.SHOW_VERSE, MSG.SHOW_TEXT].indexOf(type) !== -1;
+    if (show || type === MSG.HIDE) msg.command = _newCommand();
     if (channel) channel.send(msg);
-    if ([MSG.SHOW_VERSE, MSG.SHOW_TEXT].indexOf(type) !== -1) {
+    if (show) {
       if (window.VerseObs.Studio) window.VerseObs.Studio.rememberOutput(msg);
       _output.visible = true;
       _output.confirmed = false;
       _output.label = String(msg.reference || msg.title || "Texte libre");
+      _output.cue = String(msg.cue || "");
+      _output.version = String(msg.version || "");
+      _lastSent = { label: _output.label, version: _output.version };
       _paintOnAir();
       _outputChanged();
     }
@@ -1324,6 +1380,8 @@
       _output.visible = false;
       _output.confirmed = false;
       _output.label = "";
+      _output.cue = "";
+      _output.version = "";
       _paintOnAir();
       _outputChanged();
     }
