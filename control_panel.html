@@ -214,27 +214,79 @@
           Recherche rapide <kbd>⌘ K</kbd>
         </button>
       </div>
-      <div
-        class="cp-onair"
-        id="onair-bar"
-        data-state="off"
-        role="status"
-        aria-live="polite"
+      <!--
+        Studio Mode (OBS): what you prepare on the left, what the audience
+        sees on the right. Both frames always keep their 1920×1080 layout, so
+        each monitor shows the output's own fit; below 1280 px one monitor is
+        shown at a time, and the program strip stays visible.
+      -->
+      <section
+        class="monitor-bay"
+        id="monitor-bay"
+        data-show="preview"
+        aria-label="Moniteurs aperçu et antenne"
       >
-        <span class="cp-onair-tally"
-          ><span class="cp-onair-dot" aria-hidden="true"></span>Antenne</span
-        ><span class="cp-onair-label">Rien n’est diffusé</span
-        ><span class="cp-onair-ref" id="onair-ref"></span
-        ><button class="cp-onair-hide" id="onair-hide">
-          <img
-            class="icon"
-            src="assets/icons/eye-off.svg"
-            alt=""
-            width="16"
-            height="16"
-          />Masquer <kbd>Esc</kbd>
-        </button>
-      </div>
+        <div class="monitor-head monitor-head-preview">
+          <span class="monitor-tag"
+            ><span class="status-dot" aria-hidden="true"></span>Aperçu</span
+          ><span class="monitor-caption" id="preview-caption"
+            >Votre prochain passage</span
+          >
+        </div>
+        <div
+          class="cp-onair"
+          id="onair-bar"
+          data-state="off"
+          role="status"
+          aria-live="polite"
+        >
+          <span class="cp-onair-tally"
+            ><span class="cp-onair-dot" aria-hidden="true"></span>Antenne</span
+          ><span class="cp-onair-label">Rien n’est diffusé</span
+          ><span class="cp-onair-ref" id="onair-ref"></span
+          ><button class="cp-onair-hide" id="onair-hide">
+            <img
+              class="icon"
+              src="assets/icons/eye-off.svg"
+              alt=""
+              width="16"
+              height="16"
+            />Masquer <kbd>Esc</kbd>
+          </button>
+        </div>
+        <div
+          class="monitor-switch"
+          role="group"
+          aria-label="Moniteur affiché"
+        >
+          <button class="selected" id="monitor-preview" aria-pressed="true">
+            <span class="status-dot" aria-hidden="true"></span> Aperçu</button
+          ><button id="monitor-program" aria-pressed="false">
+            <span class="status-dot" aria-hidden="true"></span> Antenne
+          </button>
+        </div>
+        <div class="cp-preview-stage" id="preview-stage">
+          <iframe
+            class="cp-preview-frame"
+            id="preview-frame"
+            src="browser_source.html?preview=1&v=2.3"
+            title="Aperçu du passage préparé"
+            tabindex="-1"
+          ></iframe>
+        </div>
+        <div class="cp-preview-stage is-program" id="program-stage">
+          <iframe
+            class="cp-preview-frame"
+            id="program-frame"
+            src="browser_source.html?monitor=1&v=2.3"
+            title="Retour des commandes de diffusion"
+            tabindex="-1"
+          ></iframe>
+        </div>
+        <div class="monitor-foot">
+          <span class="fit-hint" id="fit-hint" role="status" hidden></span>
+        </div>
+      </section>
       <main class="cp-panel">
         <section
           class="cp-tab-content active"
@@ -359,56 +411,6 @@
               </div>
             </section>
             <section class="preparation-panel">
-              <div class="section-heading">
-                <h2>Moniteur</h2>
-                <button
-                  class="monitor-framing"
-                  id="monitor-framing"
-                  aria-pressed="false"
-                >
-                  Voir le cadre complet
-                </button>
-              </div>
-              <div
-                class="monitor-tabs"
-                role="group"
-                aria-label="Vue du moniteur"
-              >
-                <button
-                  class="selected"
-                  id="monitor-preview"
-                  aria-pressed="true"
-                >
-                  <span class="status-dot"></span> Aperçu</button
-                ><button id="monitor-program" aria-pressed="false">
-                  <span class="status-dot"></span> Antenne</button
-                ><span id="monitor-label">Pas encore diffusé</span>
-              </div>
-              <div class="cp-preview-stage" id="preview-stage">
-                <div class="stage-label">Aperçu</div>
-                <iframe
-                  class="cp-preview-frame"
-                  id="preview-frame"
-                  src="browser_source.html?preview=1&v=2.3"
-                  title="Aperçu du passage préparé"
-                  tabindex="-1"
-                ></iframe
-                ><iframe
-                  class="cp-preview-frame"
-                  id="program-frame"
-                  src="browser_source.html?monitor=1&v=2.3"
-                  title="Retour des commandes de diffusion"
-                  tabindex="-1"
-                  hidden
-                ></iframe>
-              </div>
-              <div class="monitor-footer">
-                <span id="preview-caption">Votre prochain passage</span
-                ><span class="fit-hint" id="fit-hint" role="status" hidden></span
-                ><button id="btn-copy" class="cp-mini-btn">
-                  Copier le texte
-                </button>
-              </div>
               <div class="passage-editor">
                 <div class="section-heading">
                   <h2 id="preview-ref">Votre sélection</h2>
@@ -556,6 +558,7 @@
                 <button class="cp-btn-queue-add" id="btn-add-queue">
                   + Ajouter au conducteur
                 </button>
+                <button id="btn-copy" class="cp-mini-btn">Copier le texte</button>
                 <div class="verse-step">
                   <button
                     class="cp-btn-nav"

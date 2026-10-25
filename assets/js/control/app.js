@@ -112,6 +112,7 @@
     queue.onChange = function (state) {
       if (studioQueueChange) studioQueueChange(state);
       remoteLink.changed();
+      if (document.body.dataset.tab === "2") _sendPreview();
     };
   }
   function _outputChanged() {
@@ -140,6 +141,7 @@
     dom.previewStage = document.getElementById("preview-stage");
     dom.previewFrame = document.getElementById("preview-frame");
     dom.onairBar = document.getElementById("onair-bar");
+    dom.previewCaption = document.getElementById("preview-caption");
     dom.onairRef = document.getElementById("onair-ref");
     dom.onairHide = document.getElementById("onair-hide");
     dom.btnCopy = document.getElementById("btn-copy");
@@ -1661,29 +1663,19 @@
     }
   }
 
+  /**
+   * Every monitor shows the whole 1920×1080 frame (never a crop), so what the
+   * operator sees is laid out exactly like the output, at the same fit.
+   */
   function _scalePreviewFrame() {
     var frames = document.querySelectorAll(".cp-preview-frame");
     for (var i = 0; i < frames.length; i++) {
       var stage = frames[i].parentElement;
       var w = stage ? stage.clientWidth : 0;
       if (!w) continue;
-      var scale = w / 1920;
-      var top = 0;
-      if (
-        stage.id === "preview-stage" &&
-        !stage.classList.contains("full-frame")
-      ) {
-        var position = settings ? settings.getAll().position : "lower-third";
-        if (position === "fullscreen") {
-          scale = Math.min(w / 1920, stage.clientHeight / 1080);
-        } else if (position === "lower-third")
-          top = stage.clientHeight - 1080 * scale;
-        else if (position === "center")
-          top = (stage.clientHeight - 1080 * scale) / 2;
-      }
-      frames[i].style.transform = "scale(" + scale + ")";
-      frames[i].style.top = top + "px";
-      frames[i].style.left = (w - 1920 * scale) / 2 + "px";
+      frames[i].style.transform = "scale(" + w / 1920 + ")";
+      frames[i].style.top = "0px";
+      frames[i].style.left = "0px";
     }
   }
 
@@ -1696,12 +1688,38 @@
     var activeTab = document.querySelector(".cp-tab-content.active");
     var data = null;
 
-    var isFreeText = activeTab && activeTab.id === "tab-freetext";
-    if (isFreeText && freeText) {
+    var isFreeText = activeTab && activeTab.id === "tab-freetext",
+      isQueue = activeTab && activeTab.id === "tab-queue",
+      caption = "";
+    if (isQueue) {
+      // The conductor's preview is its selection: what « Diffuser » will send.
+      var state = queue.getState(),
+        item = queue.getItems()[state.current - 1];
+      if (item) {
+        isFreeText = item.type !== "verse";
+        data = {
+          text: item.text,
+          html: item.html || "",
+          secondary: item.secondary || null,
+          reference: item.reference || "",
+          version: item.version || "",
+          title: item.title || "",
+          subtitle: item.subtitle || "",
+        };
+        caption =
+          "Sélection " +
+          state.current +
+          "/" +
+          state.total +
+          " · " +
+          (item.reference || item.title || "Texte libre");
+      }
+    } else if (isFreeText && freeText) {
       var ft = freeText.getData();
       if (ft.text || ft.title) {
         data = { text: ft.text, title: ft.title, subtitle: ft.subtitle };
         if (ft.html) data.html = ft.html;
+        caption = ft.title || "Texte libre";
       }
     } else {
       var disp = _activeDisplay();
@@ -1721,7 +1739,12 @@
       }
     }
 
+    if (caption && dom.previewCaption) dom.previewCaption.textContent = caption;
     if (!data) {
+      if (dom.previewCaption && (isQueue || isFreeText))
+        dom.previewCaption.textContent = isQueue
+          ? "Conducteur vide"
+          : "Écrivez un texte";
       _sendMessage(MSG.PREVIEW_HIDE, {});
       return;
     }
@@ -1839,9 +1862,11 @@
     }
     // Keep the live preview in sync with the active tab's content.
     // (Settings tab also has a preview; rescale it now that it's visible.)
-    if (index === 0 || index === 1 || index === 4) {
+    if (index <= 2 || index === 4) {
       _scalePreviewFrame();
       _sendPreview();
+      if (index === 0 && window.VerseObs.Studio)
+        window.VerseObs.Studio.refreshChapter();
     }
   }
 

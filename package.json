@@ -9,7 +9,7 @@
     "build-data": "npm run download && npm run convert",
     "serve": "node tools/server.js",
     "test": "node tests/run.js && node tests/studio.js",
-    "test:browser": "node tests/browser-motion.mjs",
+    "test:browser": "node tests/browser-motion.mjs && node tests/browser-studio.mjs",
     "start": "node tools/server.js",
     "check": "node tools/check.js",
     "build": "node tools/build.js"

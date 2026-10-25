@@ -431,14 +431,6 @@
         .querySelector(".passage-editor")
         .classList.toggle("format-open", hidden);
     });
-    on("monitor-framing", function () {
-      var full = el("preview-stage").classList.toggle("full-frame");
-      el("monitor-framing").setAttribute("aria-pressed", String(full));
-      el("monitor-framing").textContent = full
-        ? "Réduire l’aperçu"
-        : "Voir le cadre complet";
-      window.dispatchEvent(new Event("resize"));
-    });
     document.querySelectorAll("[data-reference]").forEach(function (b) {
       b.addEventListener("click", function () {
         api.selectReference(b.dataset.reference);
@@ -491,20 +483,13 @@
         }
       });
     });
+    /** Below 1280 px only one monitor fits: the operator picks which. */
     function monitor(program) {
-      el("preview-frame").hidden = program;
-      el("program-frame").hidden = !program;
+      el("monitor-bay").dataset.show = program ? "program" : "preview";
       el("monitor-preview").classList.toggle("selected", !program);
       el("monitor-preview").setAttribute("aria-pressed", String(!program));
       el("monitor-program").classList.toggle("selected", program);
       el("monitor-program").setAttribute("aria-pressed", String(program));
-      el("monitor-label").textContent = program
-        ? "Ce que montre la sortie"
-        : "Pas encore diffusé";
-      document.querySelector(".stage-label").textContent = program
-        ? "Antenne"
-        : "Aperçu";
-      el("preview-stage").classList.toggle("is-program", program);
     }
     on("monitor-preview", function () {
       monitor(false);
