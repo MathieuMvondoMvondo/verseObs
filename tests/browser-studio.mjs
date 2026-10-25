@@ -330,12 +330,15 @@ try {
   // ---- Régie readability: type floor, keyboard focus, phone targets.
   for (const [w, h] of [[1920, 1080], [1280, 800], [390, 844]]) {
     const view = await open(w, h);
-    await check(`At ${w} px no visible text under 12 px in Bible, Conducteur and Habillage`, async () => {
+    await check(`At ${w} px no visible text under 12 px and no overflow in Bible, Conducteur and Habillage`, async () => {
       for (const tab of [0, 2, 4]) {
         await view.studio.evaluate((t) => document.querySelector("#tab-btn-" + t).click(), tab);
         await view.studio.waitForTimeout(250);
         const small = await view.studio.evaluate(SMALL_TEXT);
         assert.deepEqual(small, [], "tab " + tab + ": " + small.slice(0, 12).join(", "));
+        // Larger type must not push anything past the edge of a narrow dock.
+        const overflow = await view.studio.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+        assert.ok(overflow <= 0, "tab " + tab + " overflows by " + overflow + " px");
       }
     });
     await view.ctx.close();

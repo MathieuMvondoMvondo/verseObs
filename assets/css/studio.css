@@ -4071,6 +4071,19 @@ body[data-onair="pending"] .cp-btn-hide {
 }
 
 /* ---- Overlay style choice ------------------------------------------------- */
+/* In a narrow dock the four bases go two by two: their names stay readable
+   (12 px) without pushing the page past the edge. */
+@media (max-width: 620px) {
+  .style-choices,
+  .settings-showcase .style-choices {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .style-choice {
+    min-width: 0;
+  }
+}
 .antenne-style > span {
   background: #0f1217;
   color: #f3eee4;
