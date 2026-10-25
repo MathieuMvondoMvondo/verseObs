@@ -5357,3 +5357,65 @@ body:not([data-tab="2"]) #tab-queue .cp-queue-title {
     line-height: 28px;
   }
 }
+/* ---- Conductor: a passage split into plans opens with its header,
+   « Psaumes 119:1-48 · 12 plans · Regrouper » (brief §2). The plans below
+   are indented 12 px with their « plan n/N ». ---- */
+.cp-queue-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  margin: 10px 0 4px;
+  padding: 0 0 0 12px;
+  min-width: 0;
+}
+.cp-queue-group:first-child {
+  margin-top: 0;
+}
+.cp-queue-group-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 600 14px/20px var(--cp-font);
+  color: #d5d8df;
+}
+.cp-queue-group-count {
+  flex: 0 0 auto;
+  font: 400 14px/20px var(--cp-font);
+  color: #8e919c;
+}
+.cp-queue-group-count::before {
+  content: "·";
+  margin-right: 8px;
+  color: #5d606a;
+}
+.cp-queue-group .queue-merge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  margin: 0 0 0 auto;
+  padding: 0 10px;
+  border-color: #33363d;
+  border-radius: 6px;
+  background: transparent;
+  color: #c4c8d0;
+  font: 500 14px/20px var(--cp-font);
+}
+@media (hover: hover) and (pointer: fine) {
+  .cp-queue-group .queue-merge:hover {
+    border-color: #4a4e57;
+    background: #1d1f24;
+    color: #eceef1;
+  }
+}
+/* Outside the Conducteur view: the passage is named, the tool stays in the
+   Conducteur view (never next to the live controls). */
+body:not([data-tab="2"]) #tab-queue .cp-queue-group {
+  min-height: 28px;
+  margin: 8px 0 2px;
+}
+body:not([data-tab="2"]) #tab-queue .cp-queue-group .queue-merge {
+  display: none;
+}

@@ -551,7 +551,7 @@ try {
     }
   });
   await check("The split is reversible in one click (Regrouper)", async () => {
-    await studio.click("#btn-merge");
+    await studio.click("#queue-container .cp-queue-group .queue-merge");
     await studio.waitForFunction(() => document.querySelectorAll("#queue-container .cp-queue-item").length === 1);
     assert.equal(
       await studio.evaluate(() => document.querySelector("#queue-container .cp-queue-item").dataset.label),
@@ -856,6 +856,10 @@ try {
   const selectRow = (i) =>
     st.evaluate((i) => document.querySelectorAll("#queue-container .cp-queue-item")[i].click(), i);
   const toasts = () => st.evaluate(() => Array.from(document.querySelectorAll(".cp-toast")).map((t) => t.textContent).join(" | "));
+  // « Regrouper » is in the group header of the conductor (brief §2), one per
+  // passage split into plans: its accessible name says what it would do.
+  const MERGE = "#queue-container .cp-queue-group .queue-merge";
+  const mergeName = () => st.evaluate((s) => document.querySelector(s).getAttribute("aria-label"), MERGE);
   await prepare(st, "Psaumes 119:1-48");
   await st.waitForFunction(() => /Découper en 12 plans/.test(document.querySelector("#btn-split")?.textContent || ""));
   await st.click("#btn-split");
@@ -865,10 +869,12 @@ try {
   await check("Regrouper with a deleted plan refuses, names the plan and changes nothing", async () => {
     await st.evaluate(() => document.querySelectorAll("#queue-container .cp-queue-item")[1].querySelector(".cp-queue-del").click());
     await selectRow(0);
-    const button = await st.textContent("#btn-merge");
+    const button = await mergeName();
     assert.match(button, /^Regrouper les 11 plans/, "the button counts the plans present: " + button);
     assert.doesNotMatch(button, /1-48/, "no passage claimed: " + button);
-    await st.click("#btn-merge");
+    const header = await st.textContent("#queue-container .cp-queue-group");
+    assert.doesNotMatch(header, /1-48/, "the header claims no passage either: " + header);
+    await st.click(MERGE);
     await st.waitForTimeout(300);
     const rows = await labels();
     assert.equal(rows.length, 11, "conductor unchanged");
@@ -880,12 +886,69 @@ try {
     await st.evaluate(() => document.querySelectorAll("#queue-container .cp-queue-item")[2].querySelector('[title="Monter"]').click());
     assert.deepEqual((await labels()).slice(0, 3), ["Psaumes 119:1-4", "Psaumes 119:9-12", "Psaumes 119:5-8"]);
     await selectRow(0);
-    assert.equal(await st.textContent("#btn-merge"), "Regrouper les 12 plans (Psaumes 119:1-48)");
-    await st.click("#btn-merge");
+    assert.equal(await mergeName(), "Regrouper les 12 plans (Psaumes 119:1-48)");
+    await st.click(MERGE);
     await st.waitForFunction(() => document.querySelectorAll("#queue-container .cp-queue-item").length === 1);
     const q = await stored();
     assert.equal(q.items[0].reference, "Psaumes 119:1-48");
     assert.equal(verseNums(q.items[0].html).join(","), seq(48), "every verse once, in order");
+  });
+  await check("« Regrouper » sits in a group header of the conductor (§2): « Psaumes 119:1-48 · 12 plans · Regrouper » above its plans, one per passage, none in the selection card", async () => {
+    // Two passages split into plans: 119:1-48 (12) and 23:1-6 (n).
+    await restore(Q1);
+    await toTab(0);
+    await prepare(st, "Psaumes 23:1-6");
+    await st.waitForFunction(() => /Découper en \d+ plans/.test(document.querySelector("#btn-split")?.textContent || "") && !document.querySelector("#btn-split").disabled, null, { timeout: 15000 });
+    const n = Number(/(\d+) plans/.exec(await st.textContent("#btn-split"))[1]);
+    await st.click("#btn-split");
+    await st.waitForFunction((n) => document.querySelectorAll("#queue-container .cp-queue-item").length === 12 + n, n);
+    await toTab(2);
+    await selectRow(12 + n - 1);
+    const view = () =>
+      st.evaluate(() => {
+        const seen = (e) => !!e && e.getClientRects().length > 0 && getComputedStyle(e).visibility === "visible";
+        const kids = Array.from(document.querySelectorAll("#queue-container > *"));
+        return {
+          order: kids.map((k) => (k.classList.contains("cp-queue-group") ? "G:" + k.dataset.group : k.dataset.label)),
+          headers: kids.filter((k) => k.classList.contains("cp-queue-group")).map((h) => ({
+            text: Array.from(h.children).map((c) => c.textContent.trim()).filter(Boolean).join(" · "),
+            button: seen(h.querySelector(".queue-merge")),
+            group: h.dataset.group,
+          })),
+          groups: JSON.parse(localStorage.getItem("verseobs_queue")).items.map((i) => i.group || ""),
+          card: Array.from(document.querySelectorAll("#queue-selection-preview button")).filter(seen).map((b) => b.textContent.trim()),
+          overflow: document.documentElement.scrollWidth - innerWidth,
+        };
+      });
+    let v = await view();
+    assert.deepEqual(v.headers.map((h) => h.text), ["Psaumes 119:1-48 · 12 plans · Regrouper", `Psaumes 23:1-6 · ${n} plans · Regrouper`]);
+    assert.ok(v.headers.every((h) => h.button), "each header has its Regrouper in the Conducteur view");
+    // Each header sits right above the first plan of its passage.
+    v.headers.forEach((h) => {
+      const at = v.order.indexOf("G:" + h.group);
+      const first = v.groups.indexOf(h.group);
+      assert.equal(v.order[at + 1], v.order.filter((o) => !o.startsWith("G:"))[first], "header above its first plan");
+    });
+    assert.deepEqual(v.card.filter((t) => /Regrouper/.test(t)), [], "no Regrouper in the selection card");
+    // The selection is a plan of 23:1-6: the first header still regroups 119:1-48 only.
+    await st.click("#queue-container .cp-queue-group .queue-merge");
+    await st.waitForFunction((n) => document.querySelectorAll("#queue-container .cp-queue-item").length === 1 + n, n);
+    const q = await stored();
+    assert.equal(q.items[0].reference, "Psaumes 119:1-48");
+    assert.deepEqual(q.items.slice(1).map((i) => i.part), Array.from({ length: n }, (_, i) => i + 1), "the plans of 23:1-6 untouched");
+    // Outside the Conducteur view the header names the passage, without the tool.
+    await toTab(0);
+    v = await view();
+    assert.deepEqual(v.headers.map((h) => h.text), [`Psaumes 23:1-6 · ${n} plans · Regrouper`]);
+    assert.equal(v.headers[0].button, false, "no Regrouper next to the live controls");
+    for (const [w, h] of [[1280, 800], [390, 844]]) {
+      await st.setViewportSize({ width: w, height: h });
+      await toTab(2);
+      v = await view();
+      assert.ok(v.headers[0].button, w + " px: Regrouper in the header");
+      assert.ok(v.overflow <= 0, w + " px: no overflow (" + v.overflow + ")");
+    }
+    await st.setViewportSize({ width: 1920, height: 1080 });
   });
   await check("A plan split again after a style change stays in its passage, survives a reload and a backup, and regroups whole", async () => {
     await restore(Q1);
@@ -931,8 +994,8 @@ try {
     assert.deepEqual(await labels(), before, "same plans after the backup import");
     assert.deepEqual(await partsShown(), expectParts, "same numbering after the backup import");
     await selectRow(0);
-    assert.equal(await st.textContent("#btn-merge"), `Regrouper les ${total} plans (Psaumes 119:1-48)`);
-    await st.click("#btn-merge");
+    assert.equal(await mergeName(), `Regrouper les ${total} plans (Psaumes 119:1-48)`);
+    await st.click(MERGE);
     await st.waitForFunction(() => document.querySelectorAll("#queue-container .cp-queue-item").length === 1);
     const q = await stored();
     assert.equal(q.items[0].reference, "Psaumes 119:1-48");

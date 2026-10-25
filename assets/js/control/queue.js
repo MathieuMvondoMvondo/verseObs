@@ -277,7 +277,8 @@
 
   Queue.prototype._renderList = function () {
     if (!this.container) return;
-    var self = this;
+    var self = this,
+      headed = {};
     this.container.innerHTML = "";
 
     if (this._items.length === 0) {
@@ -292,6 +293,12 @@
     for (var i = 0; i < this._items.length; i++) {
       (function (idx) {
         var item = self._items[idx];
+        // Plans of one passage (« Découper ») open with their group header:
+        // « Psaumes 119:1-48 · 12 plans · Regrouper » (brief §2).
+        if (item.group && !headed[item.group]) {
+          headed[item.group] = true;
+          self.container.appendChild(self._groupHeader(item.group));
+        }
         var row = document.createElement("div");
         row.className = "cp-queue-item";
         row.tabIndex = 0;
@@ -412,6 +419,59 @@
 
   Queue.prototype.selectNext = function () {
     if (this.getState().hasNext) this.select(this._currentIndex + 1);
+  };
+  /**
+   * The header of a passage split into plans: the passage (only when every
+   * plan is there, never an invented one), how many plans, and « Regrouper »,
+   * which undoes « Découper » for this group (onMerge, set by the Studio).
+   */
+  Queue.prototype._groupHeader = function (group) {
+    var self = this,
+      P = window.VerseObs.Passage,
+      plans = this._items.filter(function (item) {
+        return item.group === group;
+      }),
+      missing = P ? P.incomplete(plans) : "",
+      whole = "";
+    if (!missing && P) {
+      try {
+        whole = P.merge(plans).reference;
+      } catch (e) {
+        missing = e.message;
+      }
+    }
+    var header = document.createElement("div"),
+      title = document.createElement("span"),
+      count = document.createElement("span"),
+      merge = document.createElement("button");
+    header.className = "cp-queue-group";
+    header.dataset.group = group;
+    title.className = "cp-queue-group-title";
+    // Incomplete: the book and chapter only (« Psaumes 119 »).
+    title.textContent =
+      whole || String(plans[0].whole || plans[0].reference || "").replace(/:[^:]*$/, "");
+    count.className = "cp-queue-group-count";
+    count.textContent = plans.length + " plans" + (missing ? " · incomplet" : "");
+    merge.type = "button";
+    merge.className = "queue-merge";
+    merge.dataset.group = group;
+    merge.textContent = "Regrouper";
+    merge.setAttribute(
+      "aria-label",
+      "Regrouper les " +
+        plans.length +
+        " plans" +
+        (missing ? " · incomplet" : " (" + whole + ")"),
+    );
+    if (missing) merge.title = missing;
+    merge.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (self.onMerge) self.onMerge(group);
+    });
+    header.appendChild(title);
+    header.appendChild(count);
+    header.appendChild(merge);
+    return header;
   };
   Queue.prototype.selectPrevious = function () {
     if (this.getState().hasPrev) this.select(this._currentIndex - 1);

@@ -90,19 +90,6 @@
         el("queue-selection-text").innerHTML = V.sanitizeHtml(selected.html);
       else
         el("queue-selection-text").textContent = selected ? selected.text : "";
-      var plans = groupOf(selected);
-      el("btn-merge").hidden = !plans.length;
-      if (plans.length) {
-        // Counts the plans really present; names the passage only when
-        // every plan is there (Passage.incomplete), never what is missing.
-        var missing = V.Passage.incomplete(plans);
-        el("btn-merge").textContent =
-          "Regrouper les " +
-          plans.length +
-          " plans" +
-          (missing ? " · incomplet" : " (" + V.Passage.merge(plans).reference + ")");
-        el("btn-merge").title = missing;
-      }
       if (selected && selected.secondary) {
         var second = document.createElement("span");
         second.className = "queue-secondary-text";
@@ -207,13 +194,6 @@
       !split.hidden &&
       !split.disabled
     );
-  }
-  /** The plans of the selected item's split passage, in conductor order. */
-  function groupOf(selected) {
-    if (!selected || !selected.group) return [];
-    return api.queue.getItems().filter(function (item) {
-      return item.group === selected.group;
-    });
   }
   /**
    * Is this conductor item the one the output shows? By its identifier (cue)
@@ -525,18 +505,18 @@
     selectedPreview.className = "queue-selection-preview";
     selectedPreview.id = "queue-selection-preview";
     selectedPreview.innerHTML =
-      '<span class="editor-badge" id="queue-selection-badge">PRÊT À DIFFUSER</span><h3 id="queue-selection-title"></h3><p id="queue-selection-text"></p>' +
-      '<button class="queue-merge" id="btn-merge" type="button" hidden>Regrouper</button>';
+      '<span class="editor-badge" id="queue-selection-badge">PRÊT À DIFFUSER</span><h3 id="queue-selection-title"></h3><p id="queue-selection-text"></p>';
     el("queue-container").parentElement.before(selectedPreview);
-    // « Regrouper » undoes « Découper »: the plans become the passage again.
-    on("btn-merge", function () {
+    // « Regrouper » (in the group header of the conductor) undoes
+    // « Découper »: the plans of that passage become the passage again.
+    api.queue.onMerge = function (group) {
       var items = api.queue.getItems(),
-        selected = items[api.queue.getState().current - 1];
-      if (!selected || !selected.group) return;
-      var indexes = [];
+        indexes = [];
+      if (!group) return;
       items.forEach(function (item, i) {
-        if (item.group === selected.group) indexes.push(i);
+        if (item.group === group) indexes.push(i);
       });
+      if (!indexes.length) return;
       var parts = indexes.map(function (i) {
         return items[i];
       });
@@ -549,7 +529,7 @@
       var whole = V.Passage.merge(parts);
       // Plans moved apart by hand are gathered at the first one's place.
       var rest = items.filter(function (item) {
-        return item.group !== selected.group;
+        return item.group !== group;
       });
       rest.splice(indexes[0], 0, whole);
       try {
@@ -560,7 +540,7 @@
         return;
       }
       api.notify(whole.reference + " regroupé", "success");
-    });
+    };
     api.queue.onChange = updateQueue;
     updateQueue();
     bindChapterKeys();
