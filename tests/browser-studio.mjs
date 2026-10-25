@@ -97,6 +97,36 @@ const outputFit = (output) =>
   output.evaluate(() => document.querySelector(".verse-card")?.dataset.fit || null);
 const inside = (box, rect) =>
   box && box.top >= rect.top - 0.5 && box.bottom <= rect.bottom + 0.5;
+/**
+ * What the audience sees, measured in a 1920×1080 output (or monitor frame):
+ * share of the frame covered by the band (from the top of its soft edge to the
+ * frame edge), body size and number of lines of each text block.
+ */
+const ON_AIR = () => {
+  const card = document.querySelector(".verse-card");
+  if (!card) return null;
+  const frame = innerHeight;
+  const scrim = card.querySelector(".vo-scrim");
+  const box = card.getBoundingClientRect();
+  const visibleScrim = scrim && getComputedStyle(scrim).display !== "none";
+  const s = visibleScrim ? scrim.getBoundingClientRect() : box;
+  const lower = document.querySelector("#verse-container").classList.contains("lower-third");
+  const band = lower ? frame - Math.max(0, s.top) : Math.min(frame, s.bottom);
+  const texts = Array.from(card.querySelectorAll(".vo-copy .verse-text"));
+  const lines = texts.map((t) => Math.round(t.getBoundingClientRect().height / parseFloat(getComputedStyle(t).lineHeight)));
+  return {
+    share: band / frame,
+    body: Math.min(...texts.map((t) => parseFloat(getComputedStyle(t).fontSize))),
+    lines,
+    nums: card.querySelector(".vo-nums .vo-roll:not(.is-leaving)")?.textContent || "",
+    partial: card.dataset.partial || "",
+    top: box.top,
+    bottom: box.bottom,
+  };
+};
+const onAir = (page) => page.evaluate(ON_AIR);
+const inFrame = async (studio, frameId) =>
+  (await (await studio.$("#" + frameId)).contentFrame()).evaluate(ON_AIR);
 
 try {
   for (const width of [1280, 1920]) {
@@ -153,6 +183,124 @@ try {
   });
   assert.deepEqual(narrow.errors, []);
   await narrow.ctx.close();
+
+  // ---- Long passages: a subtitle-like band, a split proposed to the operator.
+  const desk = await open(1920, 1080);
+  const { studio, output } = desk;
+  const BAND = 0.4,
+    MIN_BODY = 31.5;
+  await check("Psaumes 23 on air: band ≤ 40 % of the frame, body ≥ 32 px, ≤ 4 lines", async () => {
+    await prepare(studio, "Psaumes 23:1-6");
+    await studio.click("#btn-show");
+    await output.waitForFunction(() => document.querySelector(".verse-card"));
+    await studio.waitForTimeout(1600);
+    const g = await onAir(output);
+    assert.ok(g.share <= BAND + 0.005, "band share " + g.share.toFixed(3));
+    assert.ok(g.body >= MIN_BODY, "body " + g.body + " px");
+    assert.ok(g.lines[0] <= 4, "lines " + g.lines);
+    // Only whole verses go on air, and the reference says which ones.
+    assert.match(g.nums, /^23:1-\d$/);
+    assert.notEqual(g.nums, "23:1-6");
+    assert.ok(g.partial, "the output knows it shows part of the passage");
+  });
+  await check("The régie says the output shows part of the passage and offers the split", async () => {
+    await studio.waitForFunction(() => /partiel|seuls/i.test(document.querySelector("#onair-bar").textContent));
+    const hint = await studio.evaluate(() => ({
+      text: document.querySelector("#fit-hint").textContent,
+      hidden: document.querySelector("#fit-hint").hidden,
+      split: document.querySelector("#btn-split")?.textContent || "",
+      splitHidden: document.querySelector("#btn-split")?.hidden,
+    }));
+    assert.equal(hint.hidden, false);
+    assert.match(hint.split, /Découper en \d+ plans/);
+    assert.equal(hint.splitHidden, false);
+  });
+  await check("Psaumes 119:1-48: one click splits it at verse boundaries in the conductor", async () => {
+    await studio.evaluate(() => document.querySelector("#btn-clear-queue").click());
+    await prepare(studio, "Psaumes 119:1-48");
+    await studio.waitForFunction(() => /Découper en \d+ plans/.test(document.querySelector("#btn-split")?.textContent || ""));
+    const label = await studio.textContent("#btn-split");
+    const n = Number(/(\d+) plans/.exec(label)[1]);
+    assert.ok(n >= 6, n + " plans");
+    await studio.click("#btn-split");
+    await studio.waitForFunction((n) => document.querySelectorAll("#queue-container .cp-queue-item").length === n, n);
+    const rows = await studio.evaluate(() =>
+      Array.from(document.querySelectorAll("#queue-container .cp-queue-item")).map((r) => r.dataset.label),
+    );
+    assert.equal(rows[0].replace(/-\d+$/, ""), "Psaumes 119:1");
+    assert.match(rows[rows.length - 1], /-48$/);
+    // Contiguous ranges, nothing lost or repeated.
+    let next = 1;
+    for (const r of rows) {
+      const [, a, b] = /119:(\d+)(?:-(\d+))?$/.exec(r);
+      assert.equal(Number(a), next);
+      next = Number(b || a) + 1;
+    }
+    assert.equal(next, 49);
+  });
+  await check("Each plan fits the band at ≥ 32 px; Suivant walks through them", async () => {
+    const total = await studio.evaluate(() => document.querySelectorAll("#queue-container .cp-queue-item").length);
+    await studio.evaluate(() => document.querySelector("#tab-btn-2").click());
+    await studio.evaluate(() => document.querySelector("#queue-container .cp-queue-item").click());
+    for (let i = 0; i < total; i++) {
+      await studio.waitForTimeout(500);
+      const g = await inFrame(studio, "preview-frame");
+      assert.ok(g, "preview shows plan " + (i + 1));
+      assert.ok(g.share <= BAND + 0.005, "plan " + (i + 1) + " share " + g.share.toFixed(3));
+      assert.ok(g.body >= MIN_BODY, "plan " + (i + 1) + " body " + g.body);
+      assert.ok(g.lines[0] <= 4, "plan " + (i + 1) + " lines " + g.lines);
+      assert.equal(g.partial, "", "plan " + (i + 1) + " shown whole");
+      if (i < total - 1) await studio.click("#btn-queue-next");
+    }
+  });
+  await check("The split is reversible in one click (Regrouper)", async () => {
+    await studio.click("#btn-merge");
+    await studio.waitForFunction(() => document.querySelectorAll("#queue-container .cp-queue-item").length === 1);
+    assert.equal(
+      await studio.evaluate(() => document.querySelector("#queue-container .cp-queue-item").dataset.label),
+      "Psaumes 119:1-48",
+    );
+  });
+  await check("Two translations: each plan of Romains 8:28-39 fits the band at ≥ 32 px", async () => {
+    await studio.evaluate(() => document.querySelector("#btn-clear-queue").click());
+    await studio.evaluate(() => document.querySelector("#tab-btn-0").click());
+    await studio.check("#bilingual-toggle");
+    await studio.selectOption("#secondary-version", "kjv");
+    await prepare(studio, "Romains 8:28-39");
+    await studio.waitForFunction(() => /Découper en \d+ plans/.test(document.querySelector("#btn-split")?.textContent || ""));
+    await studio.click("#btn-split");
+    await studio.waitForFunction(() => document.querySelectorAll("#queue-container .cp-queue-item").length > 1);
+    const total = await studio.evaluate(() => document.querySelectorAll("#queue-container .cp-queue-item").length);
+    await studio.evaluate(() => document.querySelector("#queue-container .cp-queue-item").click());
+    for (let i = 0; i < total; i++) {
+      await studio.waitForTimeout(500);
+      const g = await inFrame(studio, "preview-frame");
+      console.log("    plan " + (i + 1) + ": " + JSON.stringify({ share: +g.share.toFixed(3), body: g.body, lines: g.lines, nums: g.nums }));
+      assert.equal(g.lines.length, 2, "two translations");
+      assert.ok(g.share <= BAND + 0.005, "plan " + (i + 1) + " share " + g.share.toFixed(3));
+      assert.ok(g.body >= MIN_BODY, "plan " + (i + 1) + " body " + g.body);
+      assert.equal(g.partial, "");
+      if (i < total - 1) await studio.click("#btn-queue-next");
+    }
+    await studio.evaluate(() => document.querySelector("#tab-btn-0").click());
+    await studio.uncheck("#bilingual-toggle");
+  });
+  await check("A song keeps its centred card by default", async () => {
+    await studio.evaluate(() => document.querySelector("#tab-btn-1").click());
+    await studio.fill("#freetext-title", "Chant d’entrée");
+    await studio.evaluate(() => {
+      const e = document.querySelector("#freetext-editable");
+      e.textContent = "Saint, saint, saint est le Seigneur";
+      e.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await studio.click("#btn-free-show");
+    await output.waitForFunction(() => (document.querySelector(".verse-title")?.textContent || "").includes("Chant"));
+    const c = await output.evaluate(() => document.querySelector("#verse-container").className);
+    assert.match(c, /\bcenter\b/);
+    assert.match(c, /layout-carte/);
+  });
+  assert.deepEqual(desk.errors, []);
+  await desk.ctx.close();
   console.log("\n✓ Browser studio: " + passed + " checks passed.");
 } catch (err) {
   console.error(err);

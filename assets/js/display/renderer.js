@@ -26,15 +26,24 @@
     "ref-inline",
   ];
   var LAYOUTS = ["antenne", "carte"];
-  // Largest share of the frame height a text may cover before it is reduced.
-  var LIMITS = {
-    "lower-third": 0.5,
-    "upper-third": 0.5,
-    center: 0.72,
-    fullscreen: 0.84,
-  };
-  var MIN_FIT = 0.72, // below this, use the whole safe area before shrinking more
-    FLOOR_FIT = 0.42,
+  /*
+   * Readability rules (1080p frame; scaled for other frame heights):
+   *  - a lower or upper third is read like subtitles: the band, soft edge
+   *    included, covers at most BAND_SHARE of the frame, with at most
+   *    BAND_LINES lines of reading text (BAND_LINES_TWO for two translations);
+   *  - centred and full-screen texts may use LIMITS of the frame;
+   *  - the body is reduced to fit, never below MIN_BODY;
+   *  - a passage still too long shows its first whole verses only, and the
+   *    reference on air names them (data-partial keeps what was asked): the
+   *    Studio proposes « Découper » at verse boundaries;
+   *  - a text without verses keeps the old safety net (whole safe area).
+   */
+  var BAND_SHARE = 0.4,
+    BAND_LINES = 4,
+    BAND_LINES_TWO = 6,
+    MIN_BODY = 32;
+  var LIMITS = { center: 0.72, fullscreen: 0.84 };
+  var FLOOR_FIT = 0.42,
     SAFE_HEIGHT = 0.86;
   var ANIMATED =
     ".vo-scrim,.vo-axis,.vo-margin,.vo-plate,.vo-copy,.vo-refblock,.vo-line>span,.vo-roll";
@@ -115,6 +124,8 @@
     this._gen = 0;
     this.fit = 1;
     this.overflow = false;
+    this.partial = "";
+    this.shown = "";
     this._setLayout(this.layout);
   }
 
@@ -250,7 +261,7 @@
    * on air, while the current text is still leaving: the swap that follows
    * costs a single layout, so there is no visible gap between two passages.
    */
-  Renderer.prototype._probe = function (data, width) {
+  Renderer.prototype._probe = function (data, width, raw) {
     var probe = this._stage(),
       secondary = secondaryOf(data);
     probe.classList.add("vo-probe");
@@ -264,72 +275,247 @@
     if (block) probe.querySelector(".vo-margin").appendChild(block);
     probe.querySelector(".verse-body").appendChild(buildCopy(data, secondary));
     this.container.appendChild(probe);
-    this._fit(probe);
+    if (!raw) this._fit(probe);
     return probe;
   };
 
   // ---- Measuring -------------------------------------------------------------
 
-  /** Reduce the text (never the reference) until the block fits the frame. */
-  Renderer.prototype._fit = function (stage) {
+  /** Lines of each reading block (primary, then second translation). */
+  function linesOf(stage) {
+    return Array.prototype.map.call(
+      stage.querySelectorAll(".vo-copy .verse-text"),
+      function (text) {
+        var line = parseFloat(getComputedStyle(text).lineHeight);
+        return line ? Math.round(text.offsetHeight / line) : 0;
+      },
+    );
+  }
+
+  /** The rules that apply to this stage in the current frame and position. */
+  Renderer.prototype._rules = function (stage) {
+    var frame = window.innerHeight || document.documentElement.clientHeight || 0,
+      position = this.currentPosition,
+      band = position === "lower-third" || position === "upper-third",
+      size = parseFloat(getComputedStyle(stage).fontSize) || 44;
     stage.style.setProperty("--fit", "1");
-    var height = stage.offsetHeight,
-      frame = window.innerHeight || document.documentElement.clientHeight || 0;
-    var fit = 1;
-    if (height && frame) {
-      var limit = frame * (LIMITS[this.currentPosition] || 0.5);
-      var measure = function (value) {
+    var two = stage.classList.contains("verse-card-bilingual"),
+      // In an antenne band, two translations sit side by side (CSS): each
+      // column is read like its own subtitle.
+      columns = band && two && this.layout === "antenne";
+    var rules = {
+      frame: frame,
+      minFit: Math.min(1, (MIN_BODY * frame) / 1080 / size),
+      maxLines: band ? (two && !columns ? BAND_LINES_TWO : BAND_LINES) : Infinity,
+      perBlock: columns,
+      cap: frame * (LIMITS[position] || 0.72),
+    };
+    if (band) {
+      // What the band adds around the text: soft edge, padding and the
+      // margin down (or up) to the frame edge.
+      var scrim = stage.querySelector(".vo-scrim"),
+        extra =
+          this.layout === "antenne" && scrim && scrim.offsetHeight
+            ? scrim.offsetHeight - stage.offsetHeight
+            : parseFloat(
+                getComputedStyle(this.container)[
+                  position === "upper-third" ? "paddingTop" : "paddingBottom"
+                ],
+              ) || 0;
+      rules.cap = frame * BAND_SHARE - extra;
+    }
+    return rules;
+  };
+
+  function fits(stage, rules, fit) {
+    stage.style.setProperty("--fit", String(fit));
+    if (stage.offsetHeight > rules.cap) return false;
+    if (rules.maxLines === Infinity) return true;
+    var lines = linesOf(stage);
+    return (
+      (rules.perBlock
+        ? Math.max.apply(null, lines.concat(0))
+        : lines.reduce(function (a, b) {
+            return a + b;
+          }, 0)) <= rules.maxLines
+    );
+  }
+
+  /** Largest fit in [minFit, 1] within the rules, or null when none fits. */
+  function within(stage, rules) {
+    if (fits(stage, rules, 1)) return 1;
+    if (!fits(stage, rules, rules.minFit)) return null;
+    var lo = rules.minFit,
+      hi = 1;
+    for (var i = 0; i < 7 && hi - lo > 0.004; i++) {
+      var mid = (lo + hi) / 2;
+      if (fits(stage, rules, mid)) lo = mid;
+      else hi = mid;
+    }
+    return lo;
+  }
+
+  /**
+   * Too long at the smallest readable size: keep the first whole verses that
+   * fit (at least one) and make the reference on air name them.
+   * Returns false when the text has no verses to page through.
+   */
+  Renderer.prototype._trim = function (stage, rules) {
+    var P = V.Passage,
+      primary = stage.querySelector(".vo-copy .verse-text:not(.verse-secondary-text)"),
+      second = stage.querySelector(".vo-copy .verse-secondary-text");
+    if (!P || !primary) return false;
+    var mine = P.verses(primary.innerHTML),
+      theirs = second ? P.verses(second.innerHTML) : null;
+    if (mine.length < 2 || (second && theirs.length < 2)) return false;
+    var markup = function (list) {
+      return list
+        .map(function (v) {
+          return v.html;
+        })
+        .join(" ");
+    };
+    var show = function (k) {
+      var last = mine[k - 1].num;
+      primary.innerHTML = markup(mine.slice(0, k));
+      if (second)
+        second.innerHTML = markup(
+          theirs.filter(function (v) {
+            return v.num <= last;
+          }),
+        );
+    };
+    var best = 1,
+      a = 2,
+      b = mine.length - 1;
+    while (a <= b) {
+      var m = (a + b) >> 1;
+      show(m);
+      if (fits(stage, rules, rules.minFit)) {
+        best = m;
+        a = m + 1;
+      } else b = m - 1;
+    }
+    show(best);
+    var first = mine[0].num,
+      last = mine[best - 1].num,
+      roll = stage.querySelector(".vo-nums .vo-roll:not(.is-leaving)"),
+      label = stage.querySelector(".verse-secondary .verse-translation-label"),
+      inline = stage.querySelector(".verse-inline-ref > span");
+    if (roll) {
+      stage.dataset.partial = roll.textContent;
+      roll.textContent = P.range(roll.textContent, first, last);
+    } else stage.dataset.partial = "1";
+    if (label) label.textContent = P.range(label.textContent, first, last);
+    if (inline) inline.textContent = P.range(inline.textContent, first, last);
+    return true;
+  };
+
+  /** Without verses to page through: the old safety net (whole safe area). */
+  function safetyNet(stage, rules) {
+    var safe = rules.frame * SAFE_HEIGHT,
+      measure = function (value) {
         stage.style.setProperty("--fit", String(value));
         return stage.offsetHeight;
       };
-      // Largest value in [lo, hi] whose height stays within max. Wrapped text
-      // grows roughly with the square of its size: estimate first, then a
-      // short bisection (a handful of layouts, even for a whole chapter).
-      var largest = function (lo, hi, h, max) {
-        var guess = Math.max(lo, Math.min(hi, hi * Math.sqrt(max / h)));
-        if (measure(guess) <= max) {
-          lo = guess;
-          hi = Math.min(hi, guess * 1.08);
-        } else {
-          hi = guess;
-          var below = Math.max(lo, guess * 0.92);
-          if (below > lo && measure(below) <= max) lo = below;
-        }
-        for (var i = 0; i < 4 && hi - lo > 0.004; i++) {
-          var mid = (lo + hi) / 2;
-          if (measure(mid) <= max) lo = mid;
-          else hi = mid;
-        }
-        return lo;
-      };
-      if (height > limit) {
-        var atMin = measure(MIN_FIT);
-        if (atMin <= limit) fit = largest(MIN_FIT, 1, height, limit);
-        else {
-          // Readability first: keep the minimum size and use the whole safe
-          // area; only a text taller than that is reduced further.
-          var safe = frame * SAFE_HEIGHT;
-          fit =
-            atMin <= safe
-              ? MIN_FIT
-              : measure(FLOOR_FIT) > safe
-                ? FLOOR_FIT
-                : largest(FLOOR_FIT, MIN_FIT, atMin, safe);
-        }
-        fit = Math.floor(fit * 1000) / 1000;
-      }
+    if (measure(rules.minFit) <= safe) return rules.minFit;
+    if (measure(FLOOR_FIT) > safe) return FLOOR_FIT;
+    var lo = FLOOR_FIT,
+      hi = rules.minFit;
+    for (var i = 0; i < 7 && hi - lo > 0.004; i++) {
+      var mid = (lo + hi) / 2;
+      if (measure(mid) <= safe) lo = mid;
+      else hi = mid;
+    }
+    return lo;
+  }
+
+  /** Reduce the text (never the reference) until the block fits its rules. */
+  Renderer.prototype._fit = function (stage) {
+    delete stage.dataset.partial;
+    var rules = this._rules(stage),
+      fit = 1;
+    if (rules.frame && stage.offsetHeight) {
+      fit = within(stage, rules);
+      if (fit === null && this._trim(stage, rules)) fit = within(stage, rules);
+      if (fit === null) fit = safetyNet(stage, rules);
+      fit = Math.floor(fit * 1000) / 1000;
     }
     stage.style.setProperty("--fit", String(fit));
     stage.dataset.fit = fit.toFixed(2);
     this.fit = fit;
+    this.partial = stage.dataset.partial || "";
+    var roll = stage.querySelector(".vo-nums .vo-roll:not(.is-leaving)");
+    this.shown = this.partial && roll ? roll.textContent : "";
     // Still taller than the safe area at the smallest size: say so (Studio hint).
     this.overflow = !!(
-      height &&
-      frame &&
-      stage.offsetHeight > frame * SAFE_HEIGHT + 1
+      rules.frame &&
+      stage.offsetHeight > rules.frame * SAFE_HEIGHT + 1
     );
     this._fitMargin(stage);
     return fit;
+  };
+
+  /**
+   * Plans for the operator's « Découper »: contiguous ranges of whole verses,
+   * each fitting the rules on air (measured here, with the real typefaces, at
+   * the width of the stage). Null when the passage has no verses to split.
+   */
+  Renderer.prototype.pages = function (data) {
+    var P = V.Passage,
+      all = P && data ? P.verses(data.html) : [];
+    if (all.length < 2) return null;
+    var self = this,
+      width = self.card ? self.card.offsetWidth : 0,
+      second = secondaryOf(data),
+      theirs = second ? P.verses(second.html) : null;
+    if (!width || (second && theirs.length < 2)) return null;
+    var markup = function (list) {
+      return list
+        .map(function (v) {
+          return v.html;
+        })
+        .join(" ");
+    };
+    var ok = function (i, j) {
+      var lo = all[i].num,
+        hi = all[j].num,
+        part = Object.assign({}, data, {
+          html: markup(all.slice(i, j + 1)),
+          reference: P.range(data.reference, lo, hi),
+        });
+      if (second)
+        part.secondary = Object.assign({}, second, {
+          html: markup(
+            theirs.filter(function (v) {
+              return v.num >= lo && v.num <= hi;
+            }),
+          ),
+          reference: P.range(second.reference, lo, hi),
+        });
+      var probe = self._probe(part, width, true),
+        rules = self._rules(probe),
+        result = fits(probe, rules, rules.minFit);
+      probe.remove();
+      return result;
+    };
+    var ranges = [],
+      i = 0;
+    while (i < all.length) {
+      var best = i,
+        a = i + 1,
+        b = all.length - 1;
+      while (a <= b) {
+        var m = (a + b) >> 1;
+        if (ok(i, m)) {
+          best = m;
+          a = m + 1;
+        } else b = m - 1;
+      }
+      ranges.push([all[i].num, all[best].num]);
+      i = best + 1;
+    }
+    return ranges;
   };
 
   /** Long book names and ranges (« 119:105-112 ») stay inside the margin. */
@@ -679,7 +865,9 @@
       copy.style.opacity = "0";
       p.body.appendChild(copy);
       var oldRoll = null,
-        newRoll = null;
+        newRoll = null,
+        probeRoll = probe.querySelector(".vo-nums .vo-roll"),
+        shownNums = probeRoll ? probeRoll.textContent : newSplit.nums;
       if (roll) {
         var nums = p.block.querySelector(".vo-nums");
         // Numbers still leaving from an interrupted roll fade out quickly.
@@ -691,7 +879,7 @@
         });
         oldRoll = nums.querySelector(".vo-roll");
         oldRoll.classList.add("is-leaving");
-        newRoll = node("span", "vo-roll", newSplit.nums);
+        newRoll = node("span", "vo-roll", shownNums);
         newRoll.style.transform = "translateY(100%)";
         newRoll.style.opacity = "0";
         nums.appendChild(newRoll);
@@ -715,6 +903,8 @@
         else stage.style.removeProperty(name);
       });
       stage.dataset.fit = probe.dataset.fit;
+      if (probe.dataset.partial) stage.dataset.partial = probe.dataset.partial;
+      else delete stage.dataset.partial;
       probe.remove();
 
       // …settle the geometry of the new content…
@@ -1115,7 +1305,9 @@
     if (style.bgImage !== undefined)
       set("--bg-image", style.bgImage ? 'url("' + style.bgImage + '")' : "none");
     if (this.card && this._data && !deferFit) {
-      this._classes(this.card, this._data, secondaryOf(this._data));
+      // Rebuilt from the data: a passage shortened for one style may show
+      // more verses with another.
+      this._fill(this.card, this._data);
       this._fit(this.card);
     }
   };

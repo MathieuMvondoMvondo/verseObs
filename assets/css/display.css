@@ -323,8 +323,10 @@ body {
   white-space: nowrap;
 }
 .layout-antenne .vo-version {
-  margin-top: 0.7em;
-  font-size: calc(var(--ref-font-size) * 0.8);
+  margin-top: 0.6em;
+  /* never thinner than the reference size: fine coloured text smears in a
+     compressed stream */
+  font-size: var(--ref-font-size);
   font-weight: 600;
   letter-spacing: 0.04em;
   line-height: 1.2;
@@ -393,7 +395,7 @@ body {
 .layout-antenne .verse-translation-label {
   font-family: var(--title-font);
   /* labels keep their size when a long text is reduced */
-  font-size: calc(var(--ref-font-size) * 0.8);
+  font-size: var(--ref-font-size);
   font-weight: 600;
   letter-spacing: 0.04em;
   line-height: 1.3;
@@ -419,6 +421,46 @@ body {
   font-style: italic;
   font-size: 0.94em;
   opacity: 0.9;
+}
+/* Two translations in a band: side by side, each column read like its own
+   subtitle (half the height of two stacked blocks). */
+.lower-third.layout-antenne .verse-card-bilingual .vo-copy,
+.upper-third.layout-antenne .verse-card-bilingual .vo-copy {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas:
+    "label second"
+    "text second";
+  column-gap: 1.2em;
+  align-items: start;
+  max-width: none;
+}
+.lower-third.layout-antenne .verse-card-bilingual .vo-copy > .verse-translation-label,
+.upper-third.layout-antenne .verse-card-bilingual .vo-copy > .verse-translation-label {
+  grid-area: label;
+}
+.lower-third.layout-antenne .verse-card-bilingual .vo-copy > .verse-text,
+.upper-third.layout-antenne .verse-card-bilingual .vo-copy > .verse-text {
+  grid-area: text;
+}
+.lower-third.layout-antenne .verse-card-bilingual .verse-secondary,
+.upper-third.layout-antenne .verse-card-bilingual .verse-secondary {
+  grid-area: second;
+  margin-top: 0;
+  padding-top: 0;
+}
+/* side by side, both translations keep the same (readable) size */
+.lower-third.layout-antenne .verse-card-bilingual .verse-secondary-text,
+.upper-third.layout-antenne .verse-card-bilingual .verse-secondary-text {
+  font-size: 1em;
+}
+.lower-third.layout-antenne .verse-card-bilingual .verse-secondary::before,
+.upper-third.layout-antenne .verse-card-bilingual .verse-secondary::before {
+  top: 0.15em;
+  bottom: 0.15em;
+  left: -0.6em;
+  width: max(1px, 0.04em);
+  height: auto;
 }
 
 /* ---- Layout « carte » (previous framed templates) -------------------------- */

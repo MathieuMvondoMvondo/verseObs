@@ -528,6 +528,75 @@ ok(
 );
 
 // ===================================================================
+group("passage — découpage aux frontières de versets");
+
+load("assets/js/shared/passage.js");
+load("assets/js/shared/secondary.js");
+VerseObs.sanitizeHtml = function (html) {
+  return String(html || "");
+};
+var P = VerseObs.Passage;
+var lsgRaw = JSON.parse(fs.readFileSync(path.join(ROOT, "data/bibles/lsg.json"), "utf8"));
+var kjvRaw = JSON.parse(fs.readFileSync(path.join(ROOT, "data/bibles/kjv.json"), "utf8"));
+function rangeOf(raw, bookName, chapter, a, b) {
+  var book = raw.books.find(function (x) { return x.name === bookName; });
+  var vs = book.chapters.find(function (c) { return c.chapter === chapter; }).verses
+    .filter(function (v) { return v.verse >= a && v.verse <= b; });
+  return {
+    text: vs.map(function (v) { return v.text; }).join(" "),
+    html: vs.map(function (v) {
+      return '<sup class="verse-num">' + v.verse + "</sup> " + v.text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }).join(" "),
+  };
+}
+var ps23 = rangeOf(lsgRaw, "Psaumes", 23, 1, 6),
+  ps23en = rangeOf(kjvRaw, "Psalms", 23, 1, 6);
+var longItem = {
+  id: "cue-ps23-long",
+  type: "verse",
+  text: ps23.text,
+  html: ps23.html,
+  reference: "Psaumes 23:1-6",
+  version: "Louis Segond 1910",
+  secondary: { text: ps23en.text, html: ps23en.html, reference: "Psalms 23:1-6", version: "King James Version", lang: "en" },
+};
+var verses23 = P.verses(longItem.html);
+eq("six verses found in Psaumes 23:1-6", verses23.length, 6);
+eq("verse numbers kept in order", verses23.map(function (v) { return v.num; }).join(","), "1,2,3,4,5,6");
+eq("no verse found in a single verse without markers", P.verses("Car Dieu a tant aimé le monde").length, 0);
+eq("range label", P.range("Psaumes 23:1-6", 4, 6), "Psaumes 23:4-6");
+eq("single verse label", P.range("1 Corinthiens 13:4-7", 5, 5), "1 Corinthiens 13:5");
+var parts23 = P.split(longItem, [[1, 3], [4, 6]], "grp-123456");
+eq("split gives one item per range", parts23.length, 2);
+eq("part 1 reference", parts23[0].reference, "Psaumes 23:1-3");
+eq("part 2 reference", parts23[1].reference, "Psaumes 23:4-6");
+eq("part 1 keeps the item's identifier (tally on air)", parts23[0].id, "cue-ps23-long");
+ok("part 2 gets its own identifier", !parts23[1].id);
+ok("part 2 starts at verse 4", /^<sup class="verse-num">4<\/sup>/.test(parts23[1].html));
+ok("part text has no verse numbers", parts23[1].text.indexOf("4") !== 0 && parts23[1].text.length > 40);
+eq("part numbering", parts23[1].part + "/" + parts23[1].parts, "2/2");
+eq("parts remember the whole passage", parts23[1].whole, "Psaumes 23:1-6");
+eq("second translation follows the parts", parts23[1].secondary.reference, "Psalms 23:4-6");
+ok("…with its own verses", /^<sup class="verse-num">4<\/sup>/.test(parts23[1].secondary.html));
+var merged23 = P.merge(parts23);
+eq("merging restores the reference", merged23.reference, "Psaumes 23:1-6");
+eq("merging restores the text", merged23.text.replace(/\s+/g, " "), longItem.text.replace(/\s+/g, " "));
+eq("merging restores the markup", merged23.html.replace(/\s+/g, " "), longItem.html.replace(/\s+/g, " "));
+eq("merging restores the second reference", merged23.secondary.reference, "Psalms 23:1-6");
+eq("merged item keeps the identifier", merged23.id, "cue-ps23-long");
+ok("merged item is no longer a part", !merged23.group && !merged23.part && !merged23.parts);
+var est = P.estimate(longItem, 260);
+ok(
+  "estimate covers every verse once, in order",
+  est.length >= 2 && est[0][0] === 1 && est[est.length - 1][1] === 6 &&
+    est.every(function (r, i) { return i === 0 || r[0] === est[i - 1][1] + 1; }),
+);
+var kept = VerseObs.Queue.validateItems([Object.assign({}, parts23[1], { id: "cue-part-2" })])[0];
+eq("the conductor keeps the part fields", [kept.group, kept.part, kept.parts, kept.whole].join("|"), "grp-123456|2|2|Psaumes 23:1-6");
+var dropped = VerseObs.Queue.validateItems([{ type: "verse", text: "x", group: "<b>", part: -1, parts: "x", whole: 3 }])[0];
+ok("invalid part fields are dropped", !dropped.group && !dropped.part && !dropped.parts && !dropped.whole);
+
+// ===================================================================
 group("plan — limites de la version active");
 
 load("assets/js/control/bible-loader.js");

@@ -3751,6 +3751,28 @@ body[data-onair="pending"] #program-stage {
 .fit-hint.is-warning {
   color: var(--pgm-strong);
 }
+/* « Découper »: the explicit, one-click answer to a passage too long for the band. */
+.monitor-action {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--pending-border);
+  border-radius: 8px;
+  background: #2a2214;
+  color: #ffe2a8;
+  font: 600 14px var(--cp-font);
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    transform 0.12s ease-out;
+}
+@media (hover: hover) and (pointer: fine) {
+  .monitor-action:hover {
+    background: #3a2e17;
+  }
+}
+.monitor-action:active {
+  transform: scale(0.97);
+}
 .monitor-switch {
   display: none;
   grid-area: switch;
@@ -4000,6 +4022,37 @@ body[data-onair="pending"] .cp-btn-hide {
 .queue-selection-preview .editor-badge {
   font: 700 11px/1 var(--tally-font);
   letter-spacing: 0.1em;
+}
+
+/* Plans of a split passage read as one group in the conductor. */
+.cp-queue-item.is-part {
+  border-left: 3px solid #4b5468;
+}
+.cp-queue-item.is-part:not(.is-part-last) {
+  margin-bottom: 2px;
+}
+.cp-queue-part {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 3px 6px 2px;
+  border-radius: 4px;
+  background: #23262d;
+  color: #c9cdd6;
+  font: 600 12px/1.1 var(--tally-font);
+  letter-spacing: 0.04em;
+  vertical-align: 1px;
+}
+.queue-merge {
+  display: block;
+  min-height: 40px;
+  margin-top: 12px;
+  padding: 0 14px;
+  border: 1px solid #3b3e46;
+  border-radius: 8px;
+  background: #1d1f24;
+  color: #d5d8df;
+  font: 600 13px var(--cp-font);
+  cursor: pointer;
 }
 
 /* ---- Overlay style choice ------------------------------------------------- */

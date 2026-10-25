@@ -98,6 +98,10 @@
         el("queue-selection-text").innerHTML = V.sanitizeHtml(selected.html);
       else
         el("queue-selection-text").textContent = selected ? selected.text : "";
+      el("btn-merge").hidden = !(selected && selected.group);
+      if (selected && selected.group)
+        el("btn-merge").textContent =
+          "Regrouper les " + selected.parts + " plans (" + selected.whole + ")";
       if (selected && selected.secondary) {
         var second = document.createElement("span");
         second.className = "queue-secondary-text";
@@ -418,8 +422,36 @@
     selectedPreview.className = "queue-selection-preview";
     selectedPreview.id = "queue-selection-preview";
     selectedPreview.innerHTML =
-      '<span class="editor-badge" id="queue-selection-badge">PRÊT À DIFFUSER</span><h3 id="queue-selection-title"></h3><p id="queue-selection-text"></p>';
+      '<span class="editor-badge" id="queue-selection-badge">PRÊT À DIFFUSER</span><h3 id="queue-selection-title"></h3><p id="queue-selection-text"></p>' +
+      '<button class="queue-merge" id="btn-merge" type="button" hidden>Regrouper</button>';
     el("btn-queue-show").parentElement.before(selectedPreview);
+    // « Regrouper » undoes « Découper »: the plans become the passage again.
+    on("btn-merge", function () {
+      var items = api.queue.getItems(),
+        selected = items[api.queue.getState().current - 1];
+      if (!selected || !selected.group) return;
+      var indexes = [];
+      items.forEach(function (item, i) {
+        if (item.group === selected.group) indexes.push(i);
+      });
+      var parts = indexes.map(function (i) {
+        return items[i];
+      });
+      var whole = V.Passage.merge(parts);
+      // Plans moved apart by hand are gathered at the first one's place.
+      var rest = items.filter(function (item) {
+        return item.group !== selected.group;
+      });
+      rest.splice(indexes[0], 0, whole);
+      try {
+        api.queue.splice(0, items.length, rest);
+        api.queue.select(indexes[0]);
+      } catch (e) {
+        api.notify(e.message, "error");
+        return;
+      }
+      api.notify(whole.reference + " regroupé", "success");
+    });
     api.queue.onChange = updateQueue;
     updateQueue();
     on("command-trigger", api.openPalette);
@@ -784,22 +816,42 @@
       el("monitor-program").classList.toggle("is-live", output.visible);
       if (api) markLive();
     },
-    /** What the preview monitor reports about the prepared text. */
+    /**
+     * What the preview monitor reports about the prepared text: reduced, too
+     * long for the band (with the plans « Découper » would create), or too
+     * long even for the whole frame.
+     */
     setFit: function (info) {
-      var hint = el("fit-hint");
+      var hint = el("fit-hint"),
+        split = el("btn-split");
       if (!hint) return;
-      var fit = Number(info && info.fit) || 1;
-      if (!info || !info.visible || (fit >= 0.98 && !info.overflow)) {
+      var fit = Number(info && info.fit) || 1,
+        pages = info && Array.isArray(info.pages) ? info.pages : null;
+      if (split) {
+        split.hidden = !(info && info.visible && pages && pages.length > 1);
+        split.textContent = split.hidden
+          ? "Découper"
+          : "Découper en " + pages.length + " plans";
+      }
+      if (
+        !info ||
+        !info.visible ||
+        (fit >= 0.98 && !info.overflow && !info.partial)
+      ) {
         hint.hidden = true;
         hint.textContent = "";
         hint.classList.remove("is-warning");
         return;
       }
       hint.hidden = false;
-      hint.classList.toggle("is-warning", !!info.overflow);
-      hint.textContent = info.overflow
-        ? "Trop long pour l’écran : découpez le passage"
-        : "Texte réduit à " + Math.round(fit * 100) + " % pour tenir à l’écran";
+      hint.classList.toggle("is-warning", !!(info.overflow || info.partial));
+      hint.textContent = info.partial
+        ? "Trop long pour le bandeau : seuls " +
+          info.shown +
+          " passeraient à l’antenne (4 lignes, 32 px minimum)."
+        : info.overflow
+          ? "Trop long pour l’écran : découpez le passage"
+          : "Texte réduit à " + Math.round(fit * 100) + " % pour tenir à l’écran";
     },
   };
 })();

@@ -36,6 +36,8 @@
   // Commands recently sent by this Studio (id, time): a late acknowledgement of
   // an older one must not confirm the latest command.
   var _commands = [];
+  // Last report of the preview monitor (fit, plans of a too long passage).
+  var _fitInfo = null;
   var _lastSent = { label: "", version: "" };
   var currentBibleId = null;
   var currentBibleData = null;
@@ -520,6 +522,8 @@
     if (dom.onairHide) {
       dom.onairHide.addEventListener("click", _hideVerse);
     }
+    var split = document.getElementById("btn-split");
+    if (split) split.addEventListener("click", _splitPrepared);
 
     // Live preview while editing free text
     var ftInputs = [
@@ -817,6 +821,64 @@
         dom.btnAddQueue.textContent = "+ Ajouter au conducteur";
       }, 1000);
     }
+  }
+
+  /**
+   * « Découper » — the passage in the preview becomes consecutive plans of
+   * whole verses, each fitting the band (measured by the preview monitor).
+   * In the conductor the item is replaced in place (its first plan keeps the
+   * item's identity); from the Bible the plans are added to the conductor.
+   * « Regrouper » undoes it. Never automatic: only this explicit action.
+   */
+  function _splitPrepared() {
+    var P = window.VerseObs.Passage,
+      pages = _fitInfo && _fitInfo.pages;
+    if (!P || !pages || pages.length < 2) return;
+    var group = "g" + window.VerseObs.Queue.newId(),
+      inQueue = document.body.dataset.tab === "2",
+      index = queue.getState().current - 1,
+      item = inQueue
+        ? queue.getItems()[index]
+        : (function () {
+            var disp = _activeDisplay();
+            if (!disp || !bilingual.ready()) return null;
+            return {
+              type: "verse",
+              secondary: bilingual.value(),
+              text: dom.previewText.innerText || disp.text,
+              html: _getFormattedHtml() || disp.html || "",
+              reference: disp.reference,
+              version: disp.version,
+            };
+          })();
+    if (!item || item.type !== "verse") return;
+    var parts = P.split(item, pages, group);
+    if (!parts.length) {
+      _notify(
+        "Découpage impossible : le texte n’a plus ses numéros de verset (deuxième traduction modifiée à la main ?).",
+        "error",
+      );
+      return;
+    }
+    try {
+      if (inQueue) queue.splice(index, 1, parts);
+      else {
+        var at = queue.getState().total;
+        queue.addMany(parts);
+        queue.select(at);
+      }
+    } catch (e) {
+      _notify(e.message, "error");
+      return;
+    }
+    _notify(
+      item.reference +
+        " découpé en " +
+        parts.length +
+        " plans dans le conducteur. « Regrouper » rétablit le passage.",
+      "success",
+    );
+    if (!inQueue) _switchTab(2);
   }
 
   function _addFreeTextToQueue() {
@@ -1324,9 +1386,11 @@
             : label === _lastSent.label
               ? _lastSent.version
               : "";
+        _output.shown = typeof msg.shown === "string" ? msg.shown : "";
         _setOnAir(msg.label || "Texte libre");
       } else {
         _onAirItem = null;
+        _output.shown = "";
         _output.visible = false;
         _output.confirmed = false;
         _output.label = "";
@@ -1373,6 +1437,7 @@
       _output.label = String(msg.reference || msg.title || "Texte libre");
       _output.cue = String(msg.cue || "");
       _output.version = String(msg.version || "");
+      _output.shown = "";
       _lastSent = { label: _output.label, version: _output.version };
       _paintOnAir();
       _outputChanged();
@@ -1640,6 +1705,7 @@
         e.data.type !== "verseobs:fit"
       )
         return;
+      _fitInfo = e.data;
       if (window.VerseObs.Studio && window.VerseObs.Studio.setFit)
         window.VerseObs.Studio.setFit(e.data);
     });
@@ -1755,7 +1821,12 @@
   // ---- On-air tracking ----
 
   function _setOnAir(label) {
-    if (dom.onairRef) dom.onairRef.textContent = label || "";
+    if (dom.onairRef)
+      dom.onairRef.textContent =
+        (label || "") +
+        (_output.visible && _output.shown
+          ? " · seuls " + _output.shown + " à l’antenne"
+          : "");
     _paintOnAir();
   }
 
@@ -1773,6 +1844,7 @@
     off: "Rien n’est diffusé",
     pending: "Commande de diffusion",
     live: "Sortie confirmée",
+    partial: "Sortie partielle",
   };
   function _paintOnAir() {
     var state = !_output.visible
@@ -1783,7 +1855,9 @@
     if (dom.onairBar) {
       dom.onairBar.dataset.state = state;
       var label = dom.onairBar.querySelector(".cp-onair-label");
-      if (label) label.textContent = ONAIR_LABELS[state];
+      if (label)
+        label.textContent =
+          ONAIR_LABELS[state === "live" && _output.shown ? "partial" : state];
       if (state === "off" && dom.onairRef) dom.onairRef.textContent = "";
     }
     document.body.dataset.onair = state;

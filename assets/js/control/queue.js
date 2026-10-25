@@ -120,6 +120,32 @@
   };
 
   /**
+   * Replace `count` items at `index` by `items` (« Découper », « Regrouper »)
+   * and select the first new one. Identifiers of the replaced items may be
+   * reused (a plan keeps the passage's cue while it is on air).
+   */
+  Queue.prototype.splice = function (index, count, items) {
+    var clean = Queue.validateItems(items),
+      kept = this._items.slice(0, index).concat(this._items.slice(index + count));
+    if (kept.length + clean.length > 500)
+      throw new Error("Le conducteur est limité à 500 éléments.");
+    var used = {};
+    kept.forEach(function (item) {
+      used[item.id] = true;
+    });
+    clean.forEach(function (item) {
+      if (used[item.id]) item.id = Queue.newId();
+      used[item.id] = true;
+    });
+    this._items = this._items
+      .slice(0, index)
+      .concat(clean, this._items.slice(index + count));
+    this._currentIndex = clean.length ? index : Math.min(index, this._items.length - 1);
+    this._save();
+    this.render();
+  };
+
+  /**
    * Remove item at index.
    */
   Queue.prototype.remove = function (index) {
@@ -308,6 +334,16 @@
           titleEl.textContent =
             (item.reference || "Verset") +
             (item.secondary ? " · 2 versions" : "");
+          if (item.group) {
+            // A plan of a split passage: its place in the whole.
+            row.classList.add("is-part");
+            if (item.part === 1) row.classList.add("is-part-first");
+            if (item.part === item.parts) row.classList.add("is-part-last");
+            var partEl = document.createElement("span");
+            partEl.className = "cp-queue-part";
+            partEl.textContent = "plan " + item.part + "/" + item.parts;
+            titleEl.appendChild(partEl);
+          }
         } else {
           titleEl.textContent = item.title || "Texte libre";
         }
@@ -445,6 +481,25 @@
       );
       if (item.secondary != null)
         clean.secondary = window.VerseObs.validateSecondary(item.secondary);
+      // A plan of a split passage (« Découper ») remembers its group, its
+      // place and the whole passage, so that « Regrouper » can undo it.
+      if (
+        typeof item.group === "string" &&
+        ID.test(item.group) &&
+        Number.isInteger(item.part) &&
+        Number.isInteger(item.parts) &&
+        item.parts >= 2 &&
+        item.parts <= 500 &&
+        item.part >= 1 &&
+        item.part <= item.parts &&
+        typeof item.whole === "string" &&
+        item.whole.length <= 200
+      ) {
+        clean.group = item.group;
+        clean.part = item.part;
+        clean.parts = item.parts;
+        clean.whole = item.whole;
+      }
       return clean;
     });
   };

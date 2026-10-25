@@ -31,6 +31,8 @@
         cue: cue,
         version: version,
         command: command,
+        // A passage too long for its band shows its first verses only.
+        shown: visible && renderer && renderer.partial ? renderer.shown : "",
       });
   }
   /** The Studio's preview monitor tells the operator when a text was reduced. */
@@ -43,6 +45,14 @@
           visible: visible,
           fit: renderer ? renderer.fit : 1,
           overflow: renderer ? renderer.overflow : false,
+          // Too long for the band: what would go on air, and the plans
+          // (whole verses) the operator may split it into.
+          partial: renderer && renderer.partial ? renderer.partial : "",
+          shown: renderer && renderer.partial ? renderer.shown : "",
+          pages:
+            renderer && renderer.partial && renderer._data
+              ? renderer.pages(renderer._data)
+              : null,
         },
         location.origin,
       );

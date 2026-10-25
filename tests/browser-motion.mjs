@@ -182,7 +182,9 @@ try {
     await settle(page);
     let f = await frames(page);
     assert.ok(Math.min(...f.map((x) => x.scrim)) > 0.999);
-    finalOk(f[f.length - 1], "Psaumes 23:1-6");
+    // Too long for a lower third: its first whole verses, named on air.
+    finalOk(f[f.length - 1]);
+    assert.match(f[f.length - 1].ref, /^Psaumes 23:1-[2-5]$/);
     await send(page, { ...C, settings: settings() });
     await settle(page);
     f = await frames(page);
@@ -257,18 +259,29 @@ try {
     assert.ok(lines.every(([o, t]) => o === "1" && (t === "none" || t === "matrix(1, 0, 0, 1, 0, 0)")));
   });
 
-  await check("Long chapter: fitted inside the safe area, never cut", async () => {
+  await check("Long chapter: whole verses at ≥ 32 px in a band ≤ 40 %, never a wall", async () => {
     await send(page, { ...verse("Psaumes", 119, 105, 128), settings: settings() });
     await settle(page, 2000);
     const g = await page.evaluate(() => {
       const card = document.querySelector(".verse-card");
-      const r = card.getBoundingClientRect();
-      const t = document.querySelector(".vo-copy").getBoundingClientRect();
-      return { top: r.top, bottom: r.bottom, textBottom: t.bottom, h: innerHeight, fit: Number(card.dataset.fit) };
+      const scrim = card.querySelector(".vo-scrim").getBoundingClientRect();
+      const text = card.querySelector(".verse-text");
+      return {
+        share: (innerHeight - scrim.top) / innerHeight,
+        top: card.getBoundingClientRect().top,
+        h: innerHeight,
+        body: parseFloat(getComputedStyle(text).fontSize),
+        nums: card.querySelector(".vo-roll").textContent,
+        partial: card.dataset.partial || "",
+      };
     });
-    assert.ok(g.fit < 1, "text reduced");
+    assert.ok(g.share <= 0.405, "band share " + g.share.toFixed(3));
+    assert.ok(g.body >= 31.5, "body " + g.body + " px");
     assert.ok(g.top >= g.h * 0.05 - 1, "top inside the safe area");
-    assert.ok(g.textBottom <= g.h * 0.95, "bottom inside the safe area");
+    // The reference on air names exactly the verses shown.
+    assert.match(g.nums, /^119:105-1\d\d$/);
+    assert.ok(Number(g.nums.split("-")[1]) < 128, "first verses only: " + g.nums);
+    assert.equal(g.partial, "119:105-128");
   });
 
   await check("Two translations: both blocks present and fitted", async () => {
