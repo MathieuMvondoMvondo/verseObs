@@ -1002,6 +1002,96 @@ try {
   await mc.close();
   }
 
+  // ---- A style change is reported at once: the program strip follows the
+  // output's new fit, not the next ping (every 3 s).
+  if (run("style")) {
+  const sc = await open(1920, 1080);
+  /**
+   * Just after a ping (the next one is 3 s away), the operator changes the
+   * position: when does the output send its next report, and when does the
+   * Studio's program strip change?
+   */
+  async function restyle(position) {
+    const r = await sc.studio.evaluate(
+      (position) =>
+        new Promise((resolve) => {
+          const strip = () =>
+            document.querySelector("#onair-bar .cp-onair-label").textContent + " | " + document.querySelector("#onair-ref").textContent;
+          const bus = new BroadcastChannel("verseobs");
+          bus.onmessage = (e) => {
+            if (e.data.type !== "ping" || bus.waiting) return;
+            bus.waiting = true;
+            bus.close();
+            // Once the output has answered this ping, change the position.
+            setTimeout(() => {
+              const before = strip();
+              let ms = null;
+              const obs = new MutationObserver(() => {
+                if (ms === null && strip() !== before) ms = Math.round(performance.now() - t);
+              });
+              obs.observe(document.querySelector("#onair-bar"), { subtree: true, childList: true, characterData: true });
+              const select = document.querySelector('#tab-settings [data-setting="position"]');
+              const at = Date.now(),
+                t = performance.now();
+              select.value = position;
+              select.dispatchEvent(new Event("change", { bubbles: true }));
+              // Well before the next ping.
+              setTimeout(() => {
+                obs.disconnect();
+                resolve({ at, before, after: strip(), ms });
+              }, 2000);
+            }, 150);
+          };
+        }),
+      position,
+    );
+    // The output's reports, as it sends them (same wall clock).
+    const sent = await sc.output.evaluate(() => window.__reports);
+    const first = sent.find((x) => x >= r.at);
+    return { before: r.before, after: r.after, report: first === undefined ? null : first - r.at, strip: r.ms };
+  }
+  await check("A style change is reported within 300 ms and the program strip follows it (lower third ⇄ centre)", async () => {
+    const { studio, output } = sc;
+    await output.evaluate(() => {
+      window.__reports = [];
+      const post = BroadcastChannel.prototype.postMessage;
+      BroadcastChannel.prototype.postMessage = function (m) {
+        if (m && m.type === "output_state") window.__reports.push(Date.now());
+        return post.call(this, m);
+      };
+    });
+    await prepare(studio, "Psaumes 23:1-6");
+    await studio.click("#btn-show");
+    await output.waitForFunction(() => document.querySelector(".verse-card")?.dataset.partial === "23:1-6");
+    await studio.waitForFunction(() => /Sortie partielle/.test(document.querySelector("#onair-bar .cp-onair-label").textContent));
+    await studio.evaluate(() => document.querySelector("#tab-btn-4").click());
+    // A pause of the VPS can delay one report or the Studio itself (seen:
+    // 310 ms once): the cycle is then measured again. Without a report on a
+    // style change, the strip waits for the next ping and fails at once.
+    const cycle = async (attempt) => {
+      const slow = [];
+      for (const [position, strip, partial] of [
+        ["center", "Sortie confirmée | Psaumes 23:1-6", ""],
+        ["lower-third", "Sortie partielle · demandé 23:1-6 | Psaumes 23:1-3", "23:1-6"],
+      ]) {
+        const r = await restyle(position);
+        console.log("    attempt " + attempt + " → " + position + ": " + JSON.stringify(r));
+        assert.ok(r.strip !== null, position + ": the program strip still says « " + r.after + " » before the next ping");
+        assert.equal(r.after, strip);
+        assert.equal(await output.evaluate(() => document.querySelector(".verse-card").dataset.partial || ""), partial);
+        if (!(r.report !== null && r.report < 300 && r.strip < 1000))
+          slow.push(position + ": report after " + r.report + " ms, strip after " + r.strip + " ms");
+      }
+      return slow;
+    };
+    let slow = await cycle(1);
+    if (slow.length) slow = await cycle(2);
+    assert.deepEqual(slow, [], "too slow in both attempts");
+  });
+  assert.deepEqual(sc.errors, []);
+  await sc.ctx.close();
+  }
+
   // ---- Régie readability: type floor, keyboard focus, phone targets.
   if (run("regie")) {
   for (const [w, h] of [[1920, 1080], [1280, 800], [390, 844]]) {

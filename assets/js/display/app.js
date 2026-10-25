@@ -133,6 +133,9 @@
     if (msg.type === MSG.UPDATE_STYLE) {
       cancelMeasure();
       renderer.updateStyle(styleFor(msg.settings));
+      // The new style may fit the text on air differently (whole or in
+      // part): the Studio and the phone learn it now, not at the next ping.
+      report();
       reportFit();
       return;
     }
