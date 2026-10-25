@@ -102,6 +102,10 @@
       : online
         ? "Ajoutez des passages dans le Studio."
         : "";
+    // A plan of a split passage says its place, as in the Studio's conductor.
+    var plan = current && current.parts ? "plan " + current.part + "/" + current.parts : "";
+    $("current-plan").textContent = plan;
+    $("current-plan").hidden = !plan;
     $("next-ref").textContent = next ? next.label : online && total ? "Fin du conducteur" : "—";
     $("next-text").textContent = next ? next.text : "";
     var out = (online && s.output) || null,

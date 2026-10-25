@@ -526,6 +526,13 @@ ok(
     .sanitizeState({ output: { cue: new Array(300).join("x") } })
     .output.cue === new Array(65).join("x"),
 );
+// A plan of a split passage: the phone says « plan 2/12 », from integers only.
+var planState = require(path.join(ROOT, "tools/server.js")).sanitizeState({
+  current: { label: "Psaumes 119:5-8", text: "t", cue: "cue-2", part: 2, parts: 12 },
+  next: { label: "Psaumes 119:9-12", text: "t", cue: "cue-3", part: "3", parts: 12 },
+});
+eq("the phone receives the plan's place", [planState.current.part, planState.current.parts].join("/"), "2/12");
+eq("…and nothing for a malformed place", [planState.next.part, planState.next.parts].join("/"), "0/0");
 // A passage too long for its band: the phone must say what really passes.
 var partialState = require(path.join(ROOT, "tools/server.js")).sanitizeState({
   output: { visible: true, confirmed: true, label: "Psaumes 119:1-48", cue: "cue-1", shown: "119:1-4" },

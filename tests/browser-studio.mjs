@@ -793,13 +793,29 @@ try {
       version: "Louis Segond 1910",
     };
     const jn = { id: "jean316xx", type: "verse", text: "Car Dieu a tant aimé le monde.", reference: "Jean 3:16", version: "Louis Segond 1910" };
+    // Two plans of a split passage (« Découper ») after Jean 3:16.
+    const plans = [1, 5].map((from, i) => {
+      const vs = ps.filter((v) => v.verse >= from && v.verse < from + 4);
+      return {
+        id: "ps119plan" + (i + 1) + "x",
+        type: "verse",
+        text: vs.map((v) => v.text).join(" "),
+        html: vs.map((v) => `<sup class="verse-num">${v.verse}</sup> ${v.text}`).join(" "),
+        reference: `Psaumes 119:${from}-${from + 3}`,
+        version: "Louis Segond 1910",
+        group: "ps119grpx",
+        part: i + 1,
+        parts: 2,
+        whole: "Psaumes 119:1-8",
+      };
+    });
     const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
     await ctx.addInitScript((q) => {
       if (location.pathname.endsWith("control_panel.html") && !sessionStorage.getItem("__seeded")) {
         localStorage.setItem("verseobs_queue", q);
         sessionStorage.setItem("__seeded", "1");
       }
-    }, JSON.stringify({ items: [whole, jn], currentIndex: 0 }));
+    }, JSON.stringify({ items: [whole, jn, ...plans], currentIndex: 0 }));
     const errors = [];
     const output = await ctx.newPage();
     output.on("pageerror", (e) => errors.push("output: " + e.message));
@@ -849,6 +865,57 @@ try {
       const l = await line();
       assert.equal(l.text, "Sortie confirmée · Jean 3:16");
       assert.equal(l.live, "À l’antenne");
+    });
+    await check("Phone: 56 px status band, session on one 14 px line, « plan n/N », the four commands fixed in the bottom 260 px (Masquer 16 px under Diffuser)", async () => {
+      await phone.click("[data-command=next]");
+      await phone.waitForFunction(() => document.querySelector("#current-ref").textContent === "Psaumes 119:1-4");
+      await phone.click("[data-command=show]");
+      // Confirmed for this plan (the previous check left Jean 3:16 confirmed).
+      await phone.waitForFunction(
+        () => document.querySelector("#output").dataset.state === "confirmed" && document.querySelector("#output-ref").textContent === "Psaumes 119:1-4",
+        null,
+        { timeout: 10000 },
+      );
+      await phone.waitForTimeout(400);
+      const g = await phone.evaluate(() => {
+        const box = (s) => {
+          const r = document.querySelector(s).getBoundingClientRect();
+          return { top: r.top, bottom: r.bottom, left: r.left, right: r.right, width: r.width, height: r.height };
+        };
+        const fixed = (s) => {
+          for (let o = document.querySelector(s); o; o = o.parentElement) if (getComputedStyle(o).position === "fixed") return true;
+          return false;
+        };
+        const plan = document.querySelector("#current-plan");
+        return {
+          vh: innerHeight,
+          vw: document.documentElement.clientWidth,
+          prev: box("[data-command=prev]"),
+          next: box("[data-command=next]"),
+          show: box("[data-command=show]"),
+          hide: box("[data-command=hide]"),
+          band: box("#output"),
+          fixed: ["prev", "next", "show", "hide"].every((c) => fixed("[data-command=" + c + "]")),
+          plan: plan && !plan.hidden ? plan.textContent : "",
+          live: document.querySelector("#current-live").hidden ? "" : document.querySelector("#current-live").textContent,
+          session: { size: getComputedStyle(document.querySelector("#session-name")).fontSize, height: box("#session-name").height },
+          tag: document.querySelector("#output").textContent.replace(/\s+/g, " ").trim(),
+        };
+      });
+      console.log("    phone: " + JSON.stringify({ band: g.band.height, show: [g.show.width, g.show.height], hide: [g.hide.width, g.hide.height, g.hide.top - g.show.bottom], nav: [g.prev.width, g.prev.height], zone: g.vh - g.prev.top, plan: g.plan, tag: g.tag }));
+      assert.ok(g.band.top <= 0.5 && g.band.height <= 56.5, "status band " + JSON.stringify(g.band));
+      assert.match(g.tag, /^Antenne/i, "the band names the program");
+      assert.equal(g.session.size, "14px");
+      assert.ok(g.session.height <= 21, "session on one line: " + g.session.height);
+      assert.equal(g.plan, "plan 1/2");
+      assert.equal(g.live, "À l’antenne");
+      assert.ok(g.fixed, "commands fixed in the thumb zone");
+      assert.ok(g.prev.top >= g.vh - 260 && g.hide.bottom <= g.vh, "the four commands within the bottom 260 px: " + (g.vh - g.prev.top));
+      assert.ok(g.hide.top - g.show.bottom <= 16.5 && g.hide.top > g.show.bottom, "Masquer right under Diffuser: " + (g.hide.top - g.show.bottom) + " px");
+      assert.ok(Math.abs(g.show.width - (g.vw - 32)) <= 1 && g.show.height >= 88, "Diffuser " + g.show.width + "×" + g.show.height);
+      assert.ok(Math.abs(g.hide.width - (g.vw - 32)) <= 1 && g.hide.height >= 56, "Masquer " + g.hide.width + "×" + g.hide.height);
+      for (const b of [g.prev, g.next]) assert.ok(b.width >= 170 && b.height >= 64, "Préc./Suiv. " + b.width + "×" + b.height);
+      await phone.screenshot({ path: path.join(ROOT, "artifacts", "phone-thumb-390.png") });
     });
     assert.deepEqual(errors, []);
     await phoneCtx.close();

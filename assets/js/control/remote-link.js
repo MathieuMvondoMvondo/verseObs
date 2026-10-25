@@ -20,6 +20,9 @@
       text: text,
       cue: String(item.id || "").slice(0, 64),
       version: String(item.version || "").slice(0, 80),
+      // « plan 2/12 » on the phone, as in the conductor.
+      part: item.group ? item.part : 0,
+      parts: item.group ? item.parts : 0,
     };
   }
 

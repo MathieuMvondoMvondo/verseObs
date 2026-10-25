@@ -95,7 +95,19 @@ function summary(value) {
     // Identifier of the conductor item: the phone marks the row on air by it.
     cue: text(value.cue, 64),
     version: text(value.version, 80),
+    // Place of a plan in its split passage (« plan 2/12 »), else 0/0.
+    ...plan(value),
   };
+}
+function plan(value) {
+  const ok =
+    Number.isInteger(value.part) &&
+    Number.isInteger(value.parts) &&
+    value.parts >= 2 &&
+    value.parts <= 500 &&
+    value.part >= 1 &&
+    value.part <= value.parts;
+  return ok ? { part: value.part, parts: value.parts } : { part: 0, parts: 0 };
 }
 /**
  * Verses really on air when a passage is too long for its band (« 119:1-4 »):
