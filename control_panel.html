@@ -9,8 +9,8 @@
       content="Votre studio de diffusion biblique. Préparez, organisez et diffusez vos passages dans OBS."
     />
     <title>VerseObs — Studio</title>
-    <link rel="stylesheet" href="assets/css/control.css?v=2.1" />
-    <link rel="stylesheet" href="assets/css/studio.css?v=2.1" />
+    <link rel="stylesheet" href="assets/css/control.css?v=2.2" />
+    <link rel="stylesheet" href="assets/css/studio.css?v=2.2" />
   </head>
   <body data-tab="0">
     <a class="skip-link" href="#search-input">Aller à la recherche</a>
@@ -1002,6 +1002,16 @@
               hidden
             />
           </div>
+          <button class="plan-open" id="btn-open-plan" type="button" data-open-plan>
+            <img
+              class="icon"
+              src="assets/icons/clipboard-paste.svg"
+              alt=""
+              width="15"
+              height="15"
+            /><span class="plan-open-label">Coller un plan</span
+            ><span class="plan-open-hint">Toutes les références d’un message</span>
+          </button>
           <div class="cp-queue-controls">
             <button
               class="cp-btn cp-btn-nav"
@@ -1636,6 +1646,92 @@
       </div>
     </div>
 
+    <!-- Paste a plan: every reference of a message, in order -->
+    <div class="cp-palette-overlay plan-overlay" id="plan-overlay" hidden>
+      <div
+        class="plan-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="plan-title"
+        aria-describedby="plan-intro"
+      >
+        <header class="plan-header">
+          <img
+            class="icon plan-header-icon"
+            src="assets/icons/clipboard-paste.svg"
+            alt=""
+            width="18"
+            height="18"
+          />
+          <div>
+            <h2 id="plan-title">Coller un plan</h2>
+            <p id="plan-intro">
+              Collez votre message ou votre déroulé. Les références bibliques
+              sont repérées pendant que vous tapez, dans l’ordre du texte.
+            </p>
+          </div>
+          <button class="plan-close" id="plan-close" type="button" aria-label="Fermer">
+            <img class="icon" src="assets/icons/x.svg" alt="" width="16" height="16" />
+          </button>
+        </header>
+        <div class="plan-body">
+          <section class="plan-source">
+            <label for="plan-text">VOTRE TEXTE</label>
+            <textarea
+              id="plan-text"
+              maxlength="20000"
+              spellcheck="false"
+              placeholder="Introduction : Jean 3:16&#10;1. L’amour de Dieu (Rm 5:8 ; 8:38-39)&#10;2. Le bon berger : Ps 23"
+            ></textarea>
+            <p class="plan-formats">
+              Reconnu : Jean 3:16 · Jn 3,16 · Jean 3 v 16 · Rm 8.28-30 · Ps 23 ·
+              1 Co 13:4-7 · Jean 3:16 ; 5:24
+            </p>
+          </section>
+          <section class="plan-results" aria-labelledby="plan-results-title">
+            <div class="plan-results-head">
+              <h3 id="plan-results-title">Passages trouvés</h3>
+              <span class="plan-version" id="plan-version"></span>
+              <button class="plan-jump" id="plan-jump-issues" type="button" hidden></button>
+              <button class="plan-toggle-all" id="plan-toggle-all" type="button" hidden>
+                Tout décocher
+              </button>
+            </div>
+            <div class="plan-scroll">
+              <ol class="plan-list" id="plan-list"></ol>
+              <p class="plan-empty" id="plan-empty">
+                Les passages apparaîtront ici pendant que vous tapez.
+              </p>
+              <section class="plan-issues" id="plan-issues" hidden>
+                <h4>
+                  <img
+                    class="icon"
+                    src="assets/icons/triangle-alert.svg"
+                    alt=""
+                    width="13"
+                    height="13"
+                  />À vérifier <span id="plan-issues-count">0</span>
+                </h4>
+                <p>Ces lignes ne seront pas ajoutées.</p>
+                <ul id="plan-issue-list"></ul>
+              </section>
+            </div>
+          </section>
+        </div>
+        <p class="plan-notice" id="plan-notice" role="alert" hidden></p>
+        <footer class="plan-footer">
+          <p class="plan-summary" id="plan-summary" role="status" aria-live="polite">
+            Aucun passage
+          </p>
+          <span class="plan-shortcut"><kbd>Ctrl / ⌘</kbd>+<kbd>Entrée</kbd></span>
+          <button class="plan-cancel" id="plan-cancel" type="button">Annuler</button>
+          <button class="cp-btn cp-btn-show plan-submit" id="plan-submit" type="button" disabled>
+            Ajouter au conducteur
+          </button>
+        </footer>
+      </div>
+    </div>
+
     <!-- Toast notifications (feedback after actions) -->
     <div
       class="cp-toast-container"
@@ -1646,22 +1742,23 @@
     ></div>
 
     <!-- Scripts: shared first, then control modules, then app -->
-    <script src="assets/js/shared/constants.js?v=2.1"></script>
-    <script src="assets/js/shared/books.js?v=2.1"></script>
-    <script src="assets/js/shared/html.js?v=2.1"></script>
-    <script src="assets/js/shared/secondary.js?v=2.1"></script>
-    <script src="assets/js/shared/channel.js?v=2.1"></script>
-    <script src="assets/js/control/bible-loader.js?v=2.1"></script>
-    <script src="assets/js/control/search.js?v=2.1"></script>
-    <script src="assets/js/control/navigation.js?v=2.1"></script>
-    <script src="assets/js/control/settings.js?v=2.1"></script>
-    <script src="assets/js/control/history.js?v=2.1"></script>
-    <script src="assets/js/control/favorites.js?v=2.1"></script>
-    <script src="assets/js/control/freetext.js?v=2.1"></script>
-    <script src="assets/js/control/queue.js?v=2.1"></script>
-    <script src="assets/js/control/backup.js?v=2.1"></script>
-    <script src="assets/js/control/studio.js?v=2.1"></script>
-    <script src="assets/js/control/bilingual.js?v=2.1"></script>
-    <script src="assets/js/control/app.js?v=2.1"></script>
+    <script src="assets/js/shared/constants.js?v=2.2"></script>
+    <script src="assets/js/shared/books.js?v=2.2"></script>
+    <script src="assets/js/shared/html.js?v=2.2"></script>
+    <script src="assets/js/shared/secondary.js?v=2.2"></script>
+    <script src="assets/js/shared/channel.js?v=2.2"></script>
+    <script src="assets/js/control/bible-loader.js?v=2.2"></script>
+    <script src="assets/js/control/search.js?v=2.2"></script>
+    <script src="assets/js/control/plan.js?v=2.2"></script>
+    <script src="assets/js/control/navigation.js?v=2.2"></script>
+    <script src="assets/js/control/settings.js?v=2.2"></script>
+    <script src="assets/js/control/history.js?v=2.2"></script>
+    <script src="assets/js/control/favorites.js?v=2.2"></script>
+    <script src="assets/js/control/freetext.js?v=2.2"></script>
+    <script src="assets/js/control/queue.js?v=2.2"></script>
+    <script src="assets/js/control/backup.js?v=2.2"></script>
+    <script src="assets/js/control/studio.js?v=2.2"></script>
+    <script src="assets/js/control/bilingual.js?v=2.2"></script>
+    <script src="assets/js/control/app.js?v=2.2"></script>
   </body>
 </html>

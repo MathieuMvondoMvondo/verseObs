@@ -257,6 +257,24 @@
   };
 
   /**
+   * Book name and chapter count in a loaded translation, or null.
+   * Used to explain an out-of-range reference instead of guessing.
+   */
+  BibleLoader.prototype.getBookInfo = function (bibleId, bookId) {
+    var bible = this._cache[bibleId];
+    if (!bible) return null;
+    var books = bible.books || bible;
+    var book = books[bookId];
+    if (!book) return null;
+    var chapters = book.chapters || book;
+    var count = 0;
+    Object.keys(chapters).forEach(function (key) {
+      if (/^\d+$/.test(key)) count = Math.max(count, Number(key));
+    });
+    return { name: book.name || String(bookId), chapters: count };
+  };
+
+  /**
    * Get list of books for a loaded Bible.
    * Returns array of { id, name } or null.
    */

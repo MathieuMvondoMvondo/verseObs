@@ -19,6 +19,7 @@
     freeTextStyle,
     bilingual,
     queue,
+    planImport,
     favorites;
   var channel = null;
   var currentBibleId = null;
@@ -166,7 +167,10 @@
     bilingual = new window.VerseObs.Bilingual({
       loader: bibleLoader,
       notify: _notify,
-      changed: _sendPreview,
+      changed: function () {
+        _sendPreview();
+        if (planImport) planImport.refresh();
+      },
       selection: function () {
         if (!currentBibleId) return null;
         var sel = navigation.getSelection();
@@ -298,6 +302,26 @@
       },
     });
     queue.render();
+
+    planImport = new window.VerseObs.PlanImport({
+      search: search,
+      loader: bibleLoader,
+      queue: queue,
+      bilingual: bilingual,
+      notify: _notify,
+      version: function () {
+        var entry =
+          bibleLoader._index &&
+          bibleLoader._index.versions.find(function (v) {
+            return v.id === currentBibleId;
+          });
+        return {
+          id: currentBibleId,
+          name: _currentVersionName(),
+          abbr: entry ? entry.abbr : String(currentBibleId || "").toUpperCase(),
+        };
+      },
+    });
 
     _bindButtons();
     _bindSearch();
@@ -1666,6 +1690,9 @@
 
   function _initKeyboard() {
     document.addEventListener("keydown", function (e) {
+      // The plan dialog owns the keyboard: Escape closes it, never the output.
+      if (planImport && planImport.isOpen()) return;
+
       // Open quick search palette (Ctrl+K), works from anywhere.
       if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")) {
         e.preventDefault();
@@ -1844,6 +1871,7 @@
       currentBibleId = id;
       currentBibleData = data;
       navigation.populateBooks(data);
+      if (planImport) planImport.refresh();
 
       // Restore previous selection if the book/chapter/verse exist in new version
       if (prevSelection && prevSelection.bookId) {

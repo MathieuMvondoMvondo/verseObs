@@ -65,6 +65,16 @@ Ajoutez vos passages et textes avec **Ajouter au conducteur**. Sur grand écran,
 
 Le conducteur est limité à 500 éléments. Le transfert par fichier est explicite ; il n’existe pas de synchronisation collaborative dans le cloud.
 
+### Coller un plan
+
+Dans le conducteur, **Coller un plan** ouvre une fenêtre où vous collez votre message, votre plan de prédication ou votre déroulé. Pendant la frappe, VerseObs liste les références trouvées dans l’ordre du texte, avec leur passage dans la version active et la ligne d’origine. Décochez ce que vous ne voulez pas, puis **Ajouter N passages au conducteur** (ou `Ctrl/⌘ + Entrée`).
+
+- Écritures reconnues : `Jean 3:16`, `Jean 3.16`, `Jean 3 v 16`, `Jean 3 verset 16`, `Jn 3,16`, `Rm 8.28-30`, `Ps 23` (chapitre entier, un seul élément), `1 Co 13:4-7`, `II Corinthiens 5:17`, `Jean 3:16 ; 5:24`, `Jean 3:16, 18`, `Jean 3 versets 16 à 18`, `Jude 24`. Les livres s’écrivent avec ou sans accents, en entier ou abrégés (`Ésaïe`, `Esaie`, `Es`, `Is`).
+- Les heures (`à 10:30`, `10h30`, `10:30-11:00`), les dates (`25.10`), les nombres seuls, un prénom suivi d’une quantité (`Marc 2 chants`) et un nom de livre sans chiffre ne sont pas pris pour des références.
+- `3:16` sans livre n’est rattaché qu’à une référence de la même phrase (`Jean 3:16 et plus loin 5:24`). Sinon, comme une plage sur deux chapitres, un livre en minuscules sans verset ou un chapitre/verset absent de la version active, la ligne apparaît dans **À vérifier** et n’est pas ajoutée.
+- Si **Deux versions** est actif, chaque passage reçoit la deuxième traduction, exactement comme un ajout manuel ; un passage absent de la deuxième version n’est pas ajouté.
+- Au plus 200 passages et 20 000 caractères par collage. L’ajout est complet ou n’a pas lieu (limite de 500 éléments du conducteur).
+
 ## Textes et chants
 
 Préparez des paroles, une annonce ou une prière. Votre brouillon est conservé lorsque vous rechargez le studio. Les textes nommés restent disponibles dans votre bibliothèque.
@@ -87,7 +97,7 @@ L’aperçu des paramètres reste compact. Les sauvegardes n’incluent jamais l
 
 | Raccourci | Action |
 | --- | --- |
-| `Ctrl/⌘ + Entrée` | Diffuser la préparation ou la sélection du conducteur |
+| `Ctrl/⌘ + Entrée` | Diffuser la préparation ou la sélection du conducteur ; ajouter les passages dans « Coller un plan » |
 | `Échap` | Masquer la sortie ; fermer d’abord une aide/recherche ouverte |
 | `Ctrl/⌘ + K` | Recherche rapide ; Entrée prépare le résultat |
 | `Ctrl/⌘ + F` | Rechercher dans la Bible |
@@ -116,7 +126,7 @@ npm test
 ```
 
 - `check` vérifie la syntaxe JavaScript, les identifiants HTML et la présence des assets.
-- Les tests couvrent recherche, plages de versets, préparation distincte du direct, conducteur, import, animations concurrentes, déduplication et relais local.
+- Les tests couvrent recherche, plages de versets, repérage des références d’un plan (faux positifs compris), préparation distincte du direct, conducteur, import, animations concurrentes, déduplication et relais local.
 - Aucun framework ni dépendance JavaScript tiers n’est chargé par le frontend. `ws` est utilisé uniquement par le serveur local ; `jsdom` sert uniquement aux tests.
 - Les icônes Lucide sont incluses dans `assets/icons/`, avec leur licence.
 

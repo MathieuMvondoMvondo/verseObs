@@ -24,7 +24,7 @@ function check(name, fn) {
   passed++;
   console.log("  ✓ " + name);
 }
-async function page(route) {
+async function page(route, base = origin) {
   const vc = new VirtualConsole();
   const errors = [];
   vc.on("jsdomError", (e) => {
@@ -34,7 +34,7 @@ async function page(route) {
     )
       errors.push(e);
   });
-  const dom = await JSDOM.fromURL(origin + "/" + route, {
+  const dom = await JSDOM.fromURL(base + "/" + route, {
     resources: "usable",
     runScripts: "dangerously",
     pretendToBeVisual: true,
@@ -428,6 +428,7 @@ async function run() {
     assert.equal(forbidden, 403),
   );
   await testBilingual(cp, output);
+  await testPlan(cp, output);
   await testDedup();
   console.log("\n✓ Studio integration: " + passed + " checks passed.");
 }
@@ -593,6 +594,117 @@ async function testBilingual(cp, output) {
     assert.equal(cp.errors.length + output.errors.length, 0),
   );
 }
+async function testPlan(cp, output) {
+  click(cp, "#tab-btn-2");
+  click(cp, "#btn-clear-queue");
+  const liveText = output.d.querySelector(".verse-text").textContent;
+  click(cp, "#btn-open-plan");
+  check("« Coller un plan » opens from the conductor", () =>
+    assert.equal(cp.d.querySelector("#plan-overlay").hidden, false),
+  );
+  input(
+    cp,
+    "#plan-text",
+    [
+      "Culte du 25 octobre à 10:30",
+      "Lecture : Ps 23",
+      "1. Jean 3:16 ; 5:24",
+      "2. Esaie 40:31 et Rm 8.28-30",
+      "Appel : Ap 21:4. Puis relire 3:16 · Jean 22:1",
+    ].join("\n"),
+  );
+  const labels = () =>
+    [...cp.d.querySelectorAll(".plan-item strong")].map((n) => n.textContent);
+  check("Each keystroke lists the references in reading order", () =>
+    assert.deepEqual(labels(), [
+      "Psaumes 23",
+      "Jean 3:16",
+      "Jean 5:24",
+      "Ésaïe 40:31",
+      "Romains 8:28-30",
+      "Apocalypse 21:4",
+    ]),
+  );
+  check("Each passage shows its text and its original line", () => {
+    const first = cp.d.querySelector(".plan-item");
+    assert(first.textContent.includes("L’Éternel est mon berger"));
+    assert(first.textContent.includes("Chapitre entier"));
+    assert.equal(
+      first.querySelector(".plan-line").textContent,
+      "Ligne 2 · Lecture : Ps 23",
+    );
+    assert.equal(first.querySelector(".plan-line mark").textContent, "Ps 23");
+  });
+  check("Unrecognised or out-of-range lines are reported, not added", () => {
+    const issues = [...cp.d.querySelectorAll(".plan-issue")].map(
+      (n) => n.textContent,
+    );
+    assert.equal(issues.length, 2);
+    assert(issues[0].includes("3:16") && issues[0].includes("Livre non précisé"));
+    assert(issues[1].includes("Jean 22:1") && issues[1].includes("21 chapitres"));
+    assert(!issues.join().includes("10:30"));
+  });
+  const boxes = cp.d.querySelectorAll(".plan-item input");
+  boxes[2].checked = false;
+  boxes[2].dispatchEvent(new cp.w.Event("change", { bubbles: true }));
+  check("Unchecking a passage updates the add button", () =>
+    assert.equal(
+      cp.d.querySelector("#plan-submit").textContent.trim(),
+      "Ajouter 5 passages au conducteur",
+    ),
+  );
+  cp.d
+    .querySelector("#plan-text")
+    .dispatchEvent(
+      new cp.w.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+  check("Escape closes the dialog without touching the live output", () => {
+    assert.equal(cp.d.querySelector("#plan-overlay").hidden, true);
+    assert.equal(output.d.querySelector(".verse-text").textContent, liveText);
+  });
+  click(cp, "#btn-open-plan");
+  click(cp, "#plan-submit");
+  const queued = () =>
+    JSON.parse(cp.w.localStorage.getItem("verseobs_queue")).items;
+  check("Selected passages are added to the conductor in order", () => {
+    assert.deepEqual(
+      queued().map((i) => i.reference),
+      ["Psaumes 23", "Jean 3:16", "Ésaïe 40:31", "Romains 8:28-30", "Apocalypse 21:4"],
+    );
+    assert(queued()[0].text.includes("Il me fait reposer"));
+    assert(queued()[0].text.includes("maison de l’Éternel"));
+    assert.equal(cp.d.querySelector("#plan-overlay").hidden, true);
+  });
+  click(cp, "#tab-btn-0");
+  click(cp, "#bilingual-toggle");
+  await until(
+    () => cp.d.querySelector("#secondary-text").value.trim() !== "",
+    "second version ready",
+  );
+  click(cp, "#btn-open-plan");
+  input(cp, "#plan-text", "Jean 3:16-17");
+  await wait(50);
+  click(cp, "#plan-submit");
+  check("With « Deux versions » on, pasted passages carry both translations", () => {
+    const last = queued().at(-1);
+    assert.equal(last.reference, "Jean 3:16-17");
+    assert(last.secondary.text.includes("For God so loved"));
+    assert.equal(last.secondary.reference, "John 3:16-17");
+  });
+  click(cp, "#bilingual-toggle");
+  const q = new cp.w.VerseObs.Queue({});
+  q.replace(Array.from({ length: 499 }, (_, i) => ({ type: "text", text: "T" + i })));
+  check("A plan that would exceed 500 items is refused without partial add", () => {
+    assert.throws(() =>
+      q.addMany([
+        { type: "text", text: "A" },
+        { type: "text", text: "B" },
+      ]),
+    );
+    assert.equal(q.getState().total, 499);
+  });
+}
+
 async function testDedup() {
   let interval,
     storageCb,

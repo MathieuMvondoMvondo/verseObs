@@ -45,6 +45,52 @@
           enabled && (!current || busy || !editor.value.trim());
       });
     }
+    function entry() {
+      return versions.find(function (v) {
+        return v.id === select.value;
+      });
+    }
+    /**
+     * The second translation of a passage, or null when it is incomplete.
+     * A whole chapter (start = null) keeps every verse of that version.
+     */
+    function build(bookId, chapter, start, end) {
+      var version = entry(),
+        id = select.value,
+        passage;
+      if (!version) return null;
+      if (start == null) {
+        var verses = loader.getChapter(id, bookId, chapter);
+        if (!verses || !verses.length) return null;
+        passage = loader.getRange(
+          id,
+          bookId,
+          chapter,
+          verses[0].verse,
+          verses[verses.length - 1].verse,
+        );
+        if (!passage) return null;
+        passage.reference = passage.reference.slice(
+          0,
+          passage.reference.lastIndexOf(":"),
+        );
+      } else {
+        end = Math.max(start, end || start);
+        for (var v = start; v <= end; v++)
+          if (!loader.getVerse(id, bookId, chapter, v)) return null;
+        passage =
+          end > start
+            ? loader.getRange(id, bookId, chapter, start, end)
+            : loader.getVerse(id, bookId, chapter, start);
+      }
+      return {
+        text: passage.text,
+        html: passage.html || "",
+        reference: passage.reference,
+        version: version.name,
+        lang: version.lang || "",
+      };
+    }
     self.refresh = function () {
       var selection = options.selection();
       document.getElementById("primary-version-label").textContent =
@@ -88,44 +134,20 @@
         controls("");
         return;
       }
-      current = null;
-      for (var v = selection.verse; v <= selection.end; v++) {
-        if (
-          !loader.getVerse(select.value, selection.bookId, selection.chapter, v)
-        ) {
-          signature = "";
-          editor.value = "";
-          controls(
-            "Ce passage n’est pas complet dans cette version. Choisissez une autre version ou un autre passage.",
-          );
-          return;
-        }
+      current = build(
+        selection.bookId,
+        selection.chapter,
+        selection.verse,
+        selection.end,
+      );
+      if (!current) {
+        signature = "";
+        editor.value = "";
+        controls(
+          "Ce passage n’est pas complet dans cette version. Choisissez une autre version ou un autre passage.",
+        );
+        return;
       }
-      var passage =
-        selection.end > selection.verse
-          ? loader.getRange(
-              select.value,
-              selection.bookId,
-              selection.chapter,
-              selection.verse,
-              selection.end,
-            )
-          : loader.getVerse(
-              select.value,
-              selection.bookId,
-              selection.chapter,
-              selection.verse,
-            );
-      var version = versions.find(function (entry) {
-        return entry.id === select.value;
-      });
-      current = {
-        text: passage.text,
-        html: passage.html || "",
-        reference: passage.reference,
-        version: version.name,
-        lang: version.lang || "",
-      };
       signature = next;
       editor.value = current.text;
       editor.lang = current.lang;
@@ -195,6 +217,28 @@
         .getElementById("secondary-retry")
         .addEventListener("click", load);
       load();
+    };
+    /** Mode of a plan import: same rules as adding the prepared passage. */
+    self.planMode = function (primaryId) {
+      var version = entry();
+      if (!enabled) return { enabled: false, ready: true, message: "" };
+      var message = busy
+        ? "Chargement de la deuxième version…"
+        : failure
+          ? "Deuxième version indisponible : réessayez dans Bible ou désactivez « Deux versions »."
+          : select.value === primaryId
+            ? "Choisissez deux versions différentes dans Bible (« Deux versions »)."
+            : "";
+      return {
+        enabled: true,
+        ready: !message,
+        message: message,
+        name: version ? version.name : "",
+        abbr: version ? version.abbr || select.value.toUpperCase() : "",
+      };
+    };
+    self.secondaryFor = function (bookId, chapter, start, end) {
+      return enabled && !busy && !failure ? build(bookId, chapter, start, end) : null;
     };
     self.ready = function () {
       return !enabled || (!busy && !!current && !!editor.value.trim());

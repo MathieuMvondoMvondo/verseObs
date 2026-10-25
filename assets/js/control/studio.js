@@ -570,17 +570,18 @@
       });
     document.addEventListener("keydown", function (e) {
       if (e.key !== "Tab") return;
-      var modal = ["help-overlay", "palette-overlay"]
+      var modal = ["help-overlay", "palette-overlay", "plan-overlay"]
         .map(el)
         .find(function (m) {
-          return !m.hidden;
+          return m && !m.hidden;
         });
       if (!modal) return;
       var nodes = Array.from(
-        modal.querySelectorAll('button,input,[tabindex="0"]'),
+        modal.querySelectorAll('button,input,textarea,[tabindex="0"]'),
       ).filter(function (n) {
-        return !n.disabled;
+        return !n.disabled && !n.hidden && n.getClientRects().length;
       });
+      if (!nodes.length) return;
       var first = nodes[0],
         last = nodes[nodes.length - 1];
       if (

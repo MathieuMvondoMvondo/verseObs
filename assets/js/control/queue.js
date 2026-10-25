@@ -79,6 +79,26 @@
   };
 
   /**
+   * Add several items at once, in order. All items are validated before the
+   * conductor changes, so a pasted plan is added completely or not at all.
+   * @returns {number} number of items added
+   */
+  Queue.prototype.addMany = function (items) {
+    var clean = Queue.validateItems(items);
+    if (this._items.length + clean.length > 500)
+      throw new Error(
+        "Le conducteur est limité à 500 éléments : il reste " +
+          Math.max(0, 500 - this._items.length) +
+          " places.",
+      );
+    this._items = this._items.concat(clean);
+    if (this._currentIndex < 0 && this._items.length) this._currentIndex = 0;
+    this._save();
+    this.render();
+    return clean.length;
+  };
+
+  /**
    * Remove item at index.
    */
   Queue.prototype.remove = function (index) {
@@ -217,7 +237,7 @@
       var empty = document.createElement("div");
       empty.className = "cp-history-empty";
       empty.textContent =
-        "Votre prochain temps fort commence ici. Ajoutez des passages depuis la Bible ou des paroles depuis Textes & chants.";
+        "Votre prochain temps fort commence ici. Ajoutez des passages depuis la Bible, collez votre plan de message ou ajoutez des paroles depuis Textes & chants.";
       this.container.appendChild(empty);
       return;
     }

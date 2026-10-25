@@ -18,13 +18,13 @@ window.VerseObs.BOOKS = [
   { id: 14, name_fr: '2 Chroniques',      name_en: '2 Chronicles',    abbr_fr: ['2 Ch', '2Ch', '2 Chr'],         abbr_en: ['2 Chr', '2Chr', '2 Ch', '2Ch'] },
   { id: 15, name_fr: 'Esdras',            name_en: 'Ezra',            abbr_fr: ['Esd', 'Ed'],                    abbr_en: ['Ezra', 'Ezr', 'Ez'] },
   { id: 16, name_fr: 'Néhémie',           name_en: 'Nehemiah',        abbr_fr: ['Né', 'Neh', 'Ne'],              abbr_en: ['Neh', 'Ne'] },
-  { id: 17, name_fr: 'Esther',            name_en: 'Esther',          abbr_fr: ['Est', 'Es'],                    abbr_en: ['Esth', 'Est', 'Es'] },
+  { id: 17, name_fr: 'Esther',            name_en: 'Esther',          abbr_fr: ['Est'],                          abbr_en: ['Esth', 'Est'] },
   { id: 18, name_fr: 'Job',               name_en: 'Job',             abbr_fr: ['Jb', 'Job'],                    abbr_en: ['Job', 'Jb'] },
-  { id: 19, name_fr: 'Psaumes',           name_en: 'Psalms',          abbr_fr: ['Ps', 'Psa', 'Psm'],             abbr_en: ['Ps', 'Psa', 'Psm'] },
+  { id: 19, name_fr: 'Psaumes',           name_en: 'Psalms',          abbr_fr: ['Ps', 'Psa', 'Psm'],             abbr_en: ['Ps', 'Psa', 'Psm'], alias_fr: ['Psaume'] },
   { id: 20, name_fr: 'Proverbes',         name_en: 'Proverbs',        abbr_fr: ['Pr', 'Pro', 'Prov'],             abbr_en: ['Prov', 'Pr', 'Pro'] },
-  { id: 21, name_fr: 'Ecclésiaste',       name_en: 'Ecclesiastes',    abbr_fr: ['Ec', 'Ecc', 'Qo'],              abbr_en: ['Eccl', 'Ecc', 'Ec'] },
-  { id: 22, name_fr: 'Cantique des Cantiques', name_en: 'Song of Solomon', abbr_fr: ['Ct', 'Ca', 'Cant'],        abbr_en: ['Song', 'SoS', 'SS'] },
-  { id: 23, name_fr: 'Ésaïe',             name_en: 'Isaiah',          abbr_fr: ['Es', 'Esa', 'Ésa'],             abbr_en: ['Isa', 'Is'] },
+  { id: 21, name_fr: 'Ecclésiaste',       name_en: 'Ecclesiastes',    abbr_fr: ['Ec', 'Ecc', 'Qo'],              abbr_en: ['Eccl', 'Ecc', 'Ec'], alias_fr: ['Qohélet', 'Qohéleth'] },
+  { id: 22, name_fr: 'Cantique des Cantiques', name_en: 'Song of Solomon', abbr_fr: ['Ct', 'Ca', 'Cant'],        abbr_en: ['Song', 'SoS', 'SS'], alias_fr: ['Cantique', 'Cantiques'] },
+  { id: 23, name_fr: 'Ésaïe',             name_en: 'Isaiah',          abbr_fr: ['Es', 'Esa', 'Ésa'],             abbr_en: ['Isa', 'Is'], alias_fr: ['Isaïe', 'Is'] },
   { id: 24, name_fr: 'Jérémie',           name_en: 'Jeremiah',        abbr_fr: ['Jr', 'Jér', 'Jer'],             abbr_en: ['Jer', 'Jr', 'Je'] },
   { id: 25, name_fr: 'Lamentations',      name_en: 'Lamentations',    abbr_fr: ['Lm', 'Lam', 'La'],              abbr_en: ['Lam', 'Lm', 'La'] },
   { id: 26, name_fr: 'Ézéchiel',          name_en: 'Ezekiel',         abbr_fr: ['Ez', 'Éz', 'Eze'],              abbr_en: ['Ezek', 'Ez', 'Eze'] },
@@ -47,7 +47,7 @@ window.VerseObs.BOOKS = [
   { id: 41, name_fr: 'Marc',              name_en: 'Mark',            abbr_fr: ['Mc', 'Mar', 'Mrc'],              abbr_en: ['Mark', 'Mk', 'Mr'] },
   { id: 42, name_fr: 'Luc',               name_en: 'Luke',            abbr_fr: ['Lc', 'Luc', 'Lu'],               abbr_en: ['Luke', 'Lk', 'Lu'] },
   { id: 43, name_fr: 'Jean',              name_en: 'John',            abbr_fr: ['Jn', 'Jean', 'Jea'],             abbr_en: ['John', 'Jn', 'Joh'] },
-  { id: 44, name_fr: 'Actes',             name_en: 'Acts',            abbr_fr: ['Ac', 'Act'],                     abbr_en: ['Acts', 'Ac', 'Act'] },
+  { id: 44, name_fr: 'Actes',             name_en: 'Acts',            abbr_fr: ['Ac', 'Act'],                     abbr_en: ['Acts', 'Ac', 'Act'], alias_fr: ['Actes des Apôtres'] },
   { id: 45, name_fr: 'Romains',           name_en: 'Romans',          abbr_fr: ['Rm', 'Rom', 'Ro'],               abbr_en: ['Rom', 'Rm', 'Ro'] },
   { id: 46, name_fr: '1 Corinthiens',     name_en: '1 Corinthians',   abbr_fr: ['1 Co', '1Co', '1 Cor', '1Cor'],  abbr_en: ['1 Cor', '1Cor', '1 Co', '1Co'] },
   { id: 47, name_fr: '2 Corinthiens',     name_en: '2 Corinthians',   abbr_fr: ['2 Co', '2Co', '2 Cor', '2Cor'],  abbr_en: ['2 Cor', '2Cor', '2 Co', '2Co'] },
@@ -73,47 +73,65 @@ window.VerseObs.BOOKS = [
 ];
 
 /**
+ * Fold a book name for comparison: case, accents, spacing and a trailing
+ * abbreviation dot are ignored ("Ésaïe" = "esaie", "1Co." = "1 co").
+ */
+window.VerseObs.foldBookName = function(value) {
+  var out = String(value || '').toLowerCase();
+  if (out.normalize) out = out.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  out = out.replace(/\u0153/g, 'oe').replace(/\u00e6/g, 'ae');
+  out = out.replace(/[\s\u00a0\u202f]+/g, ' ').trim().replace(/\.$/, '');
+  return out.replace(/^([123]) ?(?=[a-z])/, '$1 ');
+};
+
+var _bookKeys = null;
+function _keys() {
+  if (_bookKeys) return _bookKeys;
+  var fold = window.VerseObs.foldBookName;
+  var keys = { names: {}, fr: {}, en: {} };
+  function add(map, value, book) {
+    var k = fold(value);
+    if (k && !Object.prototype.hasOwnProperty.call(map, k)) map[k] = book;
+  }
+  window.VerseObs.BOOKS.forEach(function (b) {
+    add(keys.names, b.name_fr, b);
+    add(keys.names, b.name_en, b);
+    (b.alias_fr || []).forEach(function (a) { add(keys.names, a, b); });
+  });
+  // French abbreviations win over English ones ("Ez" = Ézéchiel, not Ezra).
+  window.VerseObs.BOOKS.forEach(function (b) {
+    b.abbr_fr.forEach(function (a) { add(keys.fr, a, b); });
+    b.abbr_en.forEach(function (a) { add(keys.en, a, b); });
+  });
+  _bookKeys = keys;
+  return keys;
+}
+
+/**
  * Find a book by name or abbreviation in any language.
  * @param {string} query - Book name or abbreviation (e.g. "Gn", "Genesis", "Jean")
  * @returns {object|null} The matching book object or null
  */
 window.VerseObs.findBook = function(query) {
   if (!query || typeof query !== 'string') return null;
-
-  var q = query.trim();
+  var q = window.VerseObs.foldBookName(query);
   if (!q) return null;
+  var keys = _keys(), books = window.VerseObs.BOOKS;
+  var own = Object.prototype.hasOwnProperty;
 
-  var qLower = q.toLowerCase();
-  var books = window.VerseObs.BOOKS;
+  // 1. Full name or French alias, 2. French abbreviation, 3. English abbreviation
+  if (own.call(keys.names, q)) return keys.names[q];
+  if (own.call(keys.fr, q)) return keys.fr[q];
+  if (own.call(keys.en, q)) return keys.en[q];
 
-  // 1. Exact match on full name (case-insensitive)
+  // 4. Start of a full name (French first)
+  var fold = window.VerseObs.foldBookName;
   for (var i = 0; i < books.length; i++) {
-    if (books[i].name_fr.toLowerCase() === qLower ||
-        books[i].name_en.toLowerCase() === qLower) {
-      return books[i];
-    }
+    if (fold(books[i].name_fr).indexOf(q) === 0) return books[i];
   }
-
-  // 2. Exact match on abbreviation (case-insensitive)
-  for (var i = 0; i < books.length; i++) {
-    var abbrFr = books[i].abbr_fr;
-    for (var j = 0; j < abbrFr.length; j++) {
-      if (abbrFr[j].toLowerCase() === qLower) return books[i];
-    }
-    var abbrEn = books[i].abbr_en;
-    for (var j = 0; j < abbrEn.length; j++) {
-      if (abbrEn[j].toLowerCase() === qLower) return books[i];
-    }
+  for (var j = 0; j < books.length; j++) {
+    if (fold(books[j].name_en).indexOf(q) === 0) return books[j];
   }
-
-  // 3. Starts-with match on full name (case-insensitive), return first match
-  for (var i = 0; i < books.length; i++) {
-    if (books[i].name_fr.toLowerCase().indexOf(qLower) === 0 ||
-        books[i].name_en.toLowerCase().indexOf(qLower) === 0) {
-      return books[i];
-    }
-  }
-
   return null;
 };
 
