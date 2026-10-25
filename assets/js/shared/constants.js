@@ -33,22 +33,43 @@ window.VerseObs.LAYOUTS = { ANTENNE: "antenne", CARTE: "carte" };
 window.VerseObs.ANTENNE_FONT = "'VerseObs Lecture', Lora, Georgia, serif";
 
 /**
+ * How and where a text is broadcast belongs to the operator: a new default
+ * look never changes it (position, auto-hide, animation, duration, width,
+ * alignment).
+ */
+window.VerseObs.OPERATOR_KEYS = [
+  "position",
+  "autoHide",
+  "animation",
+  "animationDuration",
+  "maxWidth",
+  "textAlign",
+];
+
+/**
  * Settings saved before the "antenne" layout existed:
- *  - still on the former default base (never customised: any change turns the
- *    template into "custom") → they follow the new default look;
- *  - customised or another base → they keep their framed card.
+ *  - Bible verses still on the former default base ("studio"): only the look
+ *    (colours, typefaces, sizes, layout) follows the new default. A saved
+ *    template does not prove the operator never changed anything, since a
+ *    preset only writes its own keys: the operator's keys are always kept;
+ *  - any other base, and every song style, keeps its framed card.
  * The former typewriter effect (which dropped verse numbers) becomes the reveal.
  * @param {object} saved - stored settings (as read)
  * @param {object} result - settings being built (modified in place)
  * @param {object} [defaults] - current defaults of this profile
- * @param {string} [formerDefault] - template that was this profile's default
+ * @param {string} [formerDefault] - template whose look follows the new default
  */
 window.VerseObs.migrateStyle = function (saved, result, defaults, formerDefault) {
   if (!saved || typeof saved !== "object") return result;
   if (saved.layout !== "antenne" && saved.layout !== "carte") {
     if (defaults && formerDefault && saved.template === formerDefault) {
+      var keep = window.VerseObs.OPERATOR_KEYS;
       for (var key in defaults)
-        if (Object.prototype.hasOwnProperty.call(defaults, key))
+        if (
+          Object.prototype.hasOwnProperty.call(defaults, key) &&
+          key !== "bgImage" &&
+          !(keep.indexOf(key) !== -1 && saved[key] !== undefined)
+        )
           result[key] = defaults[key];
     } else result.layout = saved.template === "antenne" ? "antenne" : "carte";
   }
@@ -266,30 +287,31 @@ window.VerseObs.FREETEXT_SETTINGS_KEY = "verseobs_freetext_style";
  * Only the properties relevant to free text (no reference pill).
  */
 window.VerseObs.FREETEXT_DEFAULTS = {
-  layout: "antenne",
-  position: "lower-third",
-  animation: "reveal",
+  layout: "carte",
+  position: "center",
+  animation: "fade",
   animationDuration: 500,
   autoHide: 0,
-  fontFamily: window.VerseObs.ANTENNE_FONT,
-  fontSize: 42,
-  textColor: "#f3eee4",
+  fontFamily: "'Segoe UI', Calibri, 'Helvetica Neue', Arial, sans-serif",
+  fontSize: 34,
+  textColor: "#ffffff",
   textAlign: "center",
-  lineHeight: 1.4,
-  bgColor: "#0f1217",
-  bgOpacity: 0.84,
+  lineHeight: 1.5,
+  bgColor: "#101018",
+  bgOpacity: 0.85,
   shadow: true,
-  borderRadius: 0,
+  borderRadius: 16,
   borderWidth: 0,
   borderColor: "#8b8f9b",
-  padding: 30,
+  padding: 32,
   maxWidth: 80,
+  // Used when the operator picks the « Antenne » song style.
   refColor: "#f3eee4",
   refBgColor: "#f2b544",
   refFontSize: 24,
-  highlightColor: "#f2b544",
+  highlightColor: "#ffd54a",
   bgImage: "",
-  template: "antenne",
+  template: "chant",
 };
 
 /**

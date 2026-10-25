@@ -311,8 +311,15 @@ ok(
   "verse + free-text have distinct defaults",
   verseSettings.getAll().fontSize !== ftSettings.getAll().fontSize,
 );
-eq("free-text default preset", ftSettings.getAll().template, "antenne");
-eq("free text uses the antenne layout by default", ftSettings.getAll().layout, "antenne");
+// Songs keep their centred card by default: « Antenne » is an explicit option.
+eq("free-text default preset stays the song card", ftSettings.getAll().template, "chant");
+eq("songs keep the framed card by default", ftSettings.getAll().layout, "carte");
+eq("…centred on the frame", ftSettings.getAll().position, "center");
+ok(
+  "« Antenne » is offered as a song style",
+  !!VerseObs.FREETEXT_STYLES.antenne &&
+    VerseObs.FREETEXT_STYLES.antenne.settings.layout === "antenne",
+);
 
 // Applying a free-text preset must not touch the verse style.
 var verseSizeBefore = verseSettings.getAll().fontSize;
@@ -361,6 +368,33 @@ _store[VerseObs.SETTINGS_KEY] = JSON.stringify({ template: "cinema" });
 legacy = new VerseObs.Settings();
 legacy.load();
 eq("another chosen base stays a card", legacy.getAll().layout, "carte");
+// B1 — a saved « studio » template does not prove the operator never touched
+// anything (applyTemplate keeps keys the template does not set): only the
+// look follows the new default, never how and where the text is broadcast.
+_store[VerseObs.SETTINGS_KEY] = JSON.stringify({
+  template: "studio",
+  position: "upper-third",
+  autoHide: 15000,
+  animation: "slide",
+  animationDuration: 800,
+  maxWidth: 60,
+  textAlign: "center",
+  fontSize: 40,
+});
+legacy = new VerseObs.Settings();
+legacy.load();
+eq("studio base: the look follows the new default", legacy.getAll().layout, "antenne");
+eq("studio base: the operator's position is kept", legacy.getAll().position, "upper-third");
+eq("studio base: the operator's auto-hide is kept", legacy.getAll().autoHide, 15000);
+eq("studio base: the operator's animation is kept", legacy.getAll().animation, "slide");
+eq("studio base: the operator's duration is kept", legacy.getAll().animationDuration, 800);
+eq("studio base: the operator's width is kept", legacy.getAll().maxWidth, 60);
+eq("studio base: the operator's alignment is kept", legacy.getAll().textAlign, "center");
+_store[VerseObs.SETTINGS_KEY] = JSON.stringify({ template: "studio", animation: "typewriter" });
+legacy = new VerseObs.Settings();
+legacy.load();
+eq("studio base: only typewriter becomes the reveal", legacy.getAll().animation, "reveal");
+// Songs are never migrated: an untouched song style stays the centred card.
 _store[VerseObs.FREETEXT_SETTINGS_KEY] = JSON.stringify({ template: "chant" });
 var legacySong = new VerseObs.Settings({
   storageKey: VerseObs.FREETEXT_SETTINGS_KEY,
@@ -368,7 +402,20 @@ var legacySong = new VerseObs.Settings({
   templates: VerseObs.FREETEXT_STYLES,
 });
 legacySong.load();
-eq("former default song style follows the new default", legacySong.getAll().layout, "antenne");
+eq("default song style stays a card", legacySong.getAll().layout, "carte");
+eq("default song style stays centred", legacySong.getAll().position, "center");
+_store[VerseObs.FREETEXT_SETTINGS_KEY] = JSON.stringify({
+  template: "chant",
+  position: "center",
+  autoHide: 8000,
+  animationDuration: 900,
+  fontSize: 38,
+});
+legacySong.load();
+eq("song auto-hide kept", legacySong.getAll().autoHide, 8000);
+eq("song duration kept", legacySong.getAll().animationDuration, 900);
+eq("song size kept", legacySong.getAll().fontSize, 38);
+eq("song layout stays the card", legacySong.getAll().layout, "carte");
 _store[VerseObs.FREETEXT_SETTINGS_KEY] = JSON.stringify({ template: "priere" });
 legacySong.load();
 eq("a chosen song style stays a card", legacySong.getAll().layout, "carte");

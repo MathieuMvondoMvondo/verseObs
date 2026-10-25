@@ -93,12 +93,13 @@
               : defaults[key];
           }
         }
+        // Only the Bible look follows the new default; songs keep their card.
         if (window.VerseObs.migrateStyle)
           window.VerseObs.migrateStyle(
             saved,
             this._settings,
             defaults,
-            this._defaultsObj ? "chant" : "studio",
+            this._defaultsObj ? null : "studio",
           );
       } else {
         this._settings = defaults;
