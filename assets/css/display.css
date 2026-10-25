@@ -51,12 +51,18 @@
   --highlight-color: #f2b544;
   --title-font: "VerseObs Titrage", "Archivo Narrow", "Arial Narrow",
     "Roboto Condensed", sans-serif;
+  /* One logical frame, 1080 units tall, scaled to the browser source by
+     renderer.js (layoutFrame): a 720p, 1080p or 4K OBS source shows the same
+     composition as the Studio's 1920×1080 monitors. Every size below is in
+     frame units (CSS px of that frame); without script, the window itself. */
+  --frame-w: 100vw;
+  --frame-h: 100vh;
   /* EBU R 95 graphics-safe area (5 % on each side). */
-  --safe-x: 5vw;
-  --safe-y: 5vh;
+  --safe-x: calc(var(--frame-w) * 0.05);
+  --safe-y: calc(var(--frame-h) * 0.05);
   /* Distance kept between a third and the frame edge. */
-  --edge: calc(var(--safe-y) + 2.5vh);
-  --feather: 8vh;
+  --edge: calc(var(--safe-y) + var(--frame-h) * 0.025);
+  --feather: calc(var(--frame-h) * 0.08);
   --fit: 1;
 }
 
@@ -77,7 +83,11 @@ body {
 /* ---- Frame ------------------------------------------------------------ */
 .verse-container {
   position: fixed;
-  inset: 0;
+  left: 0;
+  top: 0;
+  width: var(--frame-w);
+  height: var(--frame-h);
+  transform-origin: 0 0;
   display: flex;
   justify-content: center;
   pointer-events: none;
@@ -223,8 +233,8 @@ body {
 .layout-antenne .vo-scrim {
   position: absolute;
   z-index: -1;
-  left: -100vw;
-  right: -100vw;
+  left: calc(-1 * var(--frame-w));
+  right: calc(-1 * var(--frame-w));
   top: calc(-1 * (var(--padding) + var(--feather)));
   bottom: calc(-1 * var(--edge));
   background: linear-gradient(
@@ -263,8 +273,8 @@ body {
   transform-origin: 50% 50%;
 }
 .fullscreen.layout-antenne .vo-scrim {
-  top: -100vh;
-  bottom: -100vh;
+  top: calc(-1 * var(--frame-h));
+  bottom: calc(-1 * var(--frame-h));
   background: rgba(var(--bg-color), var(--bg-opacity));
   transform-origin: 50% 50%;
 }
@@ -568,7 +578,7 @@ body {
 }
 .fullscreen.layout-carte .verse-card {
   width: 100%;
-  min-height: 80vh;
+  min-height: calc(var(--frame-h) * 0.8);
   justify-content: center;
 }
 .fullscreen.layout-carte .verse-body {

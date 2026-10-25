@@ -47,6 +47,30 @@
     SAFE_HEIGHT = 0.86;
   var ANIMATED =
     ".vo-scrim,.vo-axis,.vo-margin,.vo-plate,.vo-copy,.vo-refblock,.vo-line>span,.vo-roll";
+  /*
+   * The output composes one logical frame, FRAME_LINES units tall, scaled to
+   * the browser source: an OBS source of 1280×720, 1920×1080 or 3840×2160
+   * shows the very same composition (line breaks, fit, verses on air) as the
+   * Studio's 1920×1080 monitors, and every rule above reads that frame.
+   * Narrower than 4:3 (portrait), the frame keeps 4:3 units of width and
+   * grows taller instead.
+   */
+  var FRAME_LINES = 1080,
+    MIN_ASPECT = 4 / 3;
+
+  /** Logical frame of a window: { width, height, scale } (scale = screen px per unit). */
+  function frameOf(width, height) {
+    width = width > 0 ? width : 1920;
+    height = height > 0 ? height : FRAME_LINES;
+    var scale = Math.min(
+      height / FRAME_LINES,
+      width / (FRAME_LINES * MIN_ASPECT),
+    );
+    var round = function (v) {
+      return Math.round(v * 100) / 100;
+    };
+    return { width: round(width / scale), height: round(height / scale), scale: scale };
+  }
 
   /** Removes every child (older OBS browser sources lack the DOM shortcut). */
   function empty(el) {
@@ -126,8 +150,54 @@
     this.overflow = false;
     this.partial = "";
     this.shown = "";
+    this.frame = frameOf(0, 0);
     this._setLayout(this.layout);
   }
+
+  // ---- Frame -----------------------------------------------------------------
+
+  /**
+   * Size the container to the logical frame of this window and scale it to
+   * the window. Returns true when the logical frame itself changed (another
+   * aspect ratio): the text on air must then be fitted again (refit).
+   */
+  Renderer.prototype.layoutFrame = function () {
+    var doc = document.documentElement,
+      f = frameOf(
+        window.innerWidth || doc.clientWidth,
+        window.innerHeight || doc.clientHeight,
+      ),
+      before = this.frame;
+    doc.style.setProperty("--frame-w", f.width + "px");
+    doc.style.setProperty("--frame-h", f.height + "px");
+    // 1:1 (1080p source, Studio monitors): no transform at all.
+    this.container.style.transform =
+      f.scale === 1 ? "" : "scale(" + f.scale + ")";
+    this.frame = f;
+    return before.width !== f.width || before.height !== f.height;
+  };
+
+  /** A box in frame units (getBoundingClientRect measures screen px). */
+  Renderer.prototype._box = function (el) {
+    var r = el.getBoundingClientRect(),
+      k = this.frame.scale || 1;
+    return {
+      top: r.top / k,
+      bottom: r.bottom / k,
+      width: r.width / k,
+      height: r.height / k,
+    };
+  };
+
+  /** Fit the text on air again (frame or style changed). */
+  Renderer.prototype.refit = function () {
+    if (!this.card || !this._data) return false;
+    // Rebuilt from the data: a passage shortened for one frame or style may
+    // show more verses with another.
+    this._fill(this.card, this._data);
+    this._fit(this.card);
+    return true;
+  };
 
   // ---- Building blocks ------------------------------------------------------
 
@@ -292,9 +362,9 @@
     );
   }
 
-  /** The rules that apply to this stage in the current frame and position. */
+  /** The rules that apply to this stage in the logical frame and position. */
   Renderer.prototype._rules = function (stage) {
-    var frame = window.innerHeight || document.documentElement.clientHeight || 0,
+    var frame = this.frame.height,
       position = this.currentPosition,
       band = position === "lower-third" || position === "upper-third",
       size = parseFloat(getComputedStyle(stage).fontSize) || 44;
@@ -531,7 +601,7 @@
       // min-content = the longest word, which cannot wrap
       book.style.display = "inline-block";
       book.style.width = "min-content";
-      var longest = book.getBoundingClientRect().width;
+      var longest = this._box(book).width;
       book.style.display = "";
       book.style.width = "";
       if (longest > room)
@@ -853,10 +923,10 @@
 
       // Measure what the audience sees right now…
       var seen = {
-        scrim: p.scrim.getBoundingClientRect(),
-        axis: p.axis.getBoundingClientRect(),
-        margin: p.margin.getBoundingClientRect(),
-        plate: p.plate.getBoundingClientRect(),
+        scrim: self._box(p.scrim),
+        axis: self._box(p.axis),
+        margin: self._box(p.margin),
+        plate: self._box(p.plate),
       };
 
       // …swap the content while it is invisible…
@@ -921,9 +991,9 @@
       if (onCommit) onCommit();
       var hasRef = stage.classList.contains("has-ref");
       var natural = {
-        scrim: p.scrim.getBoundingClientRect(),
-        margin: p.margin.getBoundingClientRect(),
-        plate: p.plate.getBoundingClientRect(),
+        scrim: self._box(p.scrim),
+        margin: self._box(p.margin),
+        plate: self._box(p.plate),
         axis: p.axis.offsetHeight,
       };
 
@@ -1317,12 +1387,7 @@
           ? 'url("' + style.bgImage + '")'
           : "none",
       );
-    if (this.card && this._data && !deferFit) {
-      // Rebuilt from the data: a passage shortened for one style may show
-      // more verses with another.
-      this._fill(this.card, this._data);
-      this._fit(this.card);
-    }
+    if (!deferFit) this.refit();
   };
 
   function luminance(rgb) {
@@ -1356,6 +1421,7 @@
   }
 
   Renderer.splitReference = splitReference;
+  Renderer.frameOf = frameOf;
   Renderer.readableOn = readableOn;
   V.Renderer = Renderer;
 })();

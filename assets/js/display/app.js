@@ -164,6 +164,15 @@
     if (!container) return;
     if (projector) document.body.classList.add("projector");
     renderer = new V.Renderer(container);
+    // One logical 1080-line frame scaled to the source: same composition at
+    // 720p, 1080p or 4K. Another aspect ratio refits what is on air.
+    renderer.layoutFrame();
+    window.addEventListener("resize", function () {
+      if (renderer.layoutFrame() && renderer.refit()) {
+        report();
+        reportFit();
+      }
+    });
     container.classList.add(projector ? "center" : V.DEFAULTS.position);
     try {
       renderer.updateStyle(

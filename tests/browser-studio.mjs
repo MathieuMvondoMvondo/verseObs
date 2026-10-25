@@ -153,7 +153,114 @@ const SMALL_TEXT = () => {
 const inFrame = async (studio, frameId) =>
   (await (await studio.$("#" + frameId)).contentFrame()).evaluate(ON_AIR);
 
+// Sections can be run alone while working (STUDIO_ONLY=output,merge …);
+// verify-parent.py and `npm run test:browser` always run all of them.
+const ONLY = (process.env.STUDIO_ONLY || "").split(",").filter(Boolean);
+const run = (name) => !ONLY.length || ONLY.includes(name);
+
+/**
+ * What the audience sees on a real output of any size (OBS source at 720p,
+ * 1080p or 4K): the verses, the fit and the band, expressed in frame terms.
+ */
+const PROGRAM = () => {
+  const card = document.querySelector(".verse-card:not(.vo-probe)");
+  if (!card) return null;
+  const frame = innerHeight;
+  const box = card.getBoundingClientRect();
+  // CSS px → screen px (the output may scale a logical frame).
+  const scale = card.offsetHeight ? box.height / card.offsetHeight : 1;
+  const scrim = card.querySelector(".vo-scrim");
+  const visibleScrim = scrim && getComputedStyle(scrim).display !== "none";
+  const s = visibleScrim ? scrim.getBoundingClientRect() : box;
+  const lower = document.querySelector("#verse-container").classList.contains("lower-third");
+  const band = lower ? frame - Math.max(0, s.top) : Math.min(frame, s.bottom);
+  const texts = Array.from(card.querySelectorAll(".vo-copy .verse-text"));
+  const body = Math.min(...texts.map((t) => parseFloat(getComputedStyle(t).fontSize)));
+  const ref = card.querySelector(".vo-refblock");
+  const r = ref ? ref.getBoundingClientRect() : null;
+  return {
+    size: innerWidth + "x" + innerHeight,
+    share: +(band / frame).toFixed(3),
+    // body size as it would be in a 1080-line frame
+    body1080: +((body * scale * 1080) / frame).toFixed(1),
+    lines: texts.map((t) => Math.round(t.offsetHeight / parseFloat(getComputedStyle(t).lineHeight))),
+    nums: card.querySelector(".vo-nums .vo-roll:not(.is-leaving)")?.textContent || "",
+    partial: card.dataset.partial || "",
+    fit: card.dataset.fit || "",
+    refInside: !r || (r.top >= -0.5 && r.bottom <= frame + 0.5 && r.left >= -0.5 && r.right <= innerWidth + 0.5),
+    cardInside: box.left >= -0.5 && box.right <= innerWidth + 0.5 && box.top >= -0.5 && box.bottom <= frame + 0.5,
+  };
+};
+/** Entrance or change finished: nothing leaving, text fully revealed. */
+const SETTLED = (nums) => {
+  const card = document.querySelector(".verse-card:not(.vo-probe)");
+  if (!card || document.querySelector(".vo-probe")) return false;
+  const roll = card.querySelector(".vo-nums .vo-roll:not(.is-leaving)");
+  const copy = card.querySelector(".vo-copy");
+  return (
+    (!nums || (roll && roll.textContent === nums)) &&
+    !card.querySelector(".is-leaving") &&
+    !!copy &&
+    !copy.classList.contains("is-revealing") &&
+    getComputedStyle(copy).opacity === "1"
+  );
+};
+/** Studio at 1920×1080 and OBS outputs of several sizes, in one context. */
+async function openOutputs(sizes, storage) {
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  if (storage)
+    await ctx.addInitScript((s) => {
+      if (location.pathname.endsWith("control_panel.html") && !sessionStorage.getItem("__seeded")) {
+        for (const k in s) localStorage.setItem(k, s[k]);
+        sessionStorage.setItem("__seeded", "1");
+      }
+    }, storage);
+  const errors = [];
+  const outputs = [];
+  for (const [w, h] of sizes) {
+    const page = await ctx.newPage();
+    await page.setViewportSize({ width: w, height: h });
+    page.on("pageerror", (e) => errors.push(`output ${w}x${h}: ` + e.message));
+    await page.goto(`${BASE}/browser_source.html`);
+    outputs.push({ name: `${w}x${h}`, page });
+  }
+  const studio = await ctx.newPage();
+  studio.on("pageerror", (e) => errors.push("studio: " + e.message));
+  await studio.goto(`${BASE}/control_panel.html`);
+  await studio.waitForSelector(".chapter-verse");
+  await studio.waitForFunction(() =>
+    document.querySelector("#connection-dot").classList.contains("connected"),
+  );
+  return { ctx, studio, outputs, errors };
+}
+const programFrame = async (studio) => (await studio.$("#program-frame")).contentFrame();
+/**
+ * Every output shows exactly what the 1080 program monitor shows: same
+ * verses, same fit, nothing partial that the monitor shows whole, band ≤ 40 %.
+ */
+async function sameAsMonitor(studio, outputs, label, expectNums) {
+  const monitorFrame = await programFrame(studio);
+  await monitorFrame.waitForFunction(SETTLED, expectNums || null, { timeout: 15000 });
+  const monitor = await monitorFrame.evaluate(PROGRAM);
+  const seen = [];
+  for (const o of outputs) {
+    await o.page.waitForFunction(SETTLED, monitor.nums, { timeout: 15000 }).catch(() => {});
+    const g = await o.page.evaluate(PROGRAM);
+    seen.push(g);
+    const where = `${label} at ${o.name}`;
+    assert.ok(g, where + ": on air");
+    assert.equal(g.nums, monitor.nums, where + ": verses " + g.nums + " vs monitor " + monitor.nums);
+    assert.equal(g.fit, monitor.fit, where + ": fit " + g.fit + " vs monitor " + monitor.fit);
+    assert.equal(g.partial, monitor.partial, where + ": partial " + g.partial + " vs monitor " + monitor.partial);
+    assert.ok(g.share <= 0.4 + 0.005, where + ": band share " + g.share);
+    assert.ok(g.body1080 >= 31.5, where + ": body " + g.body1080 + " px at 1080p");
+    assert.ok(g.refInside && g.cardInside, where + ": reference and card inside the frame");
+  }
+  return { monitor, seen };
+}
+
 try {
+  if (run("monitors")) {
   for (const width of [1280, 1920]) {
     const { ctx, studio, output, errors } = await open(width, width === 1280 ? 800 : 1080);
     await check(`Studio Mode at ${width} px: preview on the left, program on the right`, async () => {
@@ -208,8 +315,10 @@ try {
   });
   assert.deepEqual(narrow.errors, []);
   await narrow.ctx.close();
+  }
 
   // ---- Long passages: a subtitle-like band, a split proposed to the operator.
+  if (run("long")) {
   const desk = await open(1920, 1080);
   const { studio, output } = desk;
   const BAND = 0.4,
@@ -326,8 +435,73 @@ try {
   });
   assert.deepEqual(desk.errors, []);
   await desk.ctx.close();
+  }
+
+  // ---- The OBS source may be 720p, 1080p or 4K: the output composes one
+  // logical 1080-line frame, so every size shows what the monitors show.
+  if (run("output")) {
+  const SIZES = [[1280, 720], [1920, 1080], [3840, 2160]];
+  const multi = await openOutputs(SIZES);
+  let plans = [];
+  await check("Psaumes 23 and Jean 3:16 on 720p, 1080p and 4K sources: same verses and fit as the 1080 monitor", async () => {
+    const { studio, outputs } = multi;
+    await prepare(studio, "Psaumes 23:1-6");
+    await studio.click("#btn-show");
+    const ps23 = await sameAsMonitor(studio, outputs, "Psaumes 23:1-6");
+    console.log("    Ps 23: monitor " + JSON.stringify(ps23.monitor) + " | " + ps23.seen.map((g) => g.size + " " + g.nums + " fit " + g.fit + " share " + g.share).join(" | "));
+    await prepare(studio, "Jean 3:16");
+    await studio.click("#btn-show");
+    await sameAsMonitor(studio, outputs, "Jean 3:16", "3:16");
+  });
+  await check("The 12 plans of Psaumes 119:1-48 pass whole on 720p, 1080p and 4K sources", async () => {
+    const { studio, outputs } = multi;
+    await studio.evaluate(() => document.querySelector("#btn-clear-queue").click());
+    await prepare(studio, "Psaumes 119:1-48");
+    await studio.waitForFunction(() => /Découper en \d+ plans/.test(document.querySelector("#btn-split")?.textContent || ""));
+    await studio.click("#btn-split");
+    await studio.waitForFunction(() => document.querySelectorAll("#queue-container .cp-queue-item").length > 1);
+    plans = await studio.evaluate(() =>
+      Array.from(document.querySelectorAll("#queue-container .cp-queue-item")).map((r) => r.dataset.label),
+    );
+    assert.ok(plans.length >= 6, plans.length + " plans");
+    const partial = [];
+    for (let i = 0; i < plans.length; i++) {
+      await studio.evaluate((i) => document.querySelectorAll("#queue-container .cp-queue-item")[i].click(), i);
+      await studio.click("#btn-queue-show");
+      const nums = plans[i].replace(/^.*\s/, "");
+      const { seen } = await sameAsMonitor(studio, outputs, plans[i], nums);
+      seen.forEach((g) => g.partial && partial.push(g.size + " " + plans[i]));
+    }
+    assert.deepEqual(partial, [], "no plan shown in part");
+  });
+  await check("Two translations: plans of Romains 8:28-39 on 720p, 1080p and 4K sources match the monitor", async () => {
+    const { studio, outputs } = multi;
+    await studio.evaluate(() => document.querySelector("#btn-clear-queue").click());
+    await studio.evaluate(() => document.querySelector("#tab-btn-0").click());
+    await studio.check("#bilingual-toggle");
+    await studio.selectOption("#secondary-version", "kjv");
+    await prepare(studio, "Romains 8:28-39");
+    await studio.waitForFunction(() => /Découper en \d+ plans/.test(document.querySelector("#btn-split")?.textContent || ""));
+    await studio.click("#btn-split");
+    await studio.waitForFunction(() => document.querySelectorAll("#queue-container .cp-queue-item").length > 1);
+    const rows = await studio.evaluate(() =>
+      Array.from(document.querySelectorAll("#queue-container .cp-queue-item")).map((r) => r.dataset.label),
+    );
+    for (let i = 0; i < Math.min(3, rows.length); i++) {
+      await studio.evaluate((i) => document.querySelectorAll("#queue-container .cp-queue-item")[i].click(), i);
+      await studio.click("#btn-queue-show");
+      const { seen } = await sameAsMonitor(studio, outputs, rows[i] + " LSG+KJV", rows[i].replace(/^.*\s/, ""));
+      seen.forEach((g) => assert.equal(g.lines.length, 2, "two translations at " + g.size));
+    }
+    await studio.evaluate(() => document.querySelector("#tab-btn-0").click());
+    await studio.uncheck("#bilingual-toggle");
+  });
+  assert.deepEqual(multi.errors, []);
+  await multi.ctx.close();
+  }
 
   // ---- Régie readability: type floor, keyboard focus, phone targets.
+  if (run("regie")) {
   for (const [w, h] of [[1920, 1080], [1280, 800], [390, 844]]) {
     const view = await open(w, h);
     await check(`At ${w} px no visible text under 12 px and no overflow in Bible, Conducteur and Habillage`, async () => {
@@ -388,6 +562,7 @@ try {
   } finally {
     await lanServer.remote.disable();
     lanServer.close();
+  }
   }
   console.log("\n✓ Browser studio: " + passed + " checks passed.");
 } catch (err) {

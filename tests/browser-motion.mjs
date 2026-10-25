@@ -90,6 +90,9 @@ const SAMPLER = () => {
       moved: translations.some((t) => t !== "none" && !/^matrix\(1, 0, 0, 1, 0, 0\)$/.test(t)),
       axis: q(".vo-axis") ? getComputedStyle(q(".vo-axis")).transform : "",
       top: card ? card.getBoundingClientRect().top : null,
+      // what the audience sees of the axis and the reference margin (screen px)
+      axisH: q(".vo-axis") ? q(".vo-axis").getBoundingClientRect().height : 0,
+      marginTop: q(".vo-margin") ? q(".vo-margin").getBoundingClientRect().top : 0,
     });
     requestAnimationFrame(sample);
   }
@@ -103,11 +106,8 @@ const browser = await chromium.launch({
   args: ["--no-sandbox", "--disable-gpu"],
 });
 
-async function open(reducedMotion = "no-preference") {
-  const ctx = await browser.newContext({
-    viewport: { width: 1920, height: 1080 },
-    reducedMotion,
-  });
+async function open(reducedMotion = "no-preference", viewport = { width: 1920, height: 1080 }) {
+  const ctx = await browser.newContext({ viewport, reducedMotion });
   const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -326,6 +326,33 @@ try {
     assert.ok(g.bottom <= g.h * 0.95 && g.top >= g.h * 0.05);
   });
   assert.deepEqual(errors, []);
+
+  // A 720p OBS source scales the 1080-line frame: the band, the axis and the
+  // reference still morph from what is on screen, without a jump.
+  const small = await open("no-preference", { width: 1280, height: 720 });
+  await check("720p source: changes of length morph the axis and the reference without a jump", async () => {
+    const p = small.page;
+    const E = verse("Psaumes", 23, 1);
+    await send(p, { ...A, settings: settings() });
+    await settle(p);
+    await frames(p);
+    // [command, final reference, the reference block stays and morphs]
+    for (const [msg, ref, kept] of [[D, null, false], [E, "Psaumes 23:1", true], [D, null, true]]) {
+      await send(p, { ...msg, settings: settings() });
+      await settle(p);
+      const f = await frames(p);
+      assert.ok(Math.min(...f.map((x) => x.scrim)) > 0.999, "band stays on air");
+      // 720 px frame: a scale error would jump by a third of the axis at once.
+      const axis = maxJump(f.filter((x) => x.axisH > 0), "axisH"),
+        margin = kept ? maxJump(f, "marginTop") : 0;
+      console.log("    720p " + msg.reference + ": largest step per frame — axis " + axis.toFixed(1) + " px" + (kept ? ", reference " + margin.toFixed(1) + " px" : ""));
+      assert.ok(axis < 15, "axis jumped " + axis.toFixed(1) + " px in one frame");
+      assert.ok(margin < 15, "reference jumped " + margin.toFixed(1) + " px in one frame");
+      finalOk(f[f.length - 1], ref);
+    }
+  });
+  assert.deepEqual(small.errors, []);
+  await small.ctx.close();
 
   const reduced = await open("reduce");
   await check("Reduced motion: opacity only, no movement, short", async () => {
