@@ -138,8 +138,8 @@
       confirmed: "Sortie confirmée",
       partial: "Partiel",
       pending: "Commande de diffusion",
-      hidden: "Rien n’est diffusé",
-      offline: "Aucune sortie connectée",
+      hidden: "Rien à l’antenne",
+      offline: "Sortie non connectée",
     }[outState];
     // Too long for the band: the verses really on air, then what was asked
     // (« Partiel · 119:1-4 (demandé 1-48) »), as the Studio says it.

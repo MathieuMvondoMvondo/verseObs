@@ -183,6 +183,30 @@
     // The conductor's own rule (empty conductor) stays; the text view waits
     // for a text.
     if (tab === 1) button.disabled = !data;
+    lastTake.again = again;
+    paintOnairSplit();
+  }
+  /**
+   * The Antenne head's « Découper » (partial state, brief §4) is the same
+   * action as « Découper en N plans » under the preview: offered only while
+   * the preview holds what is on air and its measurement is ready, in the
+   * view where it was prepared.
+   */
+  function paintOnairSplit() {
+    var link = el("onair-split"),
+      split = el("btn-split"),
+      bar = el("onair-bar");
+    if (!link) return;
+    link.hidden = !(
+      bar &&
+      bar.hasAttribute("data-partial") &&
+      lastTake &&
+      lastTake.again &&
+      lastTake.tab === Number(document.body.dataset.tab || 0) &&
+      split &&
+      !split.hidden &&
+      !split.disabled
+    );
   }
   /** The plans of the selected item's split passage, in conductor order. */
   function groupOf(selected) {
@@ -928,6 +952,7 @@
         "Connexions",
       ][index];
       el("studio-title").textContent = titles[index];
+      paintOnairSplit();
     },
     setRelay: function (connected) {
       if (!el("relay-status")) return;
@@ -1011,6 +1036,7 @@
     setFitStale: function () {
       var split = el("btn-split");
       if (split) split.disabled = true;
+      paintOnairSplit();
     },
     /**
      * What the preview monitor reports about the prepared text: reduced, too
@@ -1039,6 +1065,7 @@
             : "Découper en " + pages.length + " plans";
         // A report about another text (or an older version of this one).
         split.disabled = measuring || !(info && info.fresh !== false);
+        paintOnairSplit();
       }
       if (
         !info ||

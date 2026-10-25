@@ -186,7 +186,7 @@
               role="img"
               aria-label="Connexion à une sortie"
             ></span
-            ><span id="connection-text">Aucune sortie connectée</span>
+            ><span id="connection-text">Sortie non connectée</span>
           </div>
           <button class="command-trigger" id="command-trigger">
             <img
@@ -232,15 +232,22 @@
         <div
           class="cp-onair"
           id="onair-bar"
-          data-state="off"
+          data-state="offline"
           role="status"
           aria-live="polite"
         >
           <span class="cp-onair-tally"
             ><span class="cp-onair-fill" aria-hidden="true"></span
           ><span class="cp-onair-dot" aria-hidden="true"></span>Antenne</span
-          ><span class="cp-onair-label">Rien n’est diffusé</span
+          ><span class="cp-onair-label">Sortie non connectée</span
           ><span class="cp-onair-ref" id="onair-ref"></span
+          ><button
+            class="cp-onair-split"
+            id="onair-split"
+            type="button"
+            hidden
+          >
+            Découper</button
           ><button
             class="cp-onair-hide"
             id="onair-hide"

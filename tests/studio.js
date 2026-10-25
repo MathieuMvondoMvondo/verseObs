@@ -393,7 +393,7 @@ async function run() {
     assert.equal(cp.d.querySelector("#onair-ref").textContent, "");
     assert.equal(
       cp.d.querySelector(".cp-onair-label").textContent,
-      "Rien n’est diffusé",
+      "Rien à l’antenne",
     );
   });
   output.w.VerseObs.DisplayApp.handleMessage({

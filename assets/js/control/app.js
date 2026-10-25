@@ -534,6 +534,9 @@
     }
     var split = document.getElementById("btn-split");
     if (split) split.addEventListener("click", _splitPrepared);
+    // The Antenne head's « Découper » (partial state): the same action.
+    var onairSplit = document.getElementById("onair-split");
+    if (onairSplit) onairSplit.addEventListener("click", _splitPrepared);
 
     // Live preview while editing free text
     var ftInputs = [
@@ -1552,6 +1555,8 @@
     document.body.classList.toggle("output-connected", connected);
     if (_output.connected !== connected) {
       _output.connected = connected;
+      // Nothing on air and no output: the Antenne head says so (hatched).
+      _paintOnAir();
       _outputChanged();
     }
     if (dom.connectionDot) {
@@ -1564,7 +1569,7 @@
     if (dom.connectionText) {
       dom.connectionText.textContent = connected
         ? "Sortie connectée"
-        : "Aucune sortie connectée";
+        : "Sortie non connectée";
     }
   }
 
@@ -1948,15 +1953,21 @@
 
   /**
    * The program strip never disappears (no layout shift under the operator's
-   * pointer): it states what the output shows — nothing, a command waiting
-   * for confirmation, or a confirmed text on air.
+   * pointer): it states what the output shows, in the phone's words (brief
+   * §4) — no output, nothing, a command waiting for confirmation, a
+   * confirmed text, or part of a passage (red, with an amber chip).
    */
   var ONAIR_LABELS = {
-    off: "Rien n’est diffusé",
+    offline: "Sortie non connectée",
+    off: "Rien à l’antenne",
     pending: "Commande de diffusion",
     live: "Sortie confirmée",
-    partial: "Sortie partielle",
   };
+  /** « 1-6 » for « Psaumes 23:1-6 », as the phone says it. */
+  function _askedVerses() {
+    var m = /:(\S+)$/.exec(String(_output.label || ""));
+    return m ? m[1] : "chapitre entier";
+  }
   /**
    * Command sent → confirmed: the red tally fills once, left to right, in
    * 180 ms (brief §6). Nothing in reduced motion: the colour just changes.
@@ -1973,22 +1984,37 @@
   }
   function _paintOnAir() {
     var state = !_output.visible
-      ? "off"
+      ? _output.connected
+        ? "off"
+        : "offline"
       : _output.confirmed
         ? "live"
         : "pending";
+    var partial = state === "live" && !!_output.shown;
     if (dom.onairBar) {
       if (dom.onairBar.dataset.state === "pending" && state === "live") _fillTally();
       dom.onairBar.dataset.state = state;
+      dom.onairBar.toggleAttribute("data-partial", partial);
       var label = dom.onairBar.querySelector(".cp-onair-label");
-      if (label)
-        label.textContent =
-          state === "live" && _output.shown
-            ? ONAIR_LABELS.partial +
-              " · demandé " +
-              (/\S+$/.exec(_output.label) || [""])[0]
-            : ONAIR_LABELS[state];
-      if (state === "off" && dom.onairRef) dom.onairRef.textContent = "";
+      if (label) {
+        // Part of a passage: « Partiel 23:1-3 · demandé 1-6 » (narrower
+        // heads show « Partiel », the rest in the title).
+        var detail = partial
+          ? " " + _output.shown + " · demandé " + _askedVerses()
+          : "";
+        var text = partial ? "Partiel" + detail : ONAIR_LABELS[state];
+        if (label.textContent !== text) {
+          label.textContent = partial ? "Partiel" : text;
+          if (partial) {
+            var more = document.createElement("span");
+            more.className = "onair-partial-detail";
+            more.textContent = detail;
+            label.appendChild(more);
+          }
+          label.title = partial ? text : "";
+        }
+      }
+      if (!_output.visible && dom.onairRef) dom.onairRef.textContent = "";
     }
     document.body.dataset.onair = state;
     if (window.VerseObs.Studio && window.VerseObs.Studio.setOutput)

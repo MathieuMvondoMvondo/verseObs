@@ -677,6 +677,88 @@ try {
   });
   }
 
+  // ---- The Antenne head's states (brief §4), in the phone's words: no
+  // output (grey, hatched), nothing on air (grey), part of a passage on air
+  // (red, an amber chip and the same « Découper » as under the preview).
+  if (run("states")) {
+  await check("Antenne head (§4): hatched « Sortie non connectée », grey « Rien à l’antenne », partial = amber chip « Partiel 23:1-3 · demandé 1-6 » with « Découper »", async () => {
+    const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    const errors = [];
+    const studio = await ctx.newPage();
+    studio.on("pageerror", (e) => errors.push("studio: " + e.message));
+    await studio.goto(`${BASE}/control_panel.html`);
+    await studio.waitForSelector(".chapter-verse");
+    const head = () =>
+      studio.evaluate(() => {
+        const bar = document.querySelector("#onair-bar");
+        const label = bar.querySelector(".cp-onair-label");
+        const tally = bar.querySelector(".cp-onair-tally");
+        const link = document.querySelector("#onair-split");
+        const seen = (e) => {
+          if (!e || !e.getClientRects().length) return false;
+          const r = e.getBoundingClientRect();
+          return r.width > 2 && r.height > 2 && r.right > 0 && r.left < innerWidth && getComputedStyle(e).visibility === "visible";
+        };
+        const rgb = (c) => (c.match(/[\d.]+/g) || []).map(Number);
+        const detail = label.querySelector(".onair-partial-detail");
+        return {
+          state: bar.dataset.state,
+          label: label.textContent,
+          labelSeen: seen(label),
+          labelWidth: Math.round(label.getBoundingClientRect().width),
+          detailSeen: seen(detail),
+          ink: rgb(getComputedStyle(label).color),
+          chip: rgb(getComputedStyle(label).backgroundColor),
+          hatch: getComputedStyle(tally).backgroundImage,
+          link: seen(link) ? link.textContent.trim() : null,
+          top: document.querySelector("#connection-text").textContent,
+        };
+      });
+    // No OBS output answers the Studio: hatched, as on the phone.
+    await studio.waitForTimeout(1200);
+    let h = await head();
+    assert.equal(h.state, "offline", JSON.stringify(h));
+    assert.equal(h.label, "Sortie non connectée");
+    assert.ok(h.labelSeen, "the state is written in the head");
+    assert.match(h.hatch, /repeating-linear-gradient/, "hatched tally");
+    assert.equal(h.top, "Sortie non connectée", "the top bar says the same");
+    // The output answers: nothing on air, grey, not hatched.
+    const output = await ctx.newPage();
+    await output.setViewportSize({ width: 1920, height: 1080 });
+    output.on("pageerror", (e) => errors.push("output: " + e.message));
+    await output.goto(`${BASE}/browser_source.html`);
+    await studio.waitForFunction(() => document.querySelector("#onair-bar").dataset.state === "off", null, { timeout: 10000 });
+    h = await head();
+    assert.equal(h.label, "Rien à l’antenne");
+    assert.equal(h.hatch, "none");
+    assert.equal(h.link, null);
+    // Psaumes 23:1-6 is too long for the band: red, with an amber chip.
+    await prepare(studio, "Psaumes 23:1-6");
+    await studio.click("#btn-show");
+    await studio.waitForFunction(() => /^Partiel /.test(document.querySelector("#onair-bar .cp-onair-label").textContent), null, { timeout: 10000 });
+    await studio.waitForFunction(() => { const l = document.querySelector("#onair-split"); return !!l && !l.hidden; }, null, { timeout: 15000 });
+    h = await head();
+    const shown = await output.evaluate(() => document.querySelector(".vo-nums .vo-roll:not(.is-leaving)").textContent);
+    assert.equal(h.state, "live", "red: the output does show text");
+    assert.equal(h.label, "Partiel " + shown + " · demandé 1-6");
+    const [r, g, b] = h.ink;
+    assert.ok(r > 200 && g > 140 && g < 210 && b < 120, "amber ink " + h.ink);
+    assert.ok(h.chip.length === 4 ? h.chip[3] > 0 : h.chip.length === 3, "a chip, not bare text: " + h.chip);
+    assert.equal(h.link, "Découper");
+    // The same action as « Découper » under the preview: the plans join the conductor.
+    await studio.click("#onair-split");
+    await studio.waitForFunction(() => document.querySelectorAll("#queue-container .cp-queue-item").length >= 2, null, { timeout: 5000 });
+    // In the 390 px dock the band keeps a short amber « Partiel » chip.
+    await studio.setViewportSize({ width: 390, height: 844 });
+    await studio.waitForTimeout(300);
+    h = await head();
+    assert.ok(h.labelSeen && !h.detailSeen && h.labelWidth < 110, "dock: short chip " + JSON.stringify(h));
+    assert.equal(h.link, null, "dock: no link in the band");
+    assert.deepEqual(errors, []);
+    await ctx.close();
+  });
+  }
+
   // ---- The OBS source may be 720p, 1080p or 4K: the output composes one
   // logical 1080-line frame, so every size shows what the monitors show.
   if (run("output")) {
@@ -1053,7 +1135,7 @@ try {
     const timeline = await ts.evaluate(() => window.__tally);
     console.log("    program " + program + ", projector " + shownOnProjector + "; Studio timeline: " + JSON.stringify(timeline));
     assert.equal(timeline.length, 1, "the program strip never changed: " + JSON.stringify(timeline));
-    assert.equal(timeline[0].v, "Sortie partielle · demandé 23:1-6 | Psaumes " + program);
+    assert.equal(timeline[0].v, "Partiel " + program + " · demandé 1-6 | Psaumes " + program);
   });
   await check("With the projector alone, its report still confirms the broadcast", async () => {
     await obs.close();
@@ -1371,7 +1453,7 @@ try {
     await prepare(studio, "Psaumes 23:1-6");
     await studio.click("#btn-show");
     await output.waitForFunction(() => document.querySelector(".verse-card")?.dataset.partial === "23:1-6");
-    await studio.waitForFunction(() => /Sortie partielle/.test(document.querySelector("#onair-bar .cp-onair-label").textContent));
+    await studio.waitForFunction(() => /^Partiel /.test(document.querySelector("#onair-bar .cp-onair-label").textContent));
     await studio.evaluate(() => document.querySelector("#tab-btn-4").click());
     // A pause of the VPS can delay one report or the Studio itself (seen:
     // 310 ms once): the cycle is then measured again. Without a report on a
@@ -1380,7 +1462,7 @@ try {
       const slow = [];
       for (const [position, strip, partial] of [
         ["center", "Sortie confirmée | Psaumes 23:1-6", ""],
-        ["lower-third", "Sortie partielle · demandé 23:1-6 | Psaumes 23:1-3", "23:1-6"],
+        ["lower-third", "Partiel 23:1-3 · demandé 1-6 | Psaumes 23:1-3", "23:1-6"],
       ]) {
         const r = await restyle(position);
         console.log("    attempt " + attempt + " → " + position + ": " + JSON.stringify(r));
