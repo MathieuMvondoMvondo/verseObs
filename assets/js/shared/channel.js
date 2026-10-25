@@ -22,6 +22,26 @@ window.VerseObs.Channel = function (opts) {
   try {
     lastRaw = localStorage.getItem(key);
   } catch (e) {}
+  // The poll below reads only the last command written to localStorage: on a
+  // busy machine it may hand a later preview over before BroadcastChannel, a
+  // storage event or the relay delivers an earlier one. A preview replaces
+  // the previous one, so an earlier one arriving late is dropped (per
+  // sender, by its command number); every other command is delivered as is.
+  var replaces = {},
+    latest = {};
+  replaces[V.MSG.PREVIEW] = replaces[V.MSG.PREVIEW_HIDE] = "preview";
+  function superseded(msg) {
+    var slot = replaces[msg.type],
+      id = String(msg.id || ""),
+      from = String(msg.sender || "");
+    if (!slot || !from || id.indexOf(from + ":") !== 0) return false;
+    var n = Number(id.slice(from.length + 1)),
+      k = from + " " + slot;
+    if (!(n > 0)) return false;
+    if (latest[k] >= n) return true;
+    latest[k] = n;
+    return false;
+  }
   function receive(msg) {
     if (
       stopped ||
@@ -35,6 +55,7 @@ window.VerseObs.Channel = function (opts) {
     if (seen.has(id)) return;
     seen.add(id);
     if (seen.size > 600) seen.delete(seen.values().next().value);
+    if (superseded(msg)) return;
     if (msg.type === V.MSG.PING && opts.autoPong !== false)
       self.send({ type: V.MSG.PONG });
     listeners.slice().forEach(function (fn) {

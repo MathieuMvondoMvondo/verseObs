@@ -600,6 +600,83 @@ try {
   await desk.ctx.close();
   }
 
+  // ---- One prepared text, one preview. The poll of the last command
+  // (localStorage) may hand a later preview over before BroadcastChannel,
+  // storage events or the relay deliver an earlier one: a loaded machine
+  // delays those inter-process messages (simulated here by 400 ms in the
+  // preview frame only). The earlier preview must not come back on the
+  // monitor, or « Découper » waits for ever for a report about the text
+  // actually prepared (the « Two translations » check once timed out so).
+  if (run("order")) {
+  await check("A preview delivered late never replaces a newer one: the monitor shows the prepared text and « Découper » becomes available", async () => {
+    const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    await ctx.addInitScript(() => {
+      if (!/preview=1/.test(location.search)) return;
+      const late = (fn, self) => fn && ((e) => setTimeout(() => fn.call(self, e), 400));
+      for (const Ctor of [BroadcastChannel, WebSocket]) {
+        const d = Object.getOwnPropertyDescriptor(Ctor.prototype, "onmessage");
+        Object.defineProperty(Ctor.prototype, "onmessage", {
+          configurable: true,
+          get: d.get,
+          set(fn) {
+            d.set.call(this, late(fn, this));
+          },
+        });
+      }
+      const add = window.addEventListener;
+      window.addEventListener = function (type, fn, o) {
+        return add.call(this, type, type === "storage" ? late(fn, this) : fn, o);
+      };
+    });
+    const errors = [];
+    const output = await ctx.newPage();
+    await output.setViewportSize({ width: 1920, height: 1080 });
+    output.on("pageerror", (e) => errors.push("output: " + e.message));
+    await output.goto(`${BASE}/browser_source.html`);
+    const studio = await ctx.newPage();
+    studio.on("pageerror", (e) => errors.push("studio: " + e.message));
+    await studio.goto(`${BASE}/control_panel.html`);
+    await studio.waitForSelector(".chapter-verse");
+    await studio.waitForFunction(() => document.querySelector("#connection-dot").classList.contains("connected"));
+    await studio.waitForTimeout(600);
+    // Two long passages prepared in one go: the second one is prepared.
+    await studio.evaluate(() => {
+      const input = document.querySelector("#search-input");
+      for (const ref of ["Psaumes 119:1-48", "Romains 8:28-39"]) {
+        input.value = ref;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    });
+    const state = () =>
+      studio.evaluate(() => {
+        const b = document.querySelector("#btn-split");
+        const doc = document.querySelector("#preview-frame").contentDocument;
+        return {
+          prepared: document.querySelector("#preview-ref").textContent,
+          split: b.textContent,
+          disabled: b.disabled,
+          hidden: b.hidden,
+          monitor: (doc.querySelector(".verse-card .vo-refblock")?.textContent || "").replace(/\s+/g, " ").trim(),
+        };
+      });
+    await studio
+      .waitForFunction(() => {
+        const b = document.querySelector("#btn-split");
+        return !b.hidden && !b.disabled && /Découper en \d+ plans/.test(b.textContent);
+      }, null, { timeout: 15000 })
+      .catch(async () => {
+        throw new Error("« Découper » never offered for the prepared text: " + JSON.stringify(await state()));
+      });
+    await studio.waitForTimeout(1200);
+    const s = await state();
+    assert.equal(s.prepared, "Romains 8:28-39");
+    assert.match(s.monitor, /Romains/, "the preview monitor shows the prepared text: " + JSON.stringify(s));
+    assert.equal(s.disabled, false, JSON.stringify(s));
+    assert.deepEqual(errors, []);
+    await ctx.close();
+  });
+  }
+
   // ---- The OBS source may be 720p, 1080p or 4K: the output composes one
   // logical 1080-line frame, so every size shows what the monitors show.
   if (run("output")) {

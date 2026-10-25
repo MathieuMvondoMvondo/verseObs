@@ -1223,6 +1223,39 @@ async function testDedup() {
     () => assert.equal(delivered, 1),
   );
   channel.destroy();
+  // The poll reads only the last command written to localStorage: on a busy
+  // machine it may hand over a later preview before BroadcastChannel (or a
+  // storage event) delivers an earlier one. The earlier one must not come
+  // back on the preview monitor afterwards; other commands are untouched.
+  const got = [];
+  const preview = new ctx.VerseObs.Channel({ autoPong: false });
+  preview.onMessage((m) => got.push(m.type + " " + m.id));
+  const from = (n, type) => ({
+    type,
+    id: "studio:" + n,
+    sender: "studio",
+    ts: Date.now(),
+    text: "T" + n,
+  });
+  backing.verseobs_msg = JSON.stringify(from(7, "preview"));
+  interval();
+  listener.onmessage({ data: from(6, "preview") });
+  storageCb({ key: "verseobs_msg", newValue: JSON.stringify(from(6, "preview")) });
+  listener.onmessage({ data: from(7, "preview") });
+  listener.onmessage({ data: from(5, "preview_hide") });
+  listener.onmessage({ data: from(4, "update_style") });
+  listener.onmessage({ data: from(9, "preview_hide") });
+  listener.onmessage({ data: from(8, "preview") });
+  check(
+    "A preview delivered late by a slower transport never replaces a later one",
+    () =>
+      assert.deepEqual(got, [
+        "preview studio:7",
+        "update_style studio:4",
+        "preview_hide studio:9",
+      ]),
+  );
+  preview.destroy();
 }
 run()
   .catch((e) => {
