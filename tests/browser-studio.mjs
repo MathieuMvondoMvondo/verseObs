@@ -1549,6 +1549,14 @@ try {
           assert.ok(nav.every((b) => b && b.w >= 44 && b.h >= 44), where + "Préc./Suiv. " + JSON.stringify(nav));
           assert.ok(nav[0].right <= t.left && nav[1].left >= t.right, where + "Préc. | Diffuser | Suiv. " + JSON.stringify(nav));
         } else assert.deepEqual(nav, [null, null], where + "no Préc./Suiv. outside the Conducteur view");
+        if (tab === 0) {
+          // The editor's heading stays legible: title and tools on one line each.
+          const head = await dock.studio.evaluate(() =>
+            ["#preview-ref", "#toggle-format"].map((s) => Math.round(document.querySelector(s).getBoundingClientRect().height)),
+          );
+          // One line each: a 20/28 title, a 14/20 button with its 4 px padding.
+          assert.ok(head[0] <= 30 && head[1] <= 30, where + "editor heading wraps: " + JSON.stringify(head));
+        }
       }
     }
   });

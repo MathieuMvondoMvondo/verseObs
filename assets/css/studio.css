@@ -5232,3 +5232,23 @@ body:not([data-tab="2"]) #tab-queue .cp-queue-title {
     order: 4;
   }
 }
+/* Dock: the passage's title on its own line, its tools on the next. */
+@media (max-width: 620px) {
+  .passage-editor .section-heading {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+  .passage-editor .section-heading h2 {
+    flex: 1 0 100%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .passage-editor .section-heading .style-pick {
+    margin-right: auto;
+  }
+}
+.format-toggle {
+  white-space: nowrap;
+}
