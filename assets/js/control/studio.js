@@ -5,7 +5,9 @@
     api = null,
     lastChapter = "",
     lastVerse = 0,
-    undo = null;
+    undo = null,
+    layoutRows = function () {},
+    output = { visible: false, confirmed: false, label: "" };
   var titles = [
     "Préparer un passage",
     "Textes & chants",
@@ -103,6 +105,7 @@
         el("queue-selection-text").appendChild(second);
       }
     }
+    markLive();
     el("session-saved").textContent = !state.saved
       ? "Non enregistré · exportez votre session"
       : state.total
@@ -111,6 +114,39 @@
           (state.total > 1 ? "s" : "") +
           " · enregistré sur cet appareil"
         : "Sauvegarde automatique";
+  }
+  /**
+   * Program tally in the conductor: the item the output shows is marked
+   * « À l’antenne », whatever is selected (same rule as the phone remote).
+   */
+  function markLive() {
+    var live = output.visible ? output.label : null;
+    document.querySelectorAll("#queue-container .cp-queue-item").forEach(
+      function (row) {
+        var on = live !== null && row.dataset.label === live;
+        row.classList.toggle("is-live", on && output.confirmed);
+        row.classList.toggle("is-live-pending", on && !output.confirmed);
+        row.setAttribute(
+          "aria-label",
+          "Sélectionner " +
+            row.dataset.label +
+            (on ? (output.confirmed ? ", à l’antenne" : ", envoi en cours") : ""),
+        );
+      },
+    );
+    var preview = el("queue-selection-preview"),
+      selected = api && api.queue.getItems()[api.queue.getState().current - 1];
+    if (!preview) return;
+    var selectedLive =
+      !!selected &&
+      live !== null &&
+      (selected.reference || selected.title || "Texte libre") === live;
+    preview.classList.toggle("is-live", selectedLive);
+    el("queue-selection-badge").textContent = selectedLive
+      ? output.confirmed
+        ? "À L’ANTENNE"
+        : "ENVOI EN COURS"
+      : "PRÊT À DIFFUSER";
   }
   function markPreset() {
     var current = api.settings.getAll().template;
@@ -188,7 +224,7 @@
     group(
       0,
       "Placer votre passage",
-      ["position", "maxWidth"],
+      ["layout", "position", "maxWidth"],
       "Où la Parole apparaît-elle sur votre écran ?",
     );
     group(0, "Rendre la lecture confortable", [
@@ -237,6 +273,7 @@
     select.className = "cp-select";
     select.dataset.setting = "fontFamily";
     [
+      [V.ANTENNE_FONT, "Lora · Antenne"],
       [
         "'Segoe UI', Calibri, 'Helvetica Neue', Arial, sans-serif",
         "Sans sérif · Moderne",
@@ -307,9 +344,9 @@
     });
     rows.animation.querySelectorAll("option").forEach(function (o) {
       o.textContent = {
+        reveal: "Révélation · lecture",
         fade: "Fondu doux",
         slide: "Glissement",
-        typewriter: "Machine à écrire",
         none: "Instantané",
       }[o.value];
     });
@@ -326,9 +363,32 @@
     Object.keys(labels).forEach(function (k) {
       rows[k].querySelector(".cp-setting-label").textContent = labels[k];
     });
+    // Card-only settings are hidden with the antenne layout, and the
+    // reference colour becomes the accent (axis, verse numbers, version).
+    var cardOnly = ["refPosition", "borderRadius", "borderWidth", "borderColor"],
+      accentLabel = rows.refBgColor.querySelector(".cp-setting-label"),
+      cardLabel = accentLabel.textContent;
+    var layoutSelect = rows.layout.querySelector("select");
+    layoutRows = function () {
+      var antenne = layoutSelect.value !== "carte";
+      cardOnly.forEach(function (key) {
+        if (rows[key]) rows[key].hidden = antenne;
+      });
+      imageRow.hidden = antenne;
+      accentLabel.textContent = antenne ? "Accent · axe et numéros" : cardLabel;
+    };
+    container.addEventListener("change", function () {
+      layoutRows();
+    });
+    document.addEventListener("click", function (e) {
+      if (e.target.closest && e.target.closest("[data-preset]"))
+        setTimeout(layoutRows, 0);
+    });
+    layoutRows();
   }
   function init(config) {
     api = config;
+    layoutRows();
     el("session-name").value = read(
       "verseobs_session_name",
       "Ma prochaine célébration",
@@ -346,7 +406,7 @@
     selectedPreview.className = "queue-selection-preview";
     selectedPreview.id = "queue-selection-preview";
     selectedPreview.innerHTML =
-      '<span class="editor-badge">PRÊT À DIFFUSER</span><h3 id="queue-selection-title"></h3><p id="queue-selection-text"></p>';
+      '<span class="editor-badge" id="queue-selection-badge">PRÊT À DIFFUSER</span><h3 id="queue-selection-title"></h3><p id="queue-selection-text"></p>';
     el("btn-queue-show").parentElement.before(selectedPreview);
     api.queue.onChange = updateQueue;
     updateQueue();
@@ -427,11 +487,12 @@
       el("monitor-program").classList.toggle("selected", program);
       el("monitor-program").setAttribute("aria-pressed", String(program));
       el("monitor-label").textContent = program
-        ? "Retour des commandes"
-        : "Non diffusé";
+        ? "Ce que montre la sortie"
+        : "Pas encore diffusé";
       document.querySelector(".stage-label").textContent = program
-        ? "VERSEOBS / OUTPUT"
-        : "VERSEOBS / PREVIEW";
+        ? "Antenne"
+        : "Aperçu";
+      el("preview-stage").classList.toggle("is-program", program);
     }
     on("monitor-preview", function () {
       monitor(false);
@@ -713,6 +774,33 @@
       el("monitor-program").title = data
         ? data.reference || data.title || "Texte libre"
         : "Sortie masquée";
+    },
+    /** Program state changed (command sent, confirmed or hidden). */
+    setOutput: function (state) {
+      output = {
+        visible: !!state.visible,
+        confirmed: !!state.confirmed,
+        label: String(state.label || ""),
+      };
+      el("monitor-program").classList.toggle("is-live", output.visible);
+      if (api) markLive();
+    },
+    /** What the preview monitor reports about the prepared text. */
+    setFit: function (info) {
+      var hint = el("fit-hint");
+      if (!hint) return;
+      var fit = Number(info && info.fit) || 1;
+      if (!info || !info.visible || (fit >= 0.98 && !info.overflow)) {
+        hint.hidden = true;
+        hint.textContent = "";
+        hint.classList.remove("is-warning");
+        return;
+      }
+      hint.hidden = false;
+      hint.classList.toggle("is-warning", !!info.overflow);
+      hint.textContent = info.overflow
+        ? "Trop long pour l’écran : découpez le passage"
+        : "Texte réduit à " + Math.round(fit * 100) + " % pour tenir à l’écran";
     },
   };
 })();

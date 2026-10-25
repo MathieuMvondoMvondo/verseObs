@@ -49,8 +49,9 @@
     }
     var D = window.VerseObs.DEFAULTS || {};
     return {
+      layout: D.layout || "antenne",
       position: D.position || "lower-third",
-      animation: D.animation || "fade",
+      animation: D.animation || "reveal",
       animationDuration: D.animationDuration || 500,
       autoHide: D.autoHide || 0,
       fontFamily: D.fontFamily || "'Segoe UI', sans-serif",
@@ -92,6 +93,13 @@
               : defaults[key];
           }
         }
+        if (window.VerseObs.migrateStyle)
+          window.VerseObs.migrateStyle(
+            saved,
+            this._settings,
+            defaults,
+            this._defaultsObj ? "chant" : "studio",
+          );
       } else {
         this._settings = defaults;
       }

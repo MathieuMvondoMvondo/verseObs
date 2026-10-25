@@ -155,6 +155,67 @@ async function run() {
       cp.d.querySelector(".cp-onair-label").textContent === "Sortie confirmée",
     "acknowledged",
   );
+  check("The program strip states a confirmed broadcast in red tally", () => {
+    const bar = cp.d.querySelector("#onair-bar");
+    assert.equal(bar.dataset.state, "live");
+    assert.equal(cp.d.body.dataset.onair, "live");
+    assert.equal(cp.d.querySelector("#onair-ref").textContent, "Jean 3:16-18");
+    assert(cp.d.querySelector("#monitor-program").classList.contains("is-live"));
+  });
+  check("The output composes margin reference, axis and reading column", () => {
+    const container = output.d.querySelector("#verse-container");
+    assert(container.classList.contains("layout-antenne"));
+    assert(output.d.querySelector(".verse-card").classList.contains("has-ref"));
+    assert.equal(output.d.querySelector(".vo-book").textContent, "Jean");
+    assert.equal(output.d.querySelector(".vo-nums").textContent, "3:16-18");
+    assert(output.d.querySelector(".vo-version").textContent.length > 2);
+    assert.equal(output.d.querySelectorAll(".vo-axis").length, 1);
+    assert.equal(output.d.querySelectorAll(".vo-copy").length, 1);
+  });
+  // Objects come from the page's realm: compare them as plain JSON.
+  const split = (r) =>
+    JSON.parse(JSON.stringify(output.w.VerseObs.Renderer.splitReference(r)));
+  check("References split into book and numbers for the margin", () => {
+    assert.deepEqual(split("1 Corinthiens 13:4-7"), {
+      book: "1 Corinthiens",
+      nums: "13:4-7",
+    });
+    assert.deepEqual(split("Psaumes 119:105-112"), {
+      book: "Psaumes",
+      nums: "119:105-112",
+    });
+    assert.deepEqual(split("Psaumes 23"), { book: "Psaumes", nums: "23" });
+    assert.deepEqual(split("Annonce"), { book: "Annonce", nums: "" });
+  });
+  check("A card's reference pill stays readable with the antenne colours", () => {
+    const readable = output.w.VerseObs.Renderer.readableOn;
+    assert.equal(readable("#f2b544", "#f3eee4"), "#14161b");
+    assert.equal(readable("#92b3f5", "#27282c"), "#27282c");
+    assert.equal(readable("#1d4ed8", "#1a1a1a"), "#ffffff");
+  });
+  cp.w.VerseObs.Studio.setFit({ visible: true, fit: 0.8, overflow: false });
+  check("The preview tells the operator when a text had to be reduced", () => {
+    const hint = cp.d.querySelector("#fit-hint");
+    assert.equal(hint.hidden, false);
+    assert.equal(hint.textContent, "Texte réduit à 80 % pour tenir à l’écran");
+    assert(!hint.classList.contains("is-warning"));
+  });
+  cp.w.VerseObs.Studio.setFit({ visible: true, fit: 0.42, overflow: true });
+  check("A text too long even when reduced is flagged before broadcast", () => {
+    const hint = cp.d.querySelector("#fit-hint");
+    assert(hint.classList.contains("is-warning"));
+    assert.match(hint.textContent, /découpez le passage/);
+  });
+  // Another window cannot drive the hint: only the preview frame is trusted.
+  cp.w.postMessage({ type: "verseobs:fit", visible: true, fit: 0.5 }, origin);
+  await wait(60);
+  check("Fit reports from another window are ignored", () =>
+    assert.match(cp.d.querySelector("#fit-hint").textContent, /découpez/),
+  );
+  cp.w.VerseObs.Studio.setFit({ visible: true, fit: 1, overflow: false });
+  check("A text shown at full size shows no hint", () =>
+    assert.equal(cp.d.querySelector("#fit-hint").hidden, true),
+  );
   click(cp, '[data-reference="Psaumes 23:1"]');
   await wait(180);
   check("Preparing another passage does not change the live output", () =>
@@ -255,9 +316,25 @@ async function run() {
     );
     assert.equal(
       JSON.parse(cp.w.localStorage.getItem("verseobs_settings")).fontSize,
-      40,
+      cp.w.VerseObs.DEFAULTS.fontSize,
     );
   });
+  const row = (key) =>
+    cp.d
+      .querySelector("#settings-container [data-setting=" + key + "]")
+      .closest(".cp-setting-row");
+  check("The antenne layout hides card-only settings", () => {
+    assert.equal(row("refPosition").hidden, true);
+    assert.equal(row("borderRadius").hidden, true);
+    assert.match(row("refBgColor").textContent, /Accent/);
+  });
+  input(cp, "#settings-container [data-setting=layout]", "carte", "change");
+  check("Choosing the framed card brings its settings back", () => {
+    assert.equal(row("refPosition").hidden, false);
+    assert.equal(row("borderRadius").hidden, false);
+    assert.equal(cp.w.VerseObs && JSON.parse(cp.w.localStorage.getItem("verseobs_settings")).layout, "carte");
+  });
+  input(cp, "#settings-container [data-setting=layout]", "antenne", "change");
   input(cp, "#settings-container [data-setting=fontSize]", "42");
   await wait(150);
   check("Changing the Bible style does not restyle an on-air song", () =>
@@ -308,9 +385,36 @@ async function run() {
   });
   click(cp, "#btn-hide");
   await until(() => !output.d.querySelector(".verse-card"), "hide");
-  check("Hide clears the output and acknowledged on-air state", () =>
-    assert.equal(cp.d.querySelector("#onair-bar").hidden, true),
+  check("Hide clears the output and acknowledged on-air state", () => {
+    const bar = cp.d.querySelector("#onair-bar");
+    // The program strip stays in place (no layout shift) and says it is empty.
+    assert.equal(bar.hidden, false);
+    assert.equal(bar.dataset.state, "off");
+    assert.equal(cp.d.querySelector("#onair-ref").textContent, "");
+    assert.equal(
+      cp.d.querySelector(".cp-onair-label").textContent,
+      "Rien n’est diffusé",
+    );
+  });
+  output.w.VerseObs.DisplayApp.handleMessage({
+    type: "show_verse",
+    text: "Ancien habillage",
+    reference: "Jean 1:1",
+    settings: { template: "studio", animation: "none", fontSize: 40 },
+  });
+  await until(
+    () => output.d.querySelector(".verse-reference")?.textContent === "Jean 1:1",
+    "legacy style shown",
   );
+  check("A style saved before the antenne layout still renders as a card", () =>
+    assert(
+      output.d
+        .querySelector("#verse-container")
+        .classList.contains("layout-carte"),
+    ),
+  );
+  output.w.VerseObs.DisplayApp.handleMessage({ type: "hide" });
+  await until(() => !output.d.querySelector(".verse-card"), "legacy hidden");
   // Race regression: hide must win even during a long entrance transition.
   input(cp, "#settings-container [data-setting=animation]", "fade", "change");
   input(cp, "#settings-container [data-setting=animationDuration]", "1000");
@@ -844,11 +948,47 @@ async function runRemoteChecks(cp, output, logged) {
   check("The phone shows « Sortie confirmée » like the Studio", () =>
     assert.equal(phone.d.querySelector("#output-label").textContent, "Sortie confirmée"),
   );
+  await until(
+    () => phone.d.querySelector(".slot-current").classList.contains("is-live"),
+    "phone tally",
+  );
+  check("The phone marks the live selection in program colours", () => {
+    assert.equal(phone.d.body.dataset.output, "confirmed");
+    assert.equal(phone.d.querySelector("#current-live").hidden, false);
+    assert.equal(phone.d.querySelector("#current-live").textContent, "À l’antenne");
+  });
+  const liveRows = () =>
+    Array.from(cp.d.querySelectorAll("#queue-container .cp-queue-item.is-live"));
+  check("The conductor marks the item on air, distinct from the selection", () => {
+    assert.equal(liveRows().length, 1);
+    assert.equal(liveRows()[0].dataset.label, "Jean 3:16");
+    assert(liveRows()[0].classList.contains("cp-queue-current"));
+    assert.match(liveRows()[0].getAttribute("aria-label"), /à l’antenne/);
+    assert.equal(cp.d.querySelector("#queue-selection-badge").textContent, "À L’ANTENNE");
+  });
+  phone.d.querySelector("#btn-prev").click();
+  await until(
+    () => phone.d.querySelector("#current-ref").textContent === "Psaumes 23",
+    "remote previous",
+  );
+  check("Moving the selection keeps the program tally on the live item", () => {
+    assert.equal(liveRows().length, 1);
+    assert.equal(liveRows()[0].dataset.label, "Jean 3:16");
+    assert(!liveRows()[0].classList.contains("cp-queue-current"));
+    assert.equal(cp.d.querySelector("#queue-selection-badge").textContent, "PRÊT À DIFFUSER");
+    assert.equal(phone.d.querySelector("#current-live").hidden, true);
+    assert(!phone.d.querySelector(".slot-current").classList.contains("is-live"));
+  });
   phone.d.querySelector("#btn-hide").click();
   await until(() => !output.d.querySelector(".verse-text"), "remote hide");
   check("Masquer from the phone clears the output", () =>
     assert.equal(output.d.querySelector(".verse-text"), null),
   );
+  await until(() => liveRows().length === 0, "conductor tally cleared");
+  check("Once hidden, nothing in the conductor claims to be on air", () => {
+    assert.equal(cp.d.querySelector("#onair-bar").dataset.state, "off");
+    assert.equal(cp.d.querySelectorAll(".cp-queue-item.is-live-pending").length, 0);
+  });
 
   const raw = await remoteSocket(wsBase + "?code=" + code, lan);
   const reply = async (msg) => {

@@ -1,26 +1,63 @@
-/* VerseObs - OBS Browser Source Overlay Styles */
+/* VerseObs — OBS output.
+ * One DOM, one motion engine, two layouts:
+ *  - "antenne" (default): a full-bleed ink band; the reference sits in a margin
+ *    against a vertical axis, the reading column starts on the other side.
+ *  - "carte": the framed card with its reference pill (previous templates).
+ * Typefaces are bundled (assets/fonts, SIL OFL): no font service is contacted. */
+
+@font-face {
+  font-family: "VerseObs Lecture";
+  src: url("../fonts/Lora-wght.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "VerseObs Lecture";
+  src: url("../fonts/Lora-Italic-wght.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: italic;
+  font-display: block;
+}
+@font-face {
+  font-family: "VerseObs Titrage";
+  src: url("../fonts/ArchivoNarrow-wght.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: block;
+}
 
 :root {
   color-scheme: dark;
   background: transparent;
-  --text-color: #1a1a1a;
-  --bg-color: 255, 255, 255;
-  --bg-opacity: 0.92;
-  --font-size: 28px;
-  --font-family: "Segoe UI", Calibri, "Helvetica Neue", Arial, sans-serif;
-  --padding: 24px 30px;
-  --border-radius: 14px;
+  --text-color: #f3eee4;
+  --bg-color: 15, 18, 23;
+  --bg-opacity: 0.84;
+  --font-size: 44px;
+  --font-family: "VerseObs Lecture", Lora, Georgia, serif;
+  --padding: 32px;
+  --border-radius: 0px;
   --max-width: 85%;
-  --ref-color: #ffffff;
-  --ref-bg-color: #2d1a3e;
-  --ref-font-size: 15px;
-  --shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
-  --border-color: #50c8c8;
-  --border-width: 2px;
+  --ref-color: #f3eee4;
+  --ref-bg-color: #f2b544;
+  --ref-font-size: 24px;
+  --shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  --text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+  --border-color: #8b8f9b;
+  --border-width: 0px;
   --bg-image: none;
   --text-align: left;
-  --line-height: 1.55;
-  --highlight-color: #ffff00;
+  --line-height: 1.42;
+  --highlight-color: #f2b544;
+  --title-font: "VerseObs Titrage", "Archivo Narrow", "Arial Narrow",
+    "Roboto Condensed", sans-serif;
+  /* EBU R 95 graphics-safe area (5 % on each side). */
+  --safe-x: 5vw;
+  --safe-y: 5vh;
+  /* Distance kept between a third and the frame edge. */
+  --edge: calc(var(--safe-y) + 2.5vh);
+  --feather: 8vh;
+  --fit: 1;
 }
 
 * {
@@ -33,98 +70,416 @@ body {
   background: transparent;
   overflow: hidden;
   font-family: var(--font-family);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* Main container - fills viewport */
+/* ---- Frame ------------------------------------------------------------ */
 .verse-container {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  inset: 0;
   display: flex;
   justify-content: center;
   pointer-events: none;
+  padding: var(--safe-y) var(--safe-x);
 }
-
-/* Position classes */
 .verse-container.lower-third {
   align-items: flex-end;
-  padding-bottom: 4%;
+  padding-bottom: var(--edge);
 }
-
 .verse-container.upper-third {
   align-items: flex-start;
-  padding-top: 4%;
+  padding-top: var(--edge);
 }
-
-.verse-container.center {
-  align-items: center;
-}
-
+.verse-container.center,
 .verse-container.fullscreen {
   align-items: center;
-  padding: 5%;
 }
 
-.verse-container.fullscreen .verse-card {
-  max-width: 100%;
-  width: 100%;
-  min-height: 80vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-/* Verse card wrapper - contains ref pill + text card */
+/* ---- Stage (shared) ----------------------------------------------------- */
 .verse-card {
-  max-width: var(--max-width);
+  position: relative;
+  isolation: isolate;
   width: var(--max-width);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  pointer-events: auto;
+  max-width: 100%;
+  font-size: var(--font-size);
 }
-
-/* Reference position variants */
-.verse-card.ref-top-left {
-  align-items: flex-start;
+.vo-copy {
+  font-size: calc(var(--font-size) * var(--fit));
+  text-align: var(--text-align);
 }
-
-.verse-card.ref-top-left .verse-reference {
-  margin-left: 20px;
+.verse-text {
+  color: var(--text-color);
+  font-family: var(--font-family);
+  font-size: 1em;
+  line-height: var(--line-height);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  font-kerning: normal;
+  font-variant-ligatures: common-ligatures;
+  text-wrap: pretty;
 }
-
-.verse-card.ref-top-right {
-  align-items: flex-end;
+.verse-secondary-text {
+  white-space: pre-line;
 }
-
-.verse-card.ref-top-right .verse-reference {
-  margin-right: 20px;
+.verse-title {
+  color: var(--text-color);
+  font-family: var(--font-family);
+  font-weight: 700;
+  font-size: 1.3em;
+  line-height: 1.25;
+  margin-bottom: 0.15em;
 }
-
-.verse-card.ref-top-center {
-  align-items: center;
+.verse-subtitle {
+  color: var(--text-color);
+  font-family: var(--font-family);
+  font-size: 0.75em;
+  font-style: italic;
+  opacity: 0.72;
+  line-height: 1.3;
+  margin-bottom: 0.4em;
 }
-
-/* Inline mode: hide pill, show inline bar */
-.verse-card.ref-inline .verse-reference {
-  display: none;
+.verse-text .verse-num {
+  font-size: 0.6em;
+  vertical-align: super;
+  line-height: 0;
+  font-weight: 700;
+  margin-right: 0.14em;
+  opacity: 0.6;
 }
-
-.verse-card.ref-inline .verse-body {
-  border-radius: 0 0 var(--border-radius) var(--border-radius);
+.verse-text mark {
+  background-color: var(--highlight-color);
+  color: inherit;
+  padding: 0 0.08em;
+  border-radius: 0.08em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
-
-/* Inline reference bar - always in DOM, shown only in inline mode */
 .verse-inline-ref {
   display: none;
+}
+.vo-scrim,
+.vo-axis,
+.vo-plate {
+  pointer-events: none;
+}
+.vo-axis {
+  display: none;
+}
+/* Reading-order reveal: a soft-edged mask travels down the text block.
+   --vo-reveal is animated (registered as a length when the browser allows it). */
+.vo-copy.is-revealing {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0,
+    #000 var(--vo-h, 100%),
+    transparent calc(var(--vo-h, 100%) + var(--vo-f, 0px))
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0,
+    #000 var(--vo-h, 100%),
+    transparent calc(var(--vo-h, 100%) + var(--vo-f, 0px))
+  );
+  -webkit-mask-size: 100% calc(2 * var(--vo-h, 100%) + var(--vo-f, 0px));
+  mask-size: 100% calc(2 * var(--vo-h, 100%) + var(--vo-f, 0px));
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: 0 var(--vo-reveal, 0px);
+  mask-position: 0 var(--vo-reveal, 0px);
+}
+/* Each reference line rises from its own baseline slot. */
+.vo-line {
+  display: block;
+  overflow: hidden;
+  /* room for accents and descenders inside the slot */
+  padding: 0.08em 0 0.06em;
+  margin: -0.08em 0 -0.06em;
+}
+.vo-line > span {
+  display: block;
+}
+.vo-nums {
+  position: relative;
+}
+.vo-nums > .vo-roll.is-leaving {
+  position: absolute;
+  right: 0;
+  top: 0.08em;
+}
+
+/* ---- Layout « antenne » --------------------------------------------------- */
+.layout-antenne .verse-card {
+  --margin-w: calc(var(--ref-font-size) * 6.6);
+  --gutter: calc(var(--font-size) * 0.9);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+.layout-antenne .verse-card.has-ref {
+  grid-template-columns: var(--margin-w) minmax(0, 1fr);
+  column-gap: var(--gutter);
+}
+.layout-antenne .vo-scrim {
+  position: absolute;
+  z-index: -1;
+  left: -100vw;
+  right: -100vw;
+  top: calc(-1 * (var(--padding) + var(--feather)));
+  bottom: calc(-1 * var(--edge));
+  background: linear-gradient(
+    to bottom,
+    rgba(var(--bg-color), 0) 0,
+    rgba(var(--bg-color), calc(var(--bg-opacity) * 0.55))
+      calc(var(--feather) * 0.55),
+    rgba(var(--bg-color), var(--bg-opacity)) var(--feather),
+    rgba(var(--bg-color), var(--bg-opacity)) 100%
+  );
+  transform-origin: 50% 100%;
+}
+.upper-third.layout-antenne .vo-scrim {
+  top: calc(-1 * var(--edge));
+  bottom: calc(-1 * (var(--padding) + var(--feather)));
+  background: linear-gradient(
+    to top,
+    rgba(var(--bg-color), 0) 0,
+    rgba(var(--bg-color), calc(var(--bg-opacity) * 0.55))
+      calc(var(--feather) * 0.55),
+    rgba(var(--bg-color), var(--bg-opacity)) var(--feather),
+    rgba(var(--bg-color), var(--bg-opacity)) 100%
+  );
+  transform-origin: 50% 0;
+}
+.center.layout-antenne .vo-scrim {
+  top: calc(-1 * (var(--padding) + var(--feather)));
+  bottom: calc(-1 * (var(--padding) + var(--feather)));
+  background: linear-gradient(
+    to bottom,
+    rgba(var(--bg-color), 0) 0,
+    rgba(var(--bg-color), var(--bg-opacity)) var(--feather),
+    rgba(var(--bg-color), var(--bg-opacity)) calc(100% - var(--feather)),
+    rgba(var(--bg-color), 0) 100%
+  );
+  transform-origin: 50% 50%;
+}
+.fullscreen.layout-antenne .vo-scrim {
+  top: -100vh;
+  bottom: -100vh;
+  background: rgba(var(--bg-color), var(--bg-opacity));
+  transform-origin: 50% 50%;
+}
+.layout-antenne .vo-axis {
+  display: block;
+  position: absolute;
+  top: 0.16em;
+  bottom: 0.12em;
+  left: calc(var(--margin-w) + var(--gutter) / 2 - max(1.5px, 0.04em));
+  width: max(3px, 0.08em);
+  background: var(--ref-bg-color);
+  transform-origin: 50% 100%;
+  transform: scaleY(0);
+}
+.layout-antenne .has-ref > .vo-axis {
+  transform: none;
+}
+.upper-third.layout-antenne .vo-axis {
+  transform-origin: 50% 0;
+}
+.center.layout-antenne .vo-axis,
+.fullscreen.layout-antenne .vo-axis {
+  transform-origin: 50% 50%;
+}
+.layout-antenne .vo-margin {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+  text-align: right;
+  color: var(--ref-color);
+  font-family: var(--title-font);
+}
+.layout-antenne .verse-card:not(.has-ref) > .vo-margin {
+  display: none;
+}
+.layout-antenne .verse-reference {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.layout-antenne .vo-book {
+  font-size: calc(var(--ref-font-size) * 1.3 * var(--book-fit, 1));
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: 0.005em;
+  opacity: 0.9;
+  max-width: 100%;
+}
+.layout-antenne .vo-nums {
+  margin-top: 0.04em;
+  font-size: calc(var(--ref-font-size) * 2.9 * var(--nums-fit, 1));
+  font-weight: 600;
+  line-height: 0.98;
+  letter-spacing: -0.015em;
+  font-variant-numeric: lining-nums tabular-nums;
+  white-space: nowrap;
+}
+.layout-antenne .vo-version {
+  margin-top: 0.7em;
+  font-size: calc(var(--ref-font-size) * 0.8);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  color: var(--ref-bg-color);
+}
+.layout-antenne .verse-body {
+  grid-row: 1;
+  min-width: 0;
+}
+.layout-antenne .has-ref > .verse-body {
+  grid-column: 2;
+}
+.layout-antenne .vo-copy {
+  /* constant measure in pixels, whatever the fit */
+  max-width: calc(31em / var(--fit));
+  padding-bottom: 0.06em;
+}
+.layout-antenne .vo-lead-num {
+  display: none;
+}
+.layout-antenne .verse-card.align-center .vo-copy {
+  margin-left: auto;
+  margin-right: auto;
+}
+.layout-antenne .verse-card.align-right .vo-copy {
+  margin-left: auto;
+}
+.layout-antenne .verse-text {
+  text-shadow: var(--text-shadow);
+}
+.layout-antenne .verse-text .verse-num {
+  font-family: var(--title-font);
+  font-style: normal;
+  font-size: 0.52em;
+  font-weight: 650;
+  vertical-align: 0.72em;
+  color: var(--ref-bg-color);
+  opacity: 1;
+  margin-right: 0.2em;
+  font-variant-numeric: lining-nums;
+  text-shadow: none;
+}
+.layout-antenne .verse-text mark {
+  color: #15120d;
+  text-shadow: none;
+}
+.layout-antenne .verse-title {
+  font-family: var(--title-font);
+  font-size: 0.66em;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ref-color);
+  opacity: 0.92;
+  margin-bottom: 0.3em;
+}
+.layout-antenne .verse-subtitle {
+  font-family: var(--title-font);
+  font-size: 0.46em;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--ref-bg-color);
+  opacity: 1;
+  margin-bottom: 0.65em;
+}
+.layout-antenne .verse-translation-label {
+  font-family: var(--title-font);
+  /* labels keep their size when a long text is reduced */
+  font-size: calc(var(--ref-font-size) * 0.8);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.3;
+  color: var(--ref-bg-color);
+  margin-bottom: 0.25em;
+}
+.layout-antenne .verse-secondary {
+  position: relative;
+  margin-top: 0.62em;
+  padding-top: 0.58em;
+}
+.layout-antenne .verse-secondary::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 2.2em;
+  height: max(1px, 0.04em);
+  background: var(--text-color);
+  opacity: 0.35;
+}
+.layout-antenne .verse-secondary-text {
+  font-style: italic;
+  font-size: 0.94em;
+  opacity: 0.9;
+}
+
+/* ---- Layout « carte » (previous framed templates) -------------------------- */
+.layout-carte .verse-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.layout-carte .vo-scrim,
+.layout-carte .vo-version {
+  display: none;
+}
+.layout-carte .vo-margin {
+  position: relative;
+  z-index: 1;
+  margin-bottom: -12px;
+  max-width: 100%;
+}
+.layout-carte .verse-card:not(.has-ref) > .vo-margin {
+  display: none;
+}
+.layout-carte .verse-reference {
+  display: block;
+  background: var(--ref-bg-color);
+  color: var(--ref-ink, var(--ref-color));
+  font-size: var(--ref-font-size);
+  font-family: var(--font-family);
+  font-weight: 600;
+  padding: 5px 18px;
+  border-radius: 20px;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+.layout-carte .vo-book,
+.layout-carte .vo-nums {
+  display: inline-block;
+  vertical-align: top;
+}
+.layout-carte .vo-nums > .vo-roll.is-leaving {
+  top: 0.08em;
+}
+.layout-carte .ref-top-left > .vo-margin {
+  align-self: flex-start;
+  margin-left: 20px;
+}
+.layout-carte .ref-top-right > .vo-margin {
+  align-self: flex-end;
+  margin-right: 20px;
+}
+.layout-carte .ref-inline > .vo-margin {
+  display: none;
+}
+.layout-carte .ref-inline > .verse-inline-ref {
+  display: flex;
   width: 100%;
   justify-content: space-between;
   align-items: center;
+  gap: 16px;
   padding: 8px 18px;
   background: var(--ref-bg-color);
-  color: var(--ref-color);
+  color: var(--ref-ink, var(--ref-color));
   font-size: var(--ref-font-size);
   font-family: var(--font-family);
   font-weight: 600;
@@ -133,197 +488,55 @@ body {
   border-bottom: none;
   letter-spacing: 0.3px;
 }
-
-.verse-card.ref-inline .verse-inline-ref {
-  display: flex;
+.layout-carte .verse-body {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  padding: var(--padding);
 }
-
-/* Reference pill - sits on top */
-.verse-reference {
-  background: var(--ref-bg-color);
-  color: var(--ref-color);
-  font-size: var(--ref-font-size);
-  font-family: var(--font-family);
-  font-weight: 600;
-  padding: 5px 18px;
-  border-radius: 20px;
-  margin-bottom: -12px;
-  z-index: 1;
-  letter-spacing: 0.3px;
-  white-space: nowrap;
-}
-
-/* Text body */
-.verse-body {
+.layout-carte .vo-plate {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
   background-color: rgba(var(--bg-color), var(--bg-opacity));
   background-image: var(--bg-image);
   background-size: 100% 100%;
   background-position: center;
   background-repeat: no-repeat;
   border-radius: var(--border-radius);
-  padding: var(--padding);
-  text-align: var(--text-align);
   box-shadow: var(--shadow);
   border: var(--border-width) solid var(--border-color);
-  width: 100%;
 }
-
-/* Title (free text mode) */
-.verse-title {
-  color: var(--text-color);
-  font-size: calc(var(--font-size) * 1.3);
-  font-family: var(--font-family);
-  font-weight: 700;
-  line-height: 1.3;
-  margin-bottom: 6px;
-  text-align: var(--text-align);
+.layout-carte .ref-inline .vo-plate {
+  border-radius: 0 0 var(--border-radius) var(--border-radius);
 }
-
-/* Subtitle (free text mode) */
-.verse-subtitle {
+.layout-carte .verse-translation-label {
+  font:
+    600 15px/1.4 system-ui,
+    sans-serif;
+  letter-spacing: 0.4px;
   color: var(--text-color);
-  font-size: calc(var(--font-size) * 0.75);
-  font-family: var(--font-family);
-  font-weight: 400;
-  font-style: italic;
   opacity: 0.7;
-  line-height: 1.3;
-  margin-bottom: 12px;
-  text-align: var(--text-align);
+  margin-bottom: 9px;
+}
+.layout-carte .verse-secondary {
+  margin-top: 18px;
+  padding-top: 17px;
+  border-top: 1px solid var(--text-color);
+}
+.fullscreen.layout-carte .verse-card {
+  width: 100%;
+  min-height: 80vh;
+  justify-content: center;
+}
+.fullscreen.layout-carte .verse-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
-/* Verse text */
-.verse-text {
-  color: var(--text-color);
-  font-size: var(--font-size);
-  font-family: var(--font-family);
-  line-height: var(--line-height);
-  white-space: pre-wrap;
-  word-wrap: break-word;
-}
-
-/* Formatted text styles */
-.verse-text mark {
-  background-color: var(--highlight-color);
-  color: inherit;
-  padding: 0 2px;
-  border-radius: 2px;
-}
-
-/* Superscript verse number */
-.verse-text .verse-num {
-  font-size: 0.6em;
-  vertical-align: super;
-  font-weight: 700;
-  margin-right: 2px;
-  opacity: 0.6;
-}
-
-/* Hidden state */
-.verse-card.hidden {
-  opacity: 0;
-  pointer-events: none;
-}
-
-/* Smooth default transition */
-.verse-card {
-  transition: opacity 0.5s ease;
-}
-
-/* ---- Animation Keyframes ---- */
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes fadeOut {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
-}
-
-@keyframes slideUpIn {
-  from {
-    opacity: 0;
-    transform: translateY(60px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slideUpOut {
-  from {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  to {
-    opacity: 0;
-    transform: translateY(-60px);
-  }
-}
-
-@keyframes slideDownIn {
-  from {
-    opacity: 0;
-    transform: translateY(-60px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slideDownOut {
-  from {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  to {
-    opacity: 0;
-    transform: translateY(60px);
-  }
-}
-
-/* Animation utility classes */
-.anim-fade-in {
-  animation: fadeIn 0.5s ease forwards;
-}
-
-.anim-fade-out {
-  animation: fadeOut 0.5s ease forwards;
-}
-
-.anim-slide-up-in {
-  animation: slideUpIn 0.5s ease forwards;
-}
-
-.anim-slide-up-out {
-  animation: slideUpOut 0.5s ease forwards;
-}
-
-.anim-slide-down-in {
-  animation: slideDownIn 0.5s ease forwards;
-}
-
-.anim-slide-down-out {
-  animation: slideDownOut 0.5s ease forwards;
-}
-
-/* Typewriter: characters revealed via JS, this just ensures smooth appearance */
-.anim-typewriter .verse-text {
-  overflow: hidden;
-}
-
+/* ---- Projector window ----------------------------------------------------- */
 body.projector {
   background: #121315;
 }
@@ -331,6 +544,7 @@ body.projector {
   position: fixed;
   top: 20px;
   right: 20px;
+  min-height: 44px;
   padding: 10px 16px;
   border: 1px solid #545761;
   background: #25262a;
@@ -341,33 +555,6 @@ body.projector {
   z-index: 100;
 }
 .projector-fullscreen:focus-visible {
-  outline: 3px solid #92b3f5;
+  outline: 3px solid #f2b544;
   outline-offset: 4px;
-}
-@media (prefers-reduced-motion: reduce) {
-  .verse-card {
-    transition: none !important;
-    animation: none !important;
-  }
-}
-
-/* Two translations remain a single card, with a quiet separator and clear labels. */
-.verse-card-bilingual .verse-text {
-  font-size: calc(var(--font-size, 40px) * 0.86);
-}
-.verse-translation-label {
-  font:
-    600 15px/1.4 system-ui,
-    sans-serif;
-  letter-spacing: 0.4px;
-  opacity: 0.7;
-  margin-bottom: 9px;
-}
-.verse-secondary {
-  margin-top: 18px;
-  padding-top: 17px;
-  border-top: 1px solid currentColor;
-}
-.verse-secondary-text {
-  white-space: pre-line;
 }

@@ -1,6 +1,15 @@
-/* VerseObs phone remote — Studio 2.0 palette, thumb-first layout. */
+/* VerseObs phone remote — same states as the Studio, thumb-first layout:
+   red = on air, amber = command waiting for the output, blue = selection,
+   ivory = the action that puts it on air. */
 :root {
   color-scheme: dark;
+  --pgm: #d92d27;
+  --pgm-strong: #ff5a52;
+  --pgm-surface: #241718;
+  --pgm-border: #7a2c28;
+  --take: #f3eee4;
+  --take-ink: #14161b;
+  --focus: #f2b544;
   --bg: #111214;
   --surface: #1b1c1f;
   --surface-2: #232428;
@@ -448,4 +457,91 @@ body[data-link="reconnecting"] .output {
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* ---- Tally (program / pending / selection) ----------------------------- */
+.output[data-state="confirmed"] {
+  background:
+    linear-gradient(90deg, rgba(217, 45, 39, 0.22), rgba(217, 45, 39, 0) 70%),
+    var(--pgm-surface);
+  border-color: var(--pgm-border);
+}
+.output[data-state="confirmed"] .output-dot {
+  background: var(--pgm-strong);
+  box-shadow: 0 0 0 4px rgba(255, 90, 82, 0.18);
+}
+.output[data-state="confirmed"] .output-label {
+  color: #fff;
+}
+.output[data-state="confirmed"] .output-ref {
+  color: #f3d6d3;
+}
+.slot-live {
+  background: var(--pgm);
+  color: #fff;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 11.5px;
+  font-weight: 750;
+}
+body[data-output="pending"] .slot-live {
+  background: #f2b544;
+  color: #1d1606;
+}
+.slot-current.is-live {
+  border-color: var(--pgm-border);
+  background:
+    linear-gradient(90deg, rgba(217, 45, 39, 0.16), rgba(217, 45, 39, 0) 72%),
+    #1f1a1c;
+  box-shadow: inset 4px 0 0 var(--pgm);
+}
+body[data-output="pending"] .slot-current.is-live {
+  border-color: #6a5222;
+  box-shadow: inset 4px 0 0 #f2b544;
+  background: #1f1b14;
+}
+.slot-current.is-live h2 {
+  color: #f3d6d3;
+}
+.slot-current.is-live .slot-ref {
+  color: #fff;
+}
+.slot-current.is-live .slot-text {
+  color: #e6d9d7;
+}
+.control:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+.control-show {
+  background: var(--take);
+  border-color: var(--take);
+  color: var(--take-ink);
+  font-weight: 750;
+}
+.control-show:active:not(:disabled) {
+  background: #fffaf0;
+}
+.control-show:disabled {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+  color: var(--text-2);
+}
+.control-show:disabled .icon {
+  filter: invert(90%) sepia(6%) saturate(200%);
+}
+.control-hide {
+  background: #1e1a1c;
+  border-color: #4a3537;
+  color: #f0d9d6;
+}
+body[data-output="confirmed"] .control-hide,
+body[data-output="pending"] .control-hide {
+  background: #2c1819;
+  border-color: var(--pgm);
+  color: #fff;
+}
+.control.is-done {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px rgba(242, 181, 68, 0.3);
 }

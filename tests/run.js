@@ -311,7 +311,8 @@ ok(
   "verse + free-text have distinct defaults",
   verseSettings.getAll().fontSize !== ftSettings.getAll().fontSize,
 );
-eq("free-text default preset", ftSettings.getAll().template, "chant");
+eq("free-text default preset", ftSettings.getAll().template, "antenne");
+eq("free text uses the antenne layout by default", ftSettings.getAll().layout, "antenne");
 
 // Applying a free-text preset must not touch the verse style.
 var verseSizeBefore = verseSettings.getAll().fontSize;
@@ -325,6 +326,74 @@ eq(
   "verse style untouched by free-text preset",
   verseSettings.getAll().fontSize,
   verseSizeBefore,
+);
+
+eq(
+  'legacy preset "annonce" keeps its framed card',
+  ftSettings.getAll().layout,
+  "carte",
+);
+
+// ===================================================================
+group("habillage antenne — migration des réglages");
+
+eq("verse default layout", verseSettings.getAll().layout, "antenne");
+eq("verse default animation", verseSettings.getAll().animation, "reveal");
+// A customised style saved before the antenne layout keeps its framed card.
+_store[VerseObs.SETTINGS_KEY] = JSON.stringify({
+  template: "custom",
+  animation: "typewriter",
+  fontSize: 37,
+});
+var legacy = new VerseObs.Settings();
+legacy.load();
+eq("customised style without layout stays a card", legacy.getAll().layout, "carte");
+eq("saved custom size kept", legacy.getAll().fontSize, 37);
+eq("typewriter becomes the reading reveal", legacy.getAll().animation, "reveal");
+// Never customised (still the former default base): the new default look.
+_store[VerseObs.SETTINGS_KEY] = JSON.stringify({ template: "studio", fontSize: 40 });
+legacy = new VerseObs.Settings();
+legacy.load();
+eq("former default base follows the new default", legacy.getAll().layout, "antenne");
+eq("…with the antenne template", legacy.getAll().template, "antenne");
+eq("…and its typography", legacy.getAll().fontSize, VerseObs.DEFAULTS.fontSize);
+_store[VerseObs.SETTINGS_KEY] = JSON.stringify({ template: "cinema" });
+legacy = new VerseObs.Settings();
+legacy.load();
+eq("another chosen base stays a card", legacy.getAll().layout, "carte");
+_store[VerseObs.FREETEXT_SETTINGS_KEY] = JSON.stringify({ template: "chant" });
+var legacySong = new VerseObs.Settings({
+  storageKey: VerseObs.FREETEXT_SETTINGS_KEY,
+  defaults: VerseObs.FREETEXT_DEFAULTS,
+  templates: VerseObs.FREETEXT_STYLES,
+});
+legacySong.load();
+eq("former default song style follows the new default", legacySong.getAll().layout, "antenne");
+_store[VerseObs.FREETEXT_SETTINGS_KEY] = JSON.stringify({ template: "priere" });
+legacySong.load();
+eq("a chosen song style stays a card", legacySong.getAll().layout, "carte");
+delete _store[VerseObs.FREETEXT_SETTINGS_KEY];
+_store[VerseObs.SETTINGS_KEY] = JSON.stringify({ template: "antenne" });
+legacy = new VerseObs.Settings();
+legacy.load();
+eq("saved antenne template keeps the antenne layout", legacy.getAll().layout, "antenne");
+_store[VerseObs.SETTINGS_KEY] = JSON.stringify({ layout: "antenne", template: "custom" });
+legacy = new VerseObs.Settings();
+legacy.load();
+eq("explicit layout is respected", legacy.getAll().layout, "antenne");
+legacy.applyTemplate("cinema");
+eq("legacy template applies the card layout", legacy.getAll().layout, "carte");
+legacy.applyTemplate("antenne");
+eq("antenne template applies the antenne layout", legacy.getAll().layout, "antenne");
+delete _store[VerseObs.SETTINGS_KEY];
+ok(
+  "every template declares its layout",
+  Object.keys(VerseObs.TEMPLATES).every(function (k) {
+    return /^(antenne|carte)$/.test(VerseObs.TEMPLATES[k].settings.layout);
+  }) &&
+    Object.keys(VerseObs.FREETEXT_STYLES).every(function (k) {
+      return /^(antenne|carte)$/.test(VerseObs.FREETEXT_STYLES[k].settings.layout);
+    }),
 );
 
 // Each profile persists under its own key.

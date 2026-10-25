@@ -41,7 +41,9 @@ Référence officielle : [source Navigateur d’OBS](https://obsproject.com/kb/b
 - Changer de sélection, de version, utiliser les favoris ou la recherche rapide prépare le passage sans le diffuser.
 - **Masquer**, ou `Échap`, retire le contenu de la sortie. Une commande de masquage reste prioritaire pendant une animation.
 
-Le moniteur **Préparation** représente votre prochain passage ; **Sortie** représente les dernières commandes de diffusion reçues. Ce moniteur ne capture pas la composition OBS. L’aperçu est recentré sur le bandeau ; **Voir le cadre complet** affiche le format 16:9. Dans un petit dock, l’aperçu s’ouvre à la demande et les commandes de diffusion restent en bas de l’écran.
+Une couleur par état, partout (Studio, conducteur, téléphone) : **rouge** = ce que voit le public, **ambre** = commande envoyée mais pas encore confirmée par la sortie, **bleu** = ce que vous préparez, **ivoire** = le bouton qui met à l’antenne. Le bandeau **Antenne**, sous le titre, reste toujours à sa place : « Rien n’est diffusé », « Commande de diffusion » ou « Sortie confirmée » avec la référence et **Masquer**. Dans le conducteur, l’élément diffusé porte l’étiquette « À l’antenne », distincte de la sélection.
+
+Le moniteur **Aperçu** représente votre prochain passage ; **Antenne** représente les dernières commandes de diffusion reçues (cadre rouge). Ce moniteur ne capture pas la composition OBS. L’aperçu est recentré sur le bandeau ; **Voir le cadre complet** affiche le format 16:9. Si un passage doit être réduit pour tenir à l’écran, le pied du moniteur l’indique (« Texte réduit à 72 % ») ou demande de découper un texte trop long. Dans un petit dock, l’aperçu s’ouvre à la demande et les commandes de diffusion restent en bas de l’écran.
 
 Les réglages d’habillage s’appliquent au contenu diffusé du même type. Les textes et chants ont leur propre habillage, accessible dans leur onglet, avec les styles Chant, Annonce, Prière et Citation. Ajuster le style biblique ne modifie pas un chant à l’antenne.
 
@@ -49,7 +51,7 @@ Les réglages d’habillage s’appliquent au contenu diffusé du même type. Le
 
 Dans Bible, activez **Deux versions**, puis choisissez la seconde traduction. La première version apparaît au-dessus, la seconde en dessous, chacune identifiée. Louis Segond + King James est le choix initial ; toutes les combinaisons de versions locales sont possibles.
 
-Les deux textes suivent le même livre, chapitre et numéro de verset, y compris les plages. Le deuxième texte reste modifiable avant diffusion. Le conducteur, son export, l’historique et la copie conservent les deux traductions. Changer une version ou désactiver le mode prépare le prochain rendu sans remplacer le direct. Si un passage manque dans la deuxième version, la diffusion est bloquée jusqu’à correction du choix. Les différences de numérotation entre traductions ne font pas l’objet d’une correspondance automatique. En mode bilingue, l’effet machine à écrire est remplacé par un fondu commun.
+Les deux textes suivent le même livre, chapitre et numéro de verset, y compris les plages. Le deuxième texte reste modifiable avant diffusion. Le conducteur, son export, l’historique et la copie conservent les deux traductions. Changer une version ou désactiver le mode prépare le prochain rendu sans remplacer le direct. Si un passage manque dans la deuxième version, la diffusion est bloquée jusqu’à correction du choix. Les différences de numérotation entre traductions ne font pas l’objet d’une correspondance automatique. À l’antenne, la seconde traduction est en italique sous un filet, chaque version nommée ; l’ensemble est réduit si nécessaire pour tenir dans le cadre.
 
 ## Un conducteur pour l’équipe
 
@@ -101,12 +103,22 @@ Préparez des paroles, une annonce ou une prière. Votre brouillon est conservé
 
 Séparez les couplets par une ligne vide, puis cliquez **Créer une diapositive par couplet** pour ajouter les diapositives numérotées au conducteur.
 
-## Habillage intuitif
+## Habillage antenne
 
-Trois bases visuelles : **Studio**, **Papier**, **Cinéma**. Les styles historiques restent accessibles dans les détails.
+L’habillage par défaut, **Antenne**, est conçu pour la vidéo :
 
-- **L’essentiel** : position, largeur, police, taille, couleur, opacité, apparition et délai de masquage.
-- **Les détails** : référence, bordure, interligne, couleurs, image de fond et durée de transition.
+- un **bandeau** d’encre pleine largeur, dense derrière le texte et adouci vers l’image, dans la zone de sécurité titre (5 % des bords, EBU R 95) ;
+- la **référence en marge** — livre, puis chapitre et versets en grands chiffres, puis la version — contre un **axe** safran ; la colonne de lecture en Lora (environ 60 signes par ligne), numéros de verset en safran ;
+- les polices (Lora, Archivo Narrow, licence SIL OFL) sont livrées dans `assets/fonts/` : aucun service externe n’est appelé.
+
+**Mouvement** (« Révélation », par défaut) : à l’entrée, le bandeau se pose, l’axe se trace, la référence monte de sa fente et le texte se révèle dans l’ordre de lecture. Au changement de passage, le bandeau et l’axe restent à l’antenne et s’adaptent à la nouvelle hauteur ; seuls les chiffres qui changent défilent quand on reste dans le même livre. La sortie est courte. Toute commande peut arriver pendant une animation : la dernière l’emporte et repart de ce qui est à l’écran, sans flash ni texte coupé. Aucun mouvement continu à l’antenne. Avec la préférence système de réduction des animations, seuls des fondus courts restent. « Fondu », « Glissement » et « Aucune » restent disponibles.
+
+**Longs passages** : le texte (jamais la référence) est réduit juste assez pour tenir dans la moitié du cadre en tiers inférieur. S’il fallait descendre sous 72 % de sa taille, il occupe plutôt toute la zone de sécurité, puis seulement se réduit davantage. Un texte qui ne tient pas même ainsi est signalé dans le Studio avant diffusion.
+
+Les bases **Studio**, **Papier**, **Cinéma** et les styles historiques gardent la **carte encadrée** (réglage **Mise en page**). Un habillage resté sur l’ancienne base par défaut (Studio pour la Bible, Chant pour les textes) passe à Antenne ; un habillage personnalisé ou un autre style choisi reste une carte. « Machine à écrire » devient « Révélation », qui conserve la mise en forme et les numéros de verset. Les textes et chants ont aussi un style **Antenne** (paroles centrées sur le bandeau) en plus de Chant, Annonce, Prière et Citation.
+
+- **L’essentiel** : mise en page, position, largeur, police, taille, couleur, opacité, apparition et délai de masquage.
+- **Les détails** : interligne, couleurs (l’accent colore l’axe et les numéros en mise en page Antenne), durée de transition ; avec la carte : référence, bordure et image de fond.
 - **Sauvegarde** : exporter/restaurer les données durables du studio ou réinitialiser l’habillage.
 
 L’aperçu des paramètres reste compact. Les sauvegardes n’incluent jamais les commandes temporaires de diffusion. L’import est validé avant modification et restaure les anciennes valeurs si une écriture échoue.
@@ -143,11 +155,15 @@ En hébergement statique, la communication utilise BroadcastChannel et localStor
 ```sh
 npm run check
 npm test
+# facultatif, dans un vrai Chromium (playwright-core fourni par vos soins) :
+PLAYWRIGHT_CORE=/chemin/playwright-core/index.mjs CHROMIUM=/chemin/chrome npm run test:browser
 ```
 
 - `check` vérifie la syntaxe JavaScript, les identifiants HTML et la présence des assets.
-- Les tests couvrent recherche, plages de versets, repérage des références d’un plan (faux positifs compris), préparation distincte du direct, conducteur, import, animations concurrentes, déduplication, relais local, QR code et télécommande (refus sans code ou après révocation, liste blanche, limite de débit, parcours complet jusqu’à la source).
+- Les tests couvrent recherche, plages de versets, repérage des références d’un plan (faux positifs compris), préparation distincte du direct, conducteur, import, animations concurrentes, déduplication, relais local, QR code et télécommande (refus sans code ou après révocation, liste blanche, limite de débit, parcours complet jusqu’à la source), états antenne/aperçu du Studio et du téléphone, migration des habillages enregistrés.
+- `test:browser` échantillonne chaque image de la vraie source navigateur : entrée sans saut, bandeau qui ne quitte jamais l’antenne entre deux passages, défilement des chiffres, changements rapides, masquage pendant une entrée, reprise pendant une sortie, chapitre entier et double traduction dans la zone de sécurité, réduction des animations (opacité seule). Sans les deux variables, il est ignoré.
 - Aucun framework ni dépendance JavaScript tiers n’est chargé par le frontend. `ws` est utilisé uniquement par le serveur local ; `jsdom` sert uniquement aux tests.
-- Les icônes Lucide sont incluses dans `assets/icons/`, avec leur licence.
+- Les icônes Lucide sont incluses dans `assets/icons/`, avec leur licence ; les polices Lora et Archivo Narrow dans `assets/fonts/`, avec leur licence SIL OFL.
+- La sortie utilise la Web Animations API (moteur Chromium 84 ou plus récent) ; un moteur plus ancien affiche chaque état sans animation.
 
 Le serveur local n’expose que les pages et assets du produit, refuse les origines WebSocket externes et ne conserve pas les commandes en mémoire après redémarrage. Hors mode réseau local, il n’écoute que sur `127.0.0.1`. Aucun service d’analyse ni collecte de données n’est ajouté.

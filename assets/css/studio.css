@@ -3673,3 +3673,402 @@ body {
     display: none !important;
   }
 }
+
+/* ==========================================================================
+   Régie « antenne » — one colour per state, everywhere:
+   red = what the audience sees (program), amber = command not yet confirmed,
+   blue = what you prepare (selection, preview), ivory = the action that puts
+   it on air. The program strip never disappears, so nothing moves under the
+   operator's pointer when the output changes.
+   ========================================================================== */
+@font-face {
+  font-family: "VerseObs Titrage";
+  src: url("../fonts/ArchivoNarrow-wght.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+:root {
+  --tally-font: "VerseObs Titrage", "Archivo Narrow", "Arial Narrow",
+    var(--cp-font);
+  --pgm: #d92d27;
+  --pgm-strong: #ff5a52;
+  --pgm-ink: #ffffff;
+  --pgm-surface: #241718;
+  --pgm-border: #7a2c28;
+  --pending: #f2b544;
+  --pending-ink: #1d1606;
+  --pending-border: #6a5222;
+  --take: #f3eee4;
+  --take-hover: #fffaf0;
+  --take-ink: #14161b;
+  --focus: #f2b544;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[contenteditable]:focus-visible,
+.cp-queue-item:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
+/* ---- Program strip ------------------------------------------------------ */
+.cp-onair,
+.cp-onair[hidden] {
+  display: flex !important;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  margin: 0 30px 18px;
+  padding: 7px 7px 7px 7px;
+  border: 1px solid #2c2e33;
+  border-radius: 10px;
+  background: #16171a;
+  color: var(--cp-text-secondary);
+  font-size: 13px;
+  user-select: none;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+.cp-onair-tally {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  height: 40px;
+  padding: 0 13px;
+  border-radius: 7px;
+  background: #24262b;
+  color: #8f939e;
+  font: 700 14px/1 var(--tally-font);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+.cp-onair .cp-onair-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: none;
+  animation: none;
+}
+.cp-onair .cp-onair-label {
+  flex: 0 0 auto;
+  font: 600 13px var(--cp-font);
+  letter-spacing: 0;
+  text-transform: none;
+  color: inherit;
+}
+.cp-onair .cp-onair-ref {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: 600 19px/1.15 var(--tally-font);
+  letter-spacing: 0.01em;
+  color: #f3eee4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cp-onair .cp-onair-hide {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  min-height: 44px;
+  margin-left: auto;
+  padding: 0 14px;
+  border: 1px solid #3d3236;
+  border-radius: 7px;
+  background: #1e1a1c;
+  color: #cdb9b6;
+  font: 600 13px var(--cp-font);
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.12s ease-out;
+}
+.cp-onair .cp-onair-hide .icon,
+.cp-btn-hide .icon {
+  width: 16px;
+  height: 16px;
+  filter: invert(86%) sepia(12%) saturate(700%) hue-rotate(310deg);
+}
+.cp-onair .cp-onair-hide kbd {
+  font-size: 10px;
+  opacity: 0.75;
+}
+.cp-onair[data-state="off"] .cp-onair-hide {
+  opacity: 0.6;
+}
+.cp-onair[data-state="live"] {
+  border-color: var(--pgm-border);
+  background:
+    linear-gradient(90deg, rgba(217, 45, 39, 0.2), rgba(217, 45, 39, 0) 62%),
+    var(--pgm-surface);
+  color: #f3d6d3;
+}
+.cp-onair[data-state="live"] .cp-onair-tally {
+  background: var(--pgm);
+  color: var(--pgm-ink);
+}
+.cp-onair[data-state="pending"] {
+  border-color: var(--pending-border);
+  background:
+    linear-gradient(90deg, rgba(242, 181, 68, 0.16), rgba(242, 181, 68, 0) 62%),
+    #1f1b14;
+  color: #f2dcae;
+}
+.cp-onair[data-state="pending"] .cp-onair-tally {
+  background: var(--pending);
+  color: var(--pending-ink);
+}
+.cp-onair[data-state="pending"] .cp-onair-dot {
+  animation: tally-wait 1s ease-in-out infinite;
+}
+.cp-onair[data-state="live"] .cp-onair-hide,
+.cp-onair[data-state="pending"] .cp-onair-hide {
+  border-color: var(--pgm-border);
+  background: #2c1819;
+  color: #ffe1dd;
+}
+@media (hover: hover) and (pointer: fine) {
+  .cp-onair .cp-onair-hide:hover {
+    border-color: var(--pgm);
+    background: #3a1c1c;
+    color: #fff;
+  }
+}
+.cp-onair .cp-onair-hide:active {
+  transform: scale(0.97);
+}
+@keyframes tally-wait {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* ---- Take / clear --------------------------------------------------------- */
+.cp-btn-show,
+.cp-queue-controls .cp-btn-show,
+.cp-btn-queue-show {
+  min-height: 48px;
+  border: 1px solid var(--take) !important;
+  background: var(--take) !important;
+  color: var(--take-ink) !important;
+  font-weight: 700;
+  font-size: 14px !important;
+  letter-spacing: -0.005em;
+  box-shadow: none !important;
+  transition:
+    background-color 0.15s ease,
+    transform 0.12s ease-out;
+}
+.cp-btn-show .icon {
+  width: 16px;
+  height: 16px;
+  filter: none;
+}
+.cp-btn-show kbd {
+  border-color: #14161b55;
+  color: #14161bb0;
+}
+@media (hover: hover) and (pointer: fine) {
+  .cp-btn-show:hover,
+  .cp-queue-controls .cp-btn-show:hover {
+    background: var(--take-hover) !important;
+  }
+}
+.cp-btn-show:active:not(:disabled),
+.cp-btn-hide:active:not(:disabled),
+.cp-btn-nav:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.cp-btn-show:disabled {
+  background: #2a2b2f !important;
+  border-color: #3a3c41 !important;
+  color: #8e919b !important;
+  opacity: 1;
+}
+.cp-btn-show:disabled .icon {
+  filter: invert(60%);
+}
+.cp-btn-hide {
+  min-height: 48px;
+  gap: 8px;
+  border: 1px solid #3d3236;
+  background: #1e1a1c;
+  color: #e3cfcc;
+  font-weight: 600;
+  font-size: 13px;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.12s ease-out;
+}
+body[data-onair="live"] .cp-btn-hide,
+body[data-onair="pending"] .cp-btn-hide {
+  border-color: var(--pgm-border);
+  background: #2c1819;
+  color: #ffe1dd;
+}
+@media (hover: hover) and (pointer: fine) {
+  .cp-btn-hide:hover {
+    border-color: var(--pgm);
+    background: #3a1c1c;
+    color: #fff;
+  }
+}
+.cp-queue-controls .cp-btn-nav,
+.cp-btn-nav {
+  min-height: 44px;
+  font-size: 13px;
+}
+
+/* ---- Monitor: preview vs program ------------------------------------------ */
+.monitor-tabs button {
+  min-height: 34px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.monitor-tabs #monitor-program.is-live .status-dot {
+  background: var(--pgm-strong);
+}
+.monitor-tabs #monitor-program.is-live {
+  color: #ffb4ad;
+}
+.monitor-tabs #monitor-program.selected {
+  background: #3a1d1c;
+  color: #ffd6d1;
+}
+#monitor-label {
+  font-size: 11px;
+}
+.cp-preview-stage .stage-label {
+  z-index: 2;
+  top: 12px;
+  left: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: #0f1217cc;
+  color: #b9c7e6;
+  font: 700 11px/1 var(--tally-font);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.cp-preview-stage.is-program {
+  box-shadow: inset 0 0 0 2px var(--pgm);
+}
+.cp-preview-stage.is-program .stage-label {
+  display: block;
+  background: var(--pgm);
+  color: var(--pgm-ink);
+}
+.monitor-footer {
+  gap: 12px;
+  font-size: 12px;
+}
+.fit-hint {
+  margin-left: auto;
+  font: 600 12px var(--cp-font);
+  color: var(--pending);
+}
+.fit-hint.is-warning {
+  color: var(--pgm-strong);
+}
+.fit-hint + .cp-mini-btn {
+  margin-left: 0;
+}
+
+/* ---- Conductor tally -------------------------------------------------------- */
+.cp-queue-item.is-live {
+  border-color: var(--pgm-border);
+  background:
+    linear-gradient(90deg, rgba(217, 45, 39, 0.16), rgba(217, 45, 39, 0) 70%),
+    #1c1718;
+  box-shadow: inset 4px 0 0 var(--pgm);
+}
+.cp-queue-item.is-live .cp-queue-num {
+  background: var(--pgm);
+  color: var(--pgm-ink);
+}
+.cp-queue-item.is-live .cp-queue-title::after,
+.cp-queue-item.is-live-pending .cp-queue-title::after {
+  content: "À l’antenne";
+  display: inline-block;
+  margin-left: 10px;
+  padding: 4px 7px 3px;
+  border-radius: 4px;
+  background: var(--pgm);
+  color: var(--pgm-ink);
+  font: 700 11px/1 var(--tally-font);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  vertical-align: 2px;
+}
+.cp-queue-item.is-live-pending {
+  border-color: var(--pending-border);
+  box-shadow: inset 4px 0 0 var(--pending);
+  background: #1f1b14;
+}
+.cp-queue-item.is-live-pending .cp-queue-num {
+  background: var(--pending);
+  color: var(--pending-ink);
+}
+.cp-queue-item.is-live-pending .cp-queue-title::after {
+  content: "Envoi…";
+  background: var(--pending);
+  color: var(--pending-ink);
+}
+.cp-queue-item.cp-queue-current.is-live {
+  border-color: #526991;
+}
+.queue-selection-preview.is-live {
+  border-color: var(--pgm-border);
+  box-shadow: inset 4px 0 0 var(--pgm);
+}
+.queue-selection-preview.is-live .editor-badge {
+  color: var(--pgm-strong);
+}
+.queue-selection-preview .editor-badge {
+  font: 700 11px/1 var(--tally-font);
+  letter-spacing: 0.1em;
+}
+
+/* ---- Overlay style choice ------------------------------------------------- */
+.antenne-style > span {
+  background: #0f1217;
+  color: #f3eee4;
+  box-shadow: inset 3px 0 0 #f2b544;
+  font-family: "VerseObs Titrage", "Archivo Narrow", sans-serif !important;
+  font-weight: 600;
+}
+
+@media (max-width: 1000px) {
+  .cp-onair,
+  .cp-onair[hidden] {
+    margin: 0 16px 14px;
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 620px) {
+  .cp-onair .cp-onair-label {
+    display: none;
+  }
+  .cp-onair .cp-onair-ref {
+    font-size: 17px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cp-onair[data-state="pending"] .cp-onair-dot {
+    animation: none;
+  }
+}

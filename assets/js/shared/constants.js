@@ -22,43 +22,99 @@ window.VerseObs.POSITIONS = {
 };
 
 window.VerseObs.ANIMATIONS = {
+  REVEAL: "reveal",
   FADE: "fade",
   SLIDE: "slide",
-  TYPEWRITER: "typewriter",
   NONE: "none",
 };
 
+/** "antenne": full-bleed band with the reference in a margin; "carte": framed card. */
+window.VerseObs.LAYOUTS = { ANTENNE: "antenne", CARTE: "carte" };
+window.VerseObs.ANTENNE_FONT = "'VerseObs Lecture', Lora, Georgia, serif";
+
+/**
+ * Settings saved before the "antenne" layout existed:
+ *  - still on the former default base (never customised: any change turns the
+ *    template into "custom") → they follow the new default look;
+ *  - customised or another base → they keep their framed card.
+ * The former typewriter effect (which dropped verse numbers) becomes the reveal.
+ * @param {object} saved - stored settings (as read)
+ * @param {object} result - settings being built (modified in place)
+ * @param {object} [defaults] - current defaults of this profile
+ * @param {string} [formerDefault] - template that was this profile's default
+ */
+window.VerseObs.migrateStyle = function (saved, result, defaults, formerDefault) {
+  if (!saved || typeof saved !== "object") return result;
+  if (saved.layout !== "antenne" && saved.layout !== "carte") {
+    if (defaults && formerDefault && saved.template === formerDefault) {
+      for (var key in defaults)
+        if (Object.prototype.hasOwnProperty.call(defaults, key))
+          result[key] = defaults[key];
+    } else result.layout = saved.template === "antenne" ? "antenne" : "carte";
+  }
+  if (result.animation === "typewriter") result.animation = "reveal";
+  return result;
+};
+
 window.VerseObs.DEFAULTS = {
+  layout: "antenne",
   position: "lower-third",
-  animation: "fade",
+  animation: "reveal",
   animationDuration: 500,
   autoHide: 0, // 0 = disabled, otherwise ms
-  fontFamily: "'Segoe UI', Calibri, 'Helvetica Neue', Arial, sans-serif",
-  fontSize: 40,
-  textColor: "#edeef0",
+  fontFamily: window.VerseObs.ANTENNE_FONT,
+  fontSize: 44,
+  textColor: "#f3eee4",
   textAlign: "left",
-  lineHeight: 1.55,
-  bgColor: "#232428",
-  bgOpacity: 0.92,
+  lineHeight: 1.42,
+  bgColor: "#0f1217",
+  bgOpacity: 0.84,
   shadow: true,
-  borderRadius: 14,
-  borderWidth: 2,
-  padding: 24,
-  maxWidth: 85, // percentage
-  refFontSize: 23,
-  refColor: "#27282c",
+  borderRadius: 0,
+  borderWidth: 0,
+  padding: 30,
+  maxWidth: 86, // percentage
+  refFontSize: 24,
+  refColor: "#f3eee4",
   refPosition: "top-left",
-  refBgColor: "#92b3f5",
+  // In the "antenne" layout: the axis, verse numbers and version name.
+  refBgColor: "#f2b544",
   borderColor: "#8b8f9b",
-  highlightColor: "#ffff00",
+  highlightColor: "#f2b544",
   bgImage: "",
-  template: "studio",
+  template: "antenne",
 };
 
 window.VerseObs.TEMPLATES = {
+  antenne: {
+    label: "Antenne",
+    settings: {
+      layout: "antenne",
+      fontFamily: window.VerseObs.ANTENNE_FONT,
+      textColor: "#f3eee4",
+      bgColor: "#0f1217",
+      bgOpacity: 0.84,
+      refBgColor: "#f2b544",
+      refColor: "#f3eee4",
+      highlightColor: "#f2b544",
+      borderColor: "#8b8f9b",
+      borderWidth: 0,
+      borderRadius: 0,
+      padding: 30,
+      fontSize: 44,
+      lineHeight: 1.42,
+      refFontSize: 24,
+      refPosition: "top-left",
+      textAlign: "left",
+      maxWidth: 86,
+      shadow: true,
+      bgImage: "",
+    },
+  },
   studio: {
     label: "Studio",
     settings: {
+      layout: "carte",
       textColor: "#edeef0",
       bgColor: "#232428",
       bgOpacity: 0.95,
@@ -78,6 +134,7 @@ window.VerseObs.TEMPLATES = {
   papier: {
     label: "Papier",
     settings: {
+      layout: "carte",
       textColor: "#282a2e",
       bgColor: "#f1eee4",
       bgOpacity: 0.97,
@@ -97,6 +154,7 @@ window.VerseObs.TEMPLATES = {
   cinema: {
     label: "Cinéma",
     settings: {
+      layout: "carte",
       textColor: "#fff5de",
       bgColor: "#131416",
       bgOpacity: 0.94,
@@ -116,6 +174,7 @@ window.VerseObs.TEMPLATES = {
   classique: {
     label: "Classique",
     settings: {
+      layout: "carte",
       textColor: "#1a1a1a",
       textAlign: "left",
       lineHeight: 1.55,
@@ -135,6 +194,7 @@ window.VerseObs.TEMPLATES = {
   eglise: {
     label: "Église",
     settings: {
+      layout: "carte",
       textColor: "#4a0e0e",
       textAlign: "left",
       lineHeight: 1.55,
@@ -154,6 +214,7 @@ window.VerseObs.TEMPLATES = {
   moderne: {
     label: "Moderne",
     settings: {
+      layout: "carte",
       textColor: "#ffffff",
       textAlign: "left",
       lineHeight: 1.6,
@@ -173,6 +234,7 @@ window.VerseObs.TEMPLATES = {
   minimal: {
     label: "Minimal",
     settings: {
+      layout: "carte",
       textColor: "#222222",
       textAlign: "left",
       lineHeight: 1.5,
@@ -204,35 +266,63 @@ window.VerseObs.FREETEXT_SETTINGS_KEY = "verseobs_freetext_style";
  * Only the properties relevant to free text (no reference pill).
  */
 window.VerseObs.FREETEXT_DEFAULTS = {
-  position: "center",
-  animation: "fade",
+  layout: "antenne",
+  position: "lower-third",
+  animation: "reveal",
   animationDuration: 500,
   autoHide: 0,
-  fontFamily: "'Segoe UI', Calibri, 'Helvetica Neue', Arial, sans-serif",
-  fontSize: 34,
-  textColor: "#ffffff",
+  fontFamily: window.VerseObs.ANTENNE_FONT,
+  fontSize: 42,
+  textColor: "#f3eee4",
   textAlign: "center",
-  lineHeight: 1.5,
-  bgColor: "#101018",
-  bgOpacity: 0.85,
+  lineHeight: 1.4,
+  bgColor: "#0f1217",
+  bgOpacity: 0.84,
   shadow: true,
-  borderRadius: 16,
+  borderRadius: 0,
   borderWidth: 0,
   borderColor: "#8b8f9b",
-  padding: 32,
+  padding: 30,
   maxWidth: 80,
-  highlightColor: "#ffd54a",
+  refColor: "#f3eee4",
+  refBgColor: "#f2b544",
+  refFontSize: 24,
+  highlightColor: "#f2b544",
   bgImage: "",
-  template: "chant",
+  template: "antenne",
 };
 
 /**
  * Free-text presets ("styles type"). Same shape as TEMPLATES.
  */
 window.VerseObs.FREETEXT_STYLES = {
+  antenne: {
+    label: "Antenne",
+    settings: {
+      layout: "antenne",
+      position: "lower-third",
+      textAlign: "center",
+      fontFamily: window.VerseObs.ANTENNE_FONT,
+      fontSize: 42,
+      lineHeight: 1.4,
+      textColor: "#f3eee4",
+      bgColor: "#0f1217",
+      bgOpacity: 0.84,
+      refColor: "#f3eee4",
+      refBgColor: "#f2b544",
+      refFontSize: 24,
+      highlightColor: "#f2b544",
+      borderRadius: 0,
+      borderWidth: 0,
+      padding: 30,
+      maxWidth: 80,
+      shadow: true,
+    },
+  },
   chant: {
     label: "Chant",
     settings: {
+      layout: "carte",
       position: "center",
       textAlign: "center",
       fontSize: 38,
@@ -250,6 +340,7 @@ window.VerseObs.FREETEXT_STYLES = {
   annonce: {
     label: "Annonce",
     settings: {
+      layout: "carte",
       position: "lower-third",
       textAlign: "left",
       fontSize: 30,
@@ -267,6 +358,7 @@ window.VerseObs.FREETEXT_STYLES = {
   priere: {
     label: "Prière",
     settings: {
+      layout: "carte",
       position: "center",
       textAlign: "center",
       fontFamily: "'Georgia', 'Times New Roman', serif",
@@ -286,6 +378,7 @@ window.VerseObs.FREETEXT_STYLES = {
   citation: {
     label: "Citation",
     settings: {
+      layout: "carte",
       position: "center",
       textAlign: "center",
       fontFamily: "'Georgia', 'Times New Roman', serif",

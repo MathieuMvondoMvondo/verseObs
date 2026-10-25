@@ -1291,18 +1291,16 @@
     }
     if (msg.type === MSG.OUTPUT_STATE) {
       if (msg.visible) {
-        _setOnAir(msg.label || "Texte libre");
-        document.querySelector(".cp-onair-label").textContent =
-          "Sortie confirmée";
         _output.visible = true;
         _output.confirmed = true;
         _output.label = String(msg.label || "Texte libre");
+        _setOnAir(msg.label || "Texte libre");
       } else {
         _onAirItem = null;
-        _clearOnAir();
         _output.visible = false;
         _output.confirmed = false;
         _output.label = "";
+        _clearOnAir();
       }
       _outputChanged();
     }
@@ -1314,12 +1312,11 @@
       msg.settings.bgImage = "";
     if (channel) channel.send(msg);
     if ([MSG.SHOW_VERSE, MSG.SHOW_TEXT].indexOf(type) !== -1) {
-      document.querySelector(".cp-onair-label").textContent =
-        "Commande de diffusion";
       if (window.VerseObs.Studio) window.VerseObs.Studio.rememberOutput(msg);
       _output.visible = true;
       _output.confirmed = false;
       _output.label = String(msg.reference || msg.title || "Texte libre");
+      _paintOnAir();
       _outputChanged();
     }
     if (type === MSG.HIDE) {
@@ -1327,6 +1324,7 @@
       _output.visible = false;
       _output.confirmed = false;
       _output.label = "";
+      _paintOnAir();
       _outputChanged();
     }
   }
@@ -1572,6 +1570,20 @@
     var frames = document.querySelectorAll(".cp-preview-frame");
     if (!frames.length) return;
 
+    // The preview monitor reports when a prepared text had to be reduced.
+    window.addEventListener("message", function (e) {
+      if (
+        e.origin !== location.origin ||
+        !dom.previewFrame ||
+        e.source !== dom.previewFrame.contentWindow ||
+        !e.data ||
+        e.data.type !== "verseobs:fit"
+      )
+        return;
+      if (window.VerseObs.Studio && window.VerseObs.Studio.setFit)
+        window.VerseObs.Studio.setFit(e.data);
+    });
+
     _scalePreviewFrame();
     if (typeof ResizeObserver !== "undefined") {
       var ro = new ResizeObserver(_scalePreviewFrame);
@@ -1662,13 +1674,40 @@
   // ---- On-air tracking ----
 
   function _setOnAir(label) {
-    if (dom.onairBar) dom.onairBar.hidden = false;
     if (dom.onairRef) dom.onairRef.textContent = label || "";
+    _paintOnAir();
   }
 
   function _clearOnAir() {
-    if (dom.onairBar) dom.onairBar.hidden = true;
     if (dom.onairRef) dom.onairRef.textContent = "";
+    _paintOnAir();
+  }
+
+  /**
+   * The program strip never disappears (no layout shift under the operator's
+   * pointer): it states what the output shows — nothing, a command waiting
+   * for confirmation, or a confirmed text on air.
+   */
+  var ONAIR_LABELS = {
+    off: "Rien n’est diffusé",
+    pending: "Commande de diffusion",
+    live: "Sortie confirmée",
+  };
+  function _paintOnAir() {
+    var state = !_output.visible
+      ? "off"
+      : _output.confirmed
+        ? "live"
+        : "pending";
+    if (dom.onairBar) {
+      dom.onairBar.dataset.state = state;
+      var label = dom.onairBar.querySelector(".cp-onair-label");
+      if (label) label.textContent = ONAIR_LABELS[state];
+      if (state === "off" && dom.onairRef) dom.onairRef.textContent = "";
+    }
+    document.body.dataset.onair = state;
+    if (window.VerseObs.Studio && window.VerseObs.Studio.setOutput)
+      window.VerseObs.Studio.setOutput(_output);
   }
 
   // ---- Copy ----

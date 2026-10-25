@@ -9,8 +9,8 @@
       content="Votre studio de diffusion biblique. Préparez, organisez et diffusez vos passages dans OBS."
     />
     <title>VerseObs — Studio</title>
-    <link rel="stylesheet" href="assets/css/control.css?v=2.2" />
-    <link rel="stylesheet" href="assets/css/studio.css?v=2.2" />
+    <link rel="stylesheet" href="assets/css/control.css?v=2.3" />
+    <link rel="stylesheet" href="assets/css/studio.css?v=2.3" />
   </head>
   <body data-tab="0">
     <a class="skip-link" href="#search-input">Aller à la recherche</a>
@@ -217,15 +217,22 @@
       <div
         class="cp-onair"
         id="onair-bar"
-        hidden
+        data-state="off"
         role="status"
         aria-live="polite"
       >
-        <span class="cp-onair-dot"></span
-        ><span class="cp-onair-label">Commande de diffusion</span
+        <span class="cp-onair-tally"
+          ><span class="cp-onair-dot" aria-hidden="true"></span>Antenne</span
+        ><span class="cp-onair-label">Rien n’est diffusé</span
         ><span class="cp-onair-ref" id="onair-ref"></span
         ><button class="cp-onair-hide" id="onair-hide">
-          Masquer <kbd>Esc</kbd>
+          <img
+            class="icon"
+            src="assets/icons/eye-off.svg"
+            alt=""
+            width="16"
+            height="16"
+          />Masquer <kbd>Esc</kbd>
         </button>
       </div>
       <main class="cp-panel">
@@ -372,24 +379,24 @@
                   id="monitor-preview"
                   aria-pressed="true"
                 >
-                  <span class="status-dot"></span> Préparation</button
+                  <span class="status-dot"></span> Aperçu</button
                 ><button id="monitor-program" aria-pressed="false">
-                  <span class="status-dot"></span> Sortie</button
-                ><span id="monitor-label">Non diffusé</span>
+                  <span class="status-dot"></span> Antenne</button
+                ><span id="monitor-label">Pas encore diffusé</span>
               </div>
               <div class="cp-preview-stage" id="preview-stage">
-                <div class="stage-label">VERSEOBS / PREVIEW</div>
+                <div class="stage-label">Aperçu</div>
                 <iframe
                   class="cp-preview-frame"
                   id="preview-frame"
-                  src="browser_source.html?preview=1&v=2.1"
+                  src="browser_source.html?preview=1&v=2.3"
                   title="Aperçu du passage préparé"
                   tabindex="-1"
                 ></iframe
                 ><iframe
                   class="cp-preview-frame"
                   id="program-frame"
-                  src="browser_source.html?monitor=1&v=2.1"
+                  src="browser_source.html?monitor=1&v=2.3"
                   title="Retour des commandes de diffusion"
                   tabindex="-1"
                   hidden
@@ -397,6 +404,7 @@
               </div>
               <div class="monitor-footer">
                 <span id="preview-caption">Votre prochain passage</span
+                ><span class="fit-hint" id="fit-hint" role="status" hidden></span
                 ><button id="btn-copy" class="cp-mini-btn">
                   Copier le texte
                 </button>
@@ -528,7 +536,13 @@
                   />
                   Diffuser le passage <kbd>⌘ ↵</kbd></button
                 ><button class="cp-btn cp-btn-hide" id="btn-hide">
-                  Masquer <kbd>Esc</kbd></button
+                  <img
+                    class="icon"
+                    src="assets/icons/eye-off.svg"
+                    alt=""
+                    width="16"
+                    height="16"
+                  />Masquer <kbd>Esc</kbd></button
                 ><button
                   class="cp-btn cp-btn-fav"
                   id="btn-fav"
@@ -569,6 +583,11 @@
                 </div>
                 <div class="style-choices">
                   <button
+                    data-preset="antenne"
+                    class="style-choice antenne-style"
+                  >
+                    <span>Aa</span><small>Antenne</small></button
+                  ><button
                     data-preset="studio"
                     class="style-choice studio-style"
                   >
@@ -698,7 +717,13 @@
               Diffuser le texte<span class="shortcut">Ctrl+Enter</span>
             </button>
             <button class="cp-btn cp-btn-hide" id="btn-free-hide">
-              Masquer<span class="shortcut">Esc</span>
+              <img
+                class="icon"
+                src="assets/icons/eye-off.svg"
+                alt=""
+                width="16"
+                height="16"
+              />Masquer<span class="shortcut">Esc</span>
             </button>
           </div>
 
@@ -730,6 +755,9 @@
               role="group"
               aria-label="Styles type"
             >
+              <button class="cp-ft-preset" data-ft-preset="antenne">
+                Antenne
+              </button>
               <button class="cp-ft-preset" data-ft-preset="chant">Chant</button>
               <button class="cp-ft-preset" data-ft-preset="annonce">
                 Annonce
@@ -760,9 +788,9 @@
                   <span class="cp-setting-label">Animation</span>
                   <div class="cp-setting-control">
                     <select class="cp-select" data-setting="animation">
+                      <option value="reveal">Révélation</option>
                       <option value="fade">Fondu</option>
                       <option value="slide">Glissement</option>
-                      <option value="typewriter">Machine à écrire</option>
                       <option value="none">Aucune</option>
                     </select>
                   </div>
@@ -1090,7 +1118,7 @@
               <iframe
                 class="cp-preview-frame"
                 id="settings-preview-frame"
-                src="browser_source.html?preview=1&v=2.1"
+                src="browser_source.html?preview=1&v=2.3"
                 title="Aperçu en direct de l'overlay"
                 tabindex="-1"
                 aria-hidden="true"
@@ -1107,6 +1135,7 @@
                 <span class="cp-setting-label">Template</span>
                 <div class="cp-setting-control">
                   <select class="cp-select" data-setting="template">
+                    <option value="antenne">Antenne</option>
                     <option value="studio">Studio</option>
                     <option value="papier">Papier</option>
                     <option value="cinema">Cinéma</option>
@@ -1123,6 +1152,16 @@
             <!-- Layout -->
             <div class="cp-setting-group">
               <div class="cp-setting-group-title">Disposition</div>
+
+              <div class="cp-setting-row">
+                <span class="cp-setting-label">Mise en page</span>
+                <div class="cp-setting-control">
+                  <select class="cp-select" data-setting="layout">
+                    <option value="antenne">Antenne · bandeau et marge</option>
+                    <option value="carte">Carte encadrée</option>
+                  </select>
+                </div>
+              </div>
 
               <div class="cp-setting-row">
                 <span class="cp-setting-label">Position</span>
@@ -1213,9 +1252,9 @@
                 <span class="cp-setting-label">Type</span>
                 <div class="cp-setting-control">
                   <select class="cp-select" data-setting="animation">
+                    <option value="reveal">Révélation</option>
                     <option value="fade">Fade</option>
                     <option value="slide">Slide</option>
-                    <option value="typewriter">Typewriter</option>
                     <option value="none">Aucune</option>
                   </select>
                 </div>
@@ -1880,25 +1919,25 @@
     ></div>
 
     <!-- Scripts: shared first, then control modules, then app -->
-    <script src="assets/js/shared/constants.js?v=2.2"></script>
-    <script src="assets/js/shared/books.js?v=2.2"></script>
-    <script src="assets/js/shared/html.js?v=2.2"></script>
-    <script src="assets/js/shared/secondary.js?v=2.2"></script>
-    <script src="assets/js/shared/channel.js?v=2.2"></script>
-    <script src="assets/js/shared/qrcode.js?v=2.2"></script>
-    <script src="assets/js/control/bible-loader.js?v=2.2"></script>
-    <script src="assets/js/control/search.js?v=2.2"></script>
-    <script src="assets/js/control/plan.js?v=2.2"></script>
-    <script src="assets/js/control/navigation.js?v=2.2"></script>
-    <script src="assets/js/control/settings.js?v=2.2"></script>
-    <script src="assets/js/control/history.js?v=2.2"></script>
-    <script src="assets/js/control/favorites.js?v=2.2"></script>
-    <script src="assets/js/control/freetext.js?v=2.2"></script>
-    <script src="assets/js/control/queue.js?v=2.2"></script>
-    <script src="assets/js/control/backup.js?v=2.2"></script>
-    <script src="assets/js/control/studio.js?v=2.2"></script>
-    <script src="assets/js/control/bilingual.js?v=2.2"></script>
-    <script src="assets/js/control/remote-link.js?v=2.2"></script>
-    <script src="assets/js/control/app.js?v=2.2"></script>
+    <script src="assets/js/shared/constants.js?v=2.3"></script>
+    <script src="assets/js/shared/books.js?v=2.3"></script>
+    <script src="assets/js/shared/html.js?v=2.3"></script>
+    <script src="assets/js/shared/secondary.js?v=2.3"></script>
+    <script src="assets/js/shared/channel.js?v=2.3"></script>
+    <script src="assets/js/shared/qrcode.js?v=2.3"></script>
+    <script src="assets/js/control/bible-loader.js?v=2.3"></script>
+    <script src="assets/js/control/search.js?v=2.3"></script>
+    <script src="assets/js/control/plan.js?v=2.3"></script>
+    <script src="assets/js/control/navigation.js?v=2.3"></script>
+    <script src="assets/js/control/settings.js?v=2.3"></script>
+    <script src="assets/js/control/history.js?v=2.3"></script>
+    <script src="assets/js/control/favorites.js?v=2.3"></script>
+    <script src="assets/js/control/freetext.js?v=2.3"></script>
+    <script src="assets/js/control/queue.js?v=2.3"></script>
+    <script src="assets/js/control/backup.js?v=2.3"></script>
+    <script src="assets/js/control/studio.js?v=2.3"></script>
+    <script src="assets/js/control/bilingual.js?v=2.3"></script>
+    <script src="assets/js/control/remote-link.js?v=2.3"></script>
+    <script src="assets/js/control/app.js?v=2.3"></script>
   </body>
 </html>

@@ -30,8 +30,21 @@ for (const file of ["control_panel.html", "browser_source.html", "remote.html"])
       throw new Error("Missing asset " + match[1]);
   }
 }
+// Fonts and images referenced from stylesheets must ship with the product.
+let cssAssets = 0;
+for (const name of fs.readdirSync(path.join(root, "assets/css"))) {
+  if (!name.endsWith(".css")) continue;
+  const css = fs.readFileSync(path.join(root, "assets/css", name), "utf8");
+  for (const match of css.matchAll(/url\(\s*["']?(\.\.\/[^"')?#]+)/g)) {
+    if (!fs.existsSync(path.join(root, "assets/css", match[1])))
+      throw new Error("Missing asset " + match[1] + " in " + name);
+    cssAssets++;
+  }
+}
 console.log(
   "Syntax verified: " +
     count +
-    " JavaScript files; HTML IDs and local assets verified.",
+    " JavaScript files; HTML IDs and local assets verified (" +
+    cssAssets +
+    " stylesheet assets).",
 );

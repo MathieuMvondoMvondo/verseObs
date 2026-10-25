@@ -21,8 +21,30 @@
     if (!preview && !monitor && channel)
       channel.send({ type: MSG.OUTPUT_STATE, visible: visible, label: label });
   }
-  function styleFor(style) {
+  /** The Studio's preview monitor tells the operator when a text was reduced. */
+  function reportFit() {
+    if (!preview || window.parent === window) return;
+    try {
+      window.parent.postMessage(
+        {
+          type: "verseobs:fit",
+          visible: visible,
+          fit: renderer ? renderer.fit : 1,
+          overflow: renderer ? renderer.overflow : false,
+        },
+        location.origin,
+      );
+    } catch (e) {}
+  }
+  /**
+   * A command without a layout comes from an older Studio: keep its card.
+   * Stored settings follow the Studio's own migration (see migrateStyle).
+   */
+  function styleFor(style, stored) {
     var result = Object.assign({}, style || {});
+    if (style && style.layout === undefined)
+      if (stored) V.migrateStyle(style, result, V.DEFAULTS, "studio");
+      else V.migrateStyle(style, result);
     if (result.bgImage === undefined) {
       try {
         result.bgImage = localStorage.getItem("verseobs_bgimage") || "";
@@ -38,11 +60,18 @@
   function hide() {
     var token = ++generation;
     clearTimer();
+    // The output stops claiming the text as soon as it starts leaving.
+    if (visible) {
+      visible = false;
+      label = "";
+      report();
+    }
     renderer.hide().then(function () {
       if (token !== generation) return;
       visible = false;
       label = "";
       report();
+      reportFit();
     });
   }
   function handleMessage(msg) {
@@ -53,6 +82,7 @@
     }
     if (msg.type === MSG.UPDATE_STYLE) {
       renderer.updateStyle(styleFor(msg.settings));
+      reportFit();
       return;
     }
     if (preview) {
@@ -84,14 +114,21 @@
       animation: preview ? "none" : style.animation,
       animationDuration: preview ? 0 : style.animationDuration,
     };
-    renderer.show(data).then(function (applied) {
-      if (token !== generation || applied === false) return;
-      visible = true;
-      label = msg.reference || msg.title || "Texte libre";
-      report();
-      var duration = Number(style.autoHide) || 0;
-      if (!preview && duration > 0) timer = setTimeout(hide, duration);
-    });
+    // Confirm as soon as the new text is in place on the output, not at the
+    // end of its entrance: the Studio's tally follows what OBS really shows.
+    renderer
+      .show(data, function () {
+        if (token !== generation) return;
+        visible = true;
+        label = msg.reference || msg.title || "Texte libre";
+        report();
+        reportFit();
+      })
+      .then(function (applied) {
+        if (token !== generation || applied === false) return;
+        var duration = Number(style.autoHide) || 0;
+        if (!preview && duration > 0) timer = setTimeout(hide, duration);
+      });
   }
   function init() {
     var container = document.getElementById("verse-container");
@@ -103,6 +140,7 @@
       renderer.updateStyle(
         styleFor(
           JSON.parse(localStorage.getItem(V.SETTINGS_KEY)) || V.DEFAULTS,
+          true,
         ),
       );
     } catch (e) {

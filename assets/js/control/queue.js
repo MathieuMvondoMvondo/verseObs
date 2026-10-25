@@ -248,6 +248,8 @@
         var row = document.createElement("div");
         row.className = "cp-queue-item";
         row.tabIndex = 0;
+        // Same label as the output reports: lets the Studio mark the live item.
+        row.dataset.label = item.reference || item.title || "Texte libre";
         row.setAttribute(
           "aria-label",
           "Sélectionner " + (item.reference || item.title || "Texte libre"),

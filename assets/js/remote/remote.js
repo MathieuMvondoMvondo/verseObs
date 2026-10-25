@@ -118,12 +118,21 @@
     }[outState];
     $("output-ref").textContent =
       out && out.visible && out.label ? out.label : "";
-    $("current-live").hidden = !(
+    var currentLive = !!(
       current &&
       out &&
       out.visible &&
       out.label === current.label
     );
+    $("current-live").hidden = !currentLive;
+    $("current-live").textContent =
+      out && out.confirmed ? "À l’antenne" : "Envoi…";
+    $("current-title").parentNode.parentNode.classList.toggle(
+      "is-live",
+      currentLive,
+    );
+    // One colour per state, as in the Studio (red program, amber pending).
+    document.body.dataset.output = outState;
     $("btn-prev").disabled = !online || index <= 1;
     $("btn-next").disabled = !online || !total || index >= total;
     $("btn-show").disabled = !online || !total;
