@@ -701,6 +701,63 @@ try {
   }
   }
 
+  // ---- Two outputs at once (OBS program + projector): the Studio's tally
+  // follows the program, deterministically, whatever the projector reports.
+  if (run("tally")) {
+  const tc = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const terrors = [];
+  const obs = await tc.newPage();
+  obs.on("pageerror", (e) => terrors.push("obs: " + e.message));
+  await obs.goto(`${BASE}/browser_source.html`);
+  const projector = await tc.newPage();
+  await projector.setViewportSize({ width: 1280, height: 720 });
+  projector.on("pageerror", (e) => terrors.push("projector: " + e.message));
+  await projector.goto(`${BASE}/browser_source.html?projector=1`);
+  const ts = await tc.newPage();
+  ts.on("pageerror", (e) => terrors.push("studio: " + e.message));
+  await ts.goto(`${BASE}/control_panel.html`);
+  await ts.waitForSelector(".chapter-verse");
+  await ts.waitForFunction(() => document.querySelector("#connection-dot").classList.contains("connected"));
+  await check("OBS output and projector together: the tally follows the program over 4 pings, never flips", async () => {
+    await prepare(ts, "Psaumes 23:1-6");
+    await ts.click("#btn-show");
+    await obs.waitForFunction(() => document.querySelector(".verse-card")?.dataset.partial === "23:1-6");
+    await projector.waitForFunction(() => !!document.querySelector(".verse-card"));
+    const program = await obs.evaluate(() => document.querySelector(".vo-nums .vo-roll:not(.is-leaving)").textContent);
+    const shownOnProjector = await projector.evaluate(() => (document.querySelector(".verse-card").dataset.partial ? document.querySelector(".vo-nums .vo-roll:not(.is-leaving)").textContent : "whole"));
+    // Record every change of the program strip for 4 pings (3 s apart).
+    await ts.evaluate(() => {
+      window.__tally = [];
+      const read = () => document.querySelector("#onair-bar .cp-onair-label").textContent + " | " + document.querySelector("#onair-ref").textContent;
+      let last = read();
+      window.__tally.push({ t: 0, v: last });
+      const t0 = performance.now();
+      new MutationObserver(() => {
+        const v = read();
+        if (v !== last) window.__tally.push({ t: Math.round(performance.now() - t0), v: (last = v) });
+      }).observe(document.querySelector("#onair-bar"), { subtree: true, childList: true, characterData: true });
+    });
+    await ts.waitForTimeout(12500);
+    const timeline = await ts.evaluate(() => window.__tally);
+    console.log("    program " + program + ", projector " + shownOnProjector + "; Studio timeline: " + JSON.stringify(timeline));
+    assert.equal(timeline.length, 1, "the program strip never changed: " + JSON.stringify(timeline));
+    assert.equal(timeline[0].v, "Sortie partielle · demandé 23:1-6 | Psaumes " + program);
+  });
+  await check("With the projector alone, its report still confirms the broadcast", async () => {
+    await obs.close();
+    await prepare(ts, "Jean 3:16");
+    await ts.click("#btn-show");
+    await ts.waitForFunction(
+      () => document.querySelector("#onair-bar .cp-onair-label").textContent === "Sortie confirmée" &&
+        document.querySelector("#onair-ref").textContent === "Jean 3:16",
+      null,
+      { timeout: 12000 },
+    );
+  });
+  assert.deepEqual(terrors, []);
+  await tc.close();
+  }
+
   // ---- Régie readability: type floor, keyboard focus, phone targets.
   if (run("regie")) {
   for (const [w, h] of [[1920, 1080], [1280, 800], [390, 844]]) {

@@ -29,7 +29,7 @@ Adresses locales par défaut :
 - Source transparente : `http://127.0.0.1:8080/browser_source.html`
 - Projection avec fond sombre et bouton plein écran : `http://127.0.0.1:8080/browser_source.html?projector=1`
 
-**Sortie connectée** signifie qu’une page de sortie répond. **Sortie confirmée** signifie que cette page a terminé son affichage. Ces indications ne confirment pas que la scène OBS est active ou que le stream est démarré. Une sortie de test compte comme une sortie.
+**Sortie connectée** signifie qu’une page de sortie répond. **Sortie confirmée** signifie que cette page a terminé son affichage. Ces indications ne confirment pas que la scène OBS est active ou que le stream est démarré. Une sortie de test compte comme une sortie. Avec la source OBS et le projecteur (`?projector=1`) ouverts ensemble, l’état affiché suit la source OBS (le programme) ; le projecteur ne compte que s’il est seul.
 
 Référence officielle : [source Navigateur d’OBS](https://obsproject.com/kb/browser-source).
 

@@ -38,6 +38,11 @@
   var _commands = [];
   // Last report of the preview monitor (fit, plans of a too long passage).
   var _fitInfo = null;
+  // Several outputs may answer at once (OBS program and projector, which can
+  // fit a passage differently): the tally follows the program. A projector's
+  // report counts only when no program output has answered for PROGRAM_TTL.
+  var _programSeen = 0;
+  var PROGRAM_TTL = 7000;
   var _lastSent = { label: "", version: "" };
   var currentBibleId = null;
   var currentBibleData = null;
@@ -1380,6 +1385,9 @@
       }, 7000);
     }
     if (msg.type === MSG.OUTPUT_STATE) {
+      // Outputs from before roles are program outputs.
+      if (msg.role !== "projector") _programSeen = Date.now();
+      else if (Date.now() - _programSeen < PROGRAM_TTL) return;
       if (_isStale(msg)) return;
       _output.reduced = msg.reduced === true;
       if (msg.visible) {

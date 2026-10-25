@@ -26,6 +26,8 @@
     if (!preview && !monitor && channel)
       channel.send({
         type: MSG.OUTPUT_STATE,
+        // OBS program or projector: the Studio's tally follows the program.
+        role: projector ? "projector" : "program",
         visible: visible,
         label: label,
         cue: cue,
