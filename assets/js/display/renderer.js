@@ -541,9 +541,9 @@
   };
 
   /**
-   * Same plans, measured in slices of at most `budget` ms (default 40): the
-   * Studio shares its thread with its preview, and Échap or Masquer must
-   * never wait for a long chapter. done(ranges, or null when the passage
+   * Same plans, measured in slices of about `budget` ms (default 40; a slice
+   * ends with the probe that passes it): the Studio shares its thread with
+   * its preview, and Échap or Masquer must never wait for a long chapter. done(ranges, or null when the passage
    * cannot be split). Returns a function that cancels the measurement.
    */
   Renderer.prototype.measurePages = function (data, done, budget) {
