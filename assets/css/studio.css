@@ -24,6 +24,13 @@
   --cp-focus-ring: 0 0 0 3px #92b3f550;
 }
 @font-face {
+  font-family: "VerseObs Lecture";
+  src: url("../fonts/Lora-wght.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
   font-family: "VerseObs Titrage";
   src: url("../fonts/ArchivoNarrow-wght.woff2") format("woff2");
   font-weight: 400 700;
@@ -4781,4 +4788,270 @@ body.output-connected .connect-top {
     padding-right: 0;
     letter-spacing: 0;
   }
+}
+
+/* ==========================================================================
+   Type scale of the régie (review 2, brief §3): six sizes.
+   12/16 meta (kbd, rail, counters, chips, verse numbers, captions)
+   13/16 tally labels, excerpts, what the take sends
+   14/20 interface, lists, labels
+   18/28 scripture in the editors (Lora), 18/24 « Diffuser »
+   20/28 section titles, reference of the preview
+   28/32 reference on air (Archivo Narrow, tabular figures)
+   ========================================================================== */
+body {
+  font-size: 14px;
+  line-height: 20px;
+}
+.breadcrumb,
+.breadcrumb strong,
+.cp-connection,
+#connection-text,
+.command-trigger,
+.connect-top,
+.remote-header-badge,
+.save-status {
+  font-size: 14px;
+  line-height: 20px;
+}
+.monitor-caption {
+  font: 600 20px/28px var(--cp-font);
+  letter-spacing: -0.01em;
+}
+.monitor-bay > .cp-onair .cp-onair-ref,
+.cp-onair-ref {
+  font: 600 28px/32px var(--tally-font);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+.cp-onair-label {
+  font: 500 14px/20px var(--cp-font);
+  opacity: 1;
+}
+.take .take-hide {
+  font: 600 14px/20px var(--cp-font);
+}
+.fit-hint,
+.program-note,
+.monitor-action,
+.monitor-switch button,
+.queue-strip,
+.queue-strip button {
+  font-size: 14px;
+  line-height: 20px;
+}
+.cp-search-input,
+.cp-select,
+.cp-version-select,
+.cp-nav-row .cp-select,
+.cp-input,
+.session-name,
+.bilingual-switch,
+#secondary-version-field,
+.style-pick,
+.format-toggle,
+.cp-nav-row label,
+.search-suggestions button,
+.cp-btn-queue-add,
+.cp-mini-btn,
+.cp-format-btn,
+.cp-btn-nav,
+.cp-nav-buttons .cp-btn-nav,
+.cp-btn-clear,
+.session-toolbar button,
+.plan-open-label,
+.queue-merge,
+.cp-btn-save,
+.cp-ft-preset,
+.freetext-style-panel summary,
+.cp-section-label,
+#bilingual-status,
+.cp-history-empty,
+.cp-fav-item,
+.cp-saved-item {
+  font-size: 14px;
+  line-height: 20px;
+}
+.section-heading h2,
+.passage-editor #preview-ref,
+.passage-editor .section-heading h2,
+.queue-selection-preview h3,
+.cp-queue-header .cp-section-label {
+  font: 600 20px/28px var(--cp-font);
+  letter-spacing: -0.01em;
+  color: #eceef1;
+}
+.chapter-verse {
+  font-size: 14px;
+  line-height: 20px;
+}
+.chapter-verse .verse-number {
+  font: 500 14px/20px var(--cp-font);
+  font-variant-numeric: tabular-nums;
+  padding-top: 0;
+}
+.cp-preview-text {
+  font: 400 18px/28px "VerseObs Lecture", Lora, Georgia, serif;
+}
+.cp-preview-text sup,
+.cp-preview-text .verse-num,
+#queue-selection-text sup {
+  font: 600 12px/1 var(--cp-font);
+}
+#queue-selection-text {
+  font: 400 18px/28px "VerseObs Lecture", Lora, Georgia, serif;
+}
+.cp-freetext-editable {
+  font-size: 18px;
+  line-height: 28px;
+}
+.cp-btn-fav {
+  font-size: 18px;
+  line-height: 1;
+}
+/* meta: 12/16 */
+kbd,
+.cp-tab,
+.sidebar-help,
+.cp-version-indicator,
+.bilingual-order,
+.search-suggestions > span,
+.translation-caption,
+#chapter-count,
+.cp-queue-counter,
+.queue-position,
+.cp-queue-num,
+.cp-queue-part,
+.session-meta label,
+#session-saved,
+.plan-open-hint,
+.queue-tip,
+.favorites-strip .muted,
+.freetext-style-panel summary span {
+  font-size: 12px;
+  line-height: 16px;
+}
+/* 13: tally labels, excerpts, what the take sends */
+.monitor-tag,
+.cp-onair-tally,
+.editor-badge,
+.take-cue,
+.cp-queue-preview {
+  font-size: 13px;
+}
+.cp-queue-title {
+  font: 600 14px/20px var(--cp-font);
+}
+
+/* ---- Conductor rows (brief §4) ----
+   Compact column (Bible, Textes): one line per item, the reference and the
+   plan chip; the live item keeps its red bar and « À L'ANTENNE ».
+   Conducteur view: 56 px rows, reference 14/20 semibold, excerpt on one line;
+   the position « 4/10 » sits in the heading, not on every row. */
+.cp-queue-num,
+#queue-counter {
+  display: none;
+}
+.cp-queue-item {
+  align-items: center;
+  min-height: 56px;
+  padding: 8px 12px;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.cp-queue-item.is-part {
+  margin-left: 12px;
+}
+.cp-queue-title {
+  margin-bottom: 2px;
+}
+.cp-queue-preview {
+  font-size: 14px;
+  line-height: 20px;
+  color: #9da0aa;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-line-clamp: unset;
+  display: block;
+}
+body:not([data-tab="2"]) #tab-queue .cp-queue-item {
+  min-height: 44px;
+  padding: 10px 12px;
+  margin-bottom: 4px;
+}
+body:not([data-tab="2"]) #tab-queue .cp-queue-preview {
+  display: none;
+}
+body:not([data-tab="2"]) #tab-queue .cp-queue-title {
+  margin: 0;
+}
+@media (min-width: 1280px) {
+  body[data-tab="2"] #tab-queue {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+    column-gap: var(--bay-gap);
+    align-items: start;
+    max-width: none;
+  }
+  body[data-tab="2"] #tab-queue > * {
+    grid-column: 2;
+    min-width: 0;
+  }
+  body[data-tab="2"] #tab-queue > .cp-section:first-child {
+    grid-column: 1;
+    grid-row: 1;
+    margin-bottom: 12px;
+  }
+  body[data-tab="2"] #tab-queue > .cp-section:has(#queue-container) {
+    grid-column: 1;
+    grid-row: 2 / span 12;
+  }
+  /* Side: the session (aligned with the list's heading), then what is
+     selected, then the session tools. */
+  body[data-tab="2"] #tab-queue > .session-meta {
+    order: -2;
+    padding-bottom: 12px;
+  }
+  body[data-tab="2"] #tab-queue > .queue-selection-preview {
+    order: -1;
+    margin: 12px 0;
+  }
+}
+/* The session's name is the conductor's title in its view. */
+.session-meta label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.session-name {
+  font: 600 20px/28px var(--cp-font);
+  color: #eceef1;
+}
+/* Verse numbers in the editors: 14 px, raised, never under 12 px. */
+.cp-preview-text sup,
+.cp-preview-text .verse-num,
+#queue-selection-text sup {
+  font: 600 14px/1 var(--cp-font);
+  vertical-align: 0.4em;
+  color: #c9b98f;
+}
+.favorites-strip .section-heading h2 {
+  font: 600 20px/28px var(--cp-font);
+}
+.favorites-strip .section-heading .muted {
+  display: none;
+}
+.queue-selection-preview .editor-badge {
+  font-size: 13px;
+  line-height: 16px;
+}
+.cp-toast,
+.cp-notification,
+.cp-notify {
+  font-size: 14px;
+  line-height: 20px;
 }

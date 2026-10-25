@@ -161,7 +161,7 @@ const inFrame = async (studio, frameId) =>
  * Masquer buttons, monitors, bay, controls on the first screen and the type
  * histogram of the visible texts.
  */
-const REGIE = () => {
+const REGIE = (META) => {
   const shown = (e) => {
     if (!e || !e.getClientRects().length) return false;
     const r = e.getBoundingClientRect();
@@ -210,6 +210,7 @@ const REGIE = () => {
     if (!walker.currentNode.textContent.trim() || !el || seen.has(el) || !shown(el) || !onScreen(el)) continue;
     seen.add(el);
     const px = Math.round(parseFloat(getComputedStyle(el).fontSize) * 2) / 2;
+    if (!px) continue;
     hist[px] = (hist[px] || 0) + 1;
     if (px < 14) meta.push(el);
   }
@@ -232,13 +233,21 @@ const REGIE = () => {
     hist,
     sizes: Object.keys(hist).length,
     share14: total ? large / total : 0,
-    // 12-13 px texts must be meta (kbd, captions, verse numbers, counters, tally chips).
+    // 12-13 px texts must be meta (brief §3): kbd, rail, counters, chips,
+    // verse numbers, captions, tally labels, excerpts, what the take sends.
     smallNotMeta: meta
-      .filter((e) => !e.closest("kbd, .meta, [data-meta], .verse-number, .verse-num, sup, .cp-queue-num, .cp-queue-part, .muted, .chip, .monitor-meta, .take-cue, .take-reason, .rail-label, .cp-queue-preview"))
+      .filter((e) => !e.closest(META))
       .map((e) => (e.id ? "#" + e.id : e.tagName.toLowerCase() + "." + String(e.className).split(" ")[0]) + " " + getComputedStyle(e).fontSize + " « " + e.textContent.trim().slice(0, 30) + " »")
       .slice(0, 40),
   };
 };
+const META = [
+  "kbd", "sup", ".verse-num", ".cp-tab", ".sidebar-help", ".cp-version-indicator", ".bilingual-order",
+  ".search-suggestions > span", ".translation-caption", "#chapter-count", ".cp-queue-counter", ".queue-position",
+  ".cp-queue-num", ".cp-queue-part", ".session-meta label", "#session-saved", ".plan-open-hint", ".queue-tip",
+  ".favorites-strip .muted", ".freetext-style-panel summary span", ".monitor-tag", ".cp-onair-tally",
+  ".editor-badge", ".take-cue", ".cp-queue-preview",
+].join(", ");
 /** A filled conductor (passage, verse, split plans, two translations, song). */
 function regieConductor() {
   const LSG = require(path.join(ROOT, "data/bibles/lsg.json")).books;
@@ -1457,7 +1466,7 @@ try {
     await check(`Régie at ${w}×${h}: exactly one Diffuser and one Masquer in each view, both on the first screen`, async () => {
       for (const [tab, name] of views) {
         await showView(r.studio, tab);
-        const g = await r.studio.evaluate(REGIE);
+        const g = await r.studio.evaluate(REGIE, META);
         const where = `${w} px, ${name}: `;
         assert.equal(g.takes.length, 1, where + "takes " + JSON.stringify(g.takes));
         assert.equal(g.hides.length, 1, where + "Masquer " + JSON.stringify(g.hides));
@@ -1465,11 +1474,25 @@ try {
           assert.ok(b.top >= 0 && b.bottom <= g.vh, where + b.text + " off the first screen: " + JSON.stringify(b));
       }
     });
+    await check(`Régie type scale at ${w} px (§3): at most 6 sizes, ≥ 60 % of visible texts at 14 px or more, 12-13 px for meta only`, async () => {
+      const seen = {};
+      for (const [tab, name] of views) {
+        await showView(r.studio, tab);
+        const g = await r.studio.evaluate(REGIE, META);
+        seen[name] = { sizes: Object.keys(g.hist).map(Number).sort((a, b) => a - b).join("/"), share14: Math.round(g.share14 * 100) + " %" };
+        const where = `${w} px, ${name}: `;
+        assert.ok(g.sizes <= 6, where + g.sizes + " sizes " + JSON.stringify(g.hist));
+        assert.ok(g.share14 >= 0.6, where + Math.round(g.share14 * 100) + " % at 14 px or more " + JSON.stringify(g.hist));
+        assert.ok(Object.keys(g.hist).every((k) => Number(k) >= 12), where + "under 12 px " + JSON.stringify(g.hist));
+        assert.deepEqual(g.smallNotMeta, [], where + "12-13 px outside meta");
+      }
+      console.log("    type at " + w + " px: " + JSON.stringify(seen));
+    });
     if (w === 1920)
       await check("Régie at 1920 px: the take sits between the monitors, monitors ≥ 720 px, the bay reaches the content edge", async () => {
         for (const [tab, name] of views) {
           await showView(r.studio, tab);
-          const g = await r.studio.evaluate(REGIE);
+          const g = await r.studio.evaluate(REGIE, META);
           const t = g.takes[0];
           const where = name + ": ";
           assert.ok(t.left >= g.preview.right && t.right <= g.program.left, where + "take " + JSON.stringify(t) + " between " + g.preview.right + " and " + g.program.left);
@@ -1483,7 +1506,7 @@ try {
         const counts = {};
         for (const [tab, name] of views) {
           await showView(r.studio, tab);
-          const g = await r.studio.evaluate(REGIE);
+          const g = await r.studio.evaluate(REGIE, META);
           counts[name] = g.controls;
           assert.ok(g.controls <= 26, name + ": " + g.controls + " controls: " + g.controlNames.join(" | "));
         }
@@ -1499,7 +1522,7 @@ try {
       for (const scroll of [0, 700]) {
         await dock.studio.evaluate((y) => scrollTo(0, y), scroll);
         await dock.studio.waitForTimeout(150);
-        const g = await dock.studio.evaluate(REGIE);
+        const g = await dock.studio.evaluate(REGIE, META);
         const band = await dock.studio.evaluate(() => {
           const b = document.querySelector("#onair-bar");
           const r = b.getBoundingClientRect();
