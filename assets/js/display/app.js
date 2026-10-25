@@ -19,7 +19,13 @@
   var preview = params.get("preview") === "1",
     monitor = params.get("monitor") === "1",
     projector = params.get("projector") === "1";
-  var visible = false;
+  var visible = false,
+    // Cancels the plans being measured for the preview (see reportFit).
+    stopMeasuring = null;
+  function cancelMeasure() {
+    if (stopMeasuring) stopMeasuring();
+    stopMeasuring = null;
+  }
   function clearTimer() {
     clearTimeout(timer);
     timer = null;
@@ -41,29 +47,42 @@
         reduced: !!(V.Motion && V.Motion.reduced()),
       });
   }
-  /** The Studio's preview monitor tells the operator when a text was reduced. */
+  /**
+   * The Studio's preview monitor tells the operator when a text was reduced.
+   * Too long for the band: what would go on air at once, then the plans
+   * (whole verses) the operator may split it into, measured in short slices
+   * (renderer.measurePages) so the Studio — same thread — never freezes.
+   */
   function reportFit() {
     if (!preview || window.parent === window) return;
-    try {
-      window.parent.postMessage(
-        {
-          type: "verseobs:fit",
-          seq: previewSeq,
-          visible: visible,
-          fit: renderer ? renderer.fit : 1,
-          overflow: renderer ? renderer.overflow : false,
-          // Too long for the band: what would go on air, and the plans
-          // (whole verses) the operator may split it into.
-          partial: renderer && renderer.partial ? renderer.partial : "",
-          shown: renderer && renderer.partial ? renderer.shown : "",
-          pages:
-            renderer && renderer.partial && renderer._data
-              ? renderer.pages(renderer._data)
-              : null,
-        },
-        location.origin,
-      );
-    } catch (e) {}
+    cancelMeasure();
+    var partial = renderer && renderer.partial ? renderer.partial : "",
+      data = renderer && renderer._data,
+      seq = previewSeq,
+      post = function (pages, measuring) {
+        try {
+          window.parent.postMessage(
+            {
+              type: "verseobs:fit",
+              seq: seq,
+              visible: visible,
+              fit: renderer ? renderer.fit : 1,
+              overflow: renderer ? renderer.overflow : false,
+              partial: partial,
+              shown: partial ? renderer.shown : "",
+              measuring: measuring,
+              pages: pages,
+            },
+            location.origin,
+          );
+        } catch (e) {}
+      };
+    if (!(visible && partial && data)) return post(null, false);
+    post(null, true);
+    stopMeasuring = renderer.measurePages(data, function (pages) {
+      stopMeasuring = null;
+      if (seq === previewSeq && data === renderer._data) post(pages, false);
+    });
   }
   /**
    * A command without a layout comes from an older Studio: keep its card.
@@ -112,17 +131,20 @@
       return;
     }
     if (msg.type === MSG.UPDATE_STYLE) {
+      cancelMeasure();
       renderer.updateStyle(styleFor(msg.settings));
       reportFit();
       return;
     }
     if (preview) {
       if (msg.type === MSG.PREVIEW_HIDE) {
+        cancelMeasure();
         previewSeq = Number(msg.seq) || 0;
         hide();
         return;
       }
       if (msg.type !== MSG.PREVIEW) return;
+      cancelMeasure();
     } else {
       if (msg.type === MSG.HIDE) {
         hide(String(msg.command || ""));

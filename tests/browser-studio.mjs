@@ -847,6 +847,93 @@ try {
   await rc.close();
   }
 
+  // ---- Measuring the plans of a whole chapter never freezes the régie:
+  // Échap and Masquer stay immediate while the preview measures.
+  if (run("measure")) {
+  const mc = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  await mc.addInitScript(() => {
+    if (!location.pathname.endsWith("control_panel.html")) return;
+    window.__long = [];
+    window.__lat = [];
+    try {
+      new PerformanceObserver((l) =>
+        l.getEntries().forEach((e) => window.__long.push({ t: Math.round(e.startTime), d: Math.round(e.duration) })),
+      ).observe({ type: "longtask", buffered: true });
+    } catch (e) {}
+    // When the Studio could handle each input (wall clock, compared with the
+    // moment the test sent it: a busy main thread delays the handler).
+    const lag = (name) => (e) => {
+      if (name === "Escape" ? e.key === "Escape" : e.target.closest && e.target.closest("#onair-hide"))
+        window.__lat.push({ name, at: Date.now() });
+    };
+    addEventListener("keydown", lag("Escape"), true);
+    addEventListener("pointerdown", lag("Masquer"), true);
+  });
+  const merrors = [];
+  const mo = await mc.newPage();
+  mo.on("pageerror", (e) => merrors.push("output: " + e.message));
+  await mo.goto(`${BASE}/browser_source.html`);
+  const ms = await mc.newPage();
+  ms.on("pageerror", (e) => merrors.push("studio: " + e.message));
+  await ms.goto(`${BASE}/control_panel.html`);
+  await ms.waitForSelector(".chapter-verse");
+  await ms.waitForFunction(() => document.querySelector("#connection-dot").classList.contains("connected"));
+  await check("While the plans of Psaumes 119:1-176 are measured, Échap and Masquer are handled within 150 ms", async () => {
+    await prepare(ms, "Jean 3:16");
+    await ms.click("#btn-show");
+    await mo.waitForFunction(() => !!document.querySelector(".verse-card"));
+    await ms.evaluate(() => {
+      window.__long = [];
+      window.__lat = [];
+    });
+    const box = await ms.evaluate(() => {
+      const r = document.querySelector("#onair-hide").getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    });
+    const t0 = await ms.evaluate(() => performance.now());
+    // No page.evaluate from here until the inputs are sent: it would wait for
+    // a busy main thread itself and hide the delay the operator would feel.
+    await ms.fill("#search-input", "Psaumes 119:1-176");
+    // The operator presses Échap and clicks Masquer while the preview works.
+    const sent = [];
+    const ready = () =>
+      ms.evaluate(() => {
+        const b = document.querySelector("#btn-split");
+        return !b.hidden && !b.disabled && /Découper en \d+ plans/.test(b.textContent);
+      });
+    // Inputs all along, until the plans are offered (whatever the speed).
+    for (const deadline = Date.now() + 60000; Date.now() < deadline; ) {
+      sent.push(Date.now());
+      await ms.keyboard.press("Escape");
+      await ms.waitForTimeout(50);
+      sent.push(Date.now());
+      await ms.mouse.click(box.x, box.y);
+      await ms.waitForTimeout(50);
+      if (sent.length >= 12 && (await ready())) break;
+    }
+    assert.ok(await ready(), "plans offered");
+    const t1 = await ms.evaluate(() => performance.now());
+    const label = await ms.textContent("#btn-split");
+    // Long tasks of this scenario (an observer may deliver an earlier one late).
+    const long = (await ms.evaluate(() => window.__long)).filter((x) => x.t >= t0 - 1);
+    const lat = (await ms.evaluate(() => window.__lat)).map((x, i) => ({ name: x.name, lag: x.at - sent[i] }));
+    const worst = Math.max(...lat.map((x) => x.lag));
+    const longest = Math.max(0, ...long.map((x) => x.d));
+    console.log("    long tasks [start after the request, duration] ms: " + JSON.stringify(long.map((x) => [Math.round(x.t - t0), x.d])));
+    console.log(
+      "    " + label + " after " + Math.round(t1 - t0) + " ms; inputs " + lat.length + ", worst wait " + worst +
+        " ms; long tasks " + long.length + ", longest " + longest + " ms",
+    );
+    assert.equal(lat.length, sent.length, "every input handled");
+    assert.ok(worst <= 150, "an input waited " + worst + " ms: " + JSON.stringify(lat));
+    assert.ok(longest <= 150, "longest task " + longest + " ms");
+    // The last Masquer leaves with its short exit, then nothing is on air.
+    await mo.waitForFunction(() => !document.querySelector(".verse-card"), null, { timeout: 5000 });
+  });
+  assert.deepEqual(merrors, []);
+  await mc.close();
+  }
+
   // ---- Régie readability: type floor, keyboard focus, phone targets.
   if (run("regie")) {
   for (const [w, h] of [[1920, 1080], [1280, 800], [390, 844]]) {

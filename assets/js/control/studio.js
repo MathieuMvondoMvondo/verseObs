@@ -866,12 +866,21 @@
       var fit = Number(info && info.fit) || 1,
         pages = info && Array.isArray(info.pages) ? info.pages : null;
       if (split) {
-        split.hidden = !(info && info.visible && pages && pages.length > 1);
-        split.textContent = split.hidden
-          ? "Découper"
-          : "Découper en " + pages.length + " plans";
+        // While the preview measures the plans (a long chapter takes a
+        // moment), the button says so and waits.
+        var measuring = !!(info && info.visible && info.measuring);
+        split.hidden = !(
+          info &&
+          info.visible &&
+          (measuring || (pages && pages.length > 1))
+        );
+        split.textContent = measuring
+          ? "Mesure des plans…"
+          : split.hidden
+            ? "Découper"
+            : "Découper en " + pages.length + " plans";
         // A report about another text (or an older version of this one).
-        split.disabled = !(info && info.fresh !== false);
+        split.disabled = measuring || !(info && info.fresh !== false);
       }
       if (
         !info ||

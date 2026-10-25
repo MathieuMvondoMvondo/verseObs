@@ -532,6 +532,109 @@
    * the width of the stage). Null when the passage has no verses to split.
    */
   Renderer.prototype.pages = function (data) {
+    var plan = this._pagePlan(data);
+    if (!plan) return null;
+    var ranges = [],
+      next = pageSearch(plan);
+    while (!next(ranges));
+    return ranges;
+  };
+
+  /**
+   * Same plans, measured in slices of at most `budget` ms (default 40): the
+   * Studio shares its thread with its preview, and Échap or Masquer must
+   * never wait for a long chapter. done(ranges, or null when the passage
+   * cannot be split). Returns a function that cancels the measurement.
+   */
+  Renderer.prototype.measurePages = function (data, done, budget) {
+    var plan = this._pagePlan(data),
+      cancelled = false,
+      timer = null;
+    budget = budget > 0 ? budget : 40;
+    if (!plan) {
+      timer = setTimeout(function () {
+        if (!cancelled) done(null);
+      }, 0);
+    } else {
+      var ranges = [],
+        next = pageSearch(plan),
+        now = function () {
+          return window.performance && performance.now
+            ? performance.now()
+            : Date.now();
+        },
+        slice = function () {
+          timer = null;
+          if (cancelled) return;
+          var start = now();
+          while (!next(ranges))
+            if (now() - start >= budget) {
+              timer = setTimeout(slice, 0);
+              return;
+            }
+          done(ranges);
+        };
+      // Let the render that asked for it finish first.
+      timer = setTimeout(slice, 0);
+    }
+    return function () {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  };
+
+  /**
+   * One step of the greedy split: from each first verse, the longest run of
+   * whole verses that fits (gallop 1, 3, 7… verses, then bisect: small
+   * probes first, the same plans as a plain bisection). Each call measures at
+   * most one probe; returns true when every verse has its plan.
+   */
+  function pageSearch(plan) {
+    var all = plan.all,
+      ok = plan.ok,
+      i = 0,
+      good,
+      bad,
+      step,
+      gallop;
+    function row() {
+      good = i;
+      bad = all.length;
+      step = 1;
+      gallop = true;
+    }
+    row();
+    return function (ranges) {
+      if (i >= all.length) return true;
+      if (gallop) {
+        var j = Math.min(good + step, bad - 1);
+        if (j > good) {
+          if (ok(i, j)) {
+            good = j;
+            step *= 2;
+          } else {
+            bad = j;
+            gallop = false;
+          }
+          return false;
+        }
+        gallop = false;
+      }
+      if (bad - good > 1) {
+        var m = (good + bad) >> 1;
+        if (ok(i, m)) good = m;
+        else bad = m;
+        return false;
+      }
+      ranges.push([all[i].num, all[good].num]);
+      i = good + 1;
+      if (i < all.length) row();
+      return i >= all.length;
+    };
+  }
+
+  /** What the split measures: the verses, and « do verses i..j fit? ». */
+  Renderer.prototype._pagePlan = function (data) {
     var P = V.Passage,
       all = P && data ? P.verses(data.html) : [];
     if (all.length < 2) return null;
@@ -569,23 +672,7 @@
       probe.remove();
       return result;
     };
-    var ranges = [],
-      i = 0;
-    while (i < all.length) {
-      var best = i,
-        a = i + 1,
-        b = all.length - 1;
-      while (a <= b) {
-        var m = (a + b) >> 1;
-        if (ok(i, m)) {
-          best = m;
-          a = m + 1;
-        } else b = m - 1;
-      }
-      ranges.push([all[i].num, all[best].num]);
-      i = best + 1;
-    }
-    return ranges;
+    return { all: all, ok: ok };
   };
 
   /** Long book names and ranges (« 119:105-112 ») stay inside the margin. */
