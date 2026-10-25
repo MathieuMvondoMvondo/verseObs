@@ -656,20 +656,24 @@
     return fontsReady().then(function () {
       if (gen !== self._gen) return false;
       var stage = self.card;
-      if (stage && self._signature === signature(data)) {
-        if (data.style) self.updateStyle(data.style);
-        return self._settle(stage, gen, data, onCommit);
-      }
       if (!stage) {
         self._applyStyle(data);
         return self._enter(data, gen, onCommit);
       }
+      // A different composition first: even the same passage must leave and
+      // enter again rather than jump to its new place in one frame.
       var nextLayout = (data.style && data.style.layout) || self.layout,
         nextPosition =
           data.position ||
           (data.style && data.style.position) ||
           self.currentPosition;
-      if (nextLayout !== self.layout || nextPosition !== self.currentPosition) {
+      var moved =
+        nextLayout !== self.layout || nextPosition !== self.currentPosition;
+      if (!moved && self._signature === signature(data)) {
+        if (data.style) self.updateStyle(data.style);
+        return self._settle(stage, gen, data, onCommit);
+      }
+      if (moved) {
         // A different composition cannot morph: leave, then enter cleanly.
         return self._leave(stage, gen, self._mode(data)).then(function (done) {
           if (!done || gen !== self._gen) return false;
@@ -1302,8 +1306,17 @@
       set("--line-height", String(style.lineHeight));
     if (style.highlightColor !== undefined)
       set("--highlight-color", style.highlightColor);
+    // Only a picture imported by the Studio (re-encoded as a base64 data URL)
+    // may be placed inside url("…").
     if (style.bgImage !== undefined)
-      set("--bg-image", style.bgImage ? 'url("' + style.bgImage + '")' : "none");
+      set(
+        "--bg-image",
+        /^data:image\/(png|jpeg|webp);base64,[a-z0-9+\/=]+$/i.test(
+          String(style.bgImage),
+        )
+          ? 'url("' + style.bgImage + '")'
+          : "none",
+      );
     if (this.card && this._data && !deferFit) {
       // Rebuilt from the data: a passage shortened for one style may show
       // more verses with another.

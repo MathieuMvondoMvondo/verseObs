@@ -125,6 +125,31 @@ const ON_AIR = () => {
   };
 };
 const onAir = (page) => page.evaluate(ON_AIR);
+/** Visible text smaller than 12 px (text hidden with font-size: 0 excepted). */
+const SMALL_TEXT = () => {
+  const out = [];
+  const seen = new Set();
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  while (walker.nextNode()) {
+    const el = walker.currentNode.parentElement;
+    if (!walker.currentNode.textContent.trim() || !el || seen.has(el)) continue;
+    seen.add(el);
+    const cs = getComputedStyle(el);
+    const r = el.getBoundingClientRect();
+    if (r.width < 2 || r.height < 2 || cs.visibility !== "visible") continue;
+    let o = el,
+      shown = true;
+    while (o && o !== document.body && shown) {
+      const st = getComputedStyle(o);
+      shown = st.display !== "none" && Number(st.opacity) > 0;
+      o = o.parentElement;
+    }
+    const px = parseFloat(cs.fontSize);
+    if (shown && px > 0 && px < 11.95)
+      out.push((el.id ? "#" + el.id : el.tagName.toLowerCase() + "." + String(el.className).split(" ")[0]) + " " + px + "px");
+  }
+  return out;
+};
 const inFrame = async (studio, frameId) =>
   (await (await studio.$("#" + frameId)).contentFrame()).evaluate(ON_AIR);
 
@@ -301,6 +326,66 @@ try {
   });
   assert.deepEqual(desk.errors, []);
   await desk.ctx.close();
+
+  // ---- Régie readability: type floor, keyboard focus, phone targets.
+  for (const [w, h] of [[1920, 1080], [1280, 800], [390, 844]]) {
+    const view = await open(w, h);
+    await check(`At ${w} px no visible text under 12 px in Bible, Conducteur and Habillage`, async () => {
+      for (const tab of [0, 2, 4]) {
+        await view.studio.evaluate((t) => document.querySelector("#tab-btn-" + t).click(), tab);
+        await view.studio.waitForTimeout(250);
+        const small = await view.studio.evaluate(SMALL_TEXT);
+        assert.deepEqual(small, [], "tab " + tab + ": " + small.slice(0, 12).join(", "));
+      }
+    });
+    await view.ctx.close();
+  }
+  const keys = await open(1920, 1080);
+  await check("Keyboard focus is always visible in the régie", async () => {
+    await keys.studio.evaluate(() => document.querySelector("#tab-btn-0").click());
+    await keys.studio.focus("#search-input");
+    for (let i = 0; i < 8; i++) {
+      await keys.studio.keyboard.press("Tab");
+      const ring = await keys.studio.evaluate(() => {
+        const el = document.activeElement;
+        const cs = getComputedStyle(el);
+        return {
+          el: el.id || el.className || el.tagName,
+          outline: cs.outlineStyle !== "none" ? parseFloat(cs.outlineWidth) : 0,
+          shadow: cs.boxShadow !== "none",
+        };
+      });
+      assert.ok(ring.outline >= 2 || ring.shadow, "focus ring on " + ring.el);
+    }
+  });
+  await keys.ctx.close();
+  const lanServer = createServer(PORT + 1, { lan: { addresses: ["127.0.0.1"], port: 0 } });
+  await new Promise((r) => lanServer.listen(PORT + 1, "127.0.0.1", r));
+  try {
+    const status = await lanServer.remote.enable();
+    const phoneCtx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+    const phone = await phoneCtx.newPage();
+    await phone.goto(status.url);
+    await phone.waitForSelector("#btn-show");
+    await check("Phone remote: every touch target is at least 44 px, no text under 12 px", async () => {
+      const targets = await phone.evaluate(() =>
+        Array.from(document.querySelectorAll("button, a[href], [role=button]"))
+          .filter((b) => b.getClientRects().length && getComputedStyle(b).visibility === "visible")
+          .map((b) => {
+            const r = b.getBoundingClientRect();
+            return { id: b.id || b.className, w: r.width, h: r.height };
+          }),
+      );
+      assert.ok(targets.length >= 4);
+      const small = targets.filter((t) => t.w < 44 || t.h < 44);
+      assert.deepEqual(small, []);
+      assert.deepEqual(await phone.evaluate(SMALL_TEXT), []);
+    });
+    await phoneCtx.close();
+  } finally {
+    await lanServer.remote.disable();
+    lanServer.close();
+  }
   console.log("\n✓ Browser studio: " + passed + " checks passed.");
 } catch (err) {
   console.error(err);

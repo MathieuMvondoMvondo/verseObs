@@ -814,6 +814,14 @@
         version: String(state.version || ""),
       };
       el("monitor-program").classList.toggle("is-live", output.visible);
+      // Reduced motion is decided by the OBS computer's system setting.
+      var note = el("program-note");
+      if (note) {
+        note.hidden = !state.reduced;
+        note.textContent = state.reduced
+          ? "Sortie : animations réduites par le système de l’ordinateur OBS (fondus courts)."
+          : "";
+      }
       if (api) markLive();
     },
     /**

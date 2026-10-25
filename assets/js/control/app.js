@@ -1373,6 +1373,7 @@
     }
     if (msg.type === MSG.OUTPUT_STATE) {
       if (_isStale(msg)) return;
+      _output.reduced = msg.reduced === true;
       if (msg.visible) {
         var label = String(msg.label || "Texte libre");
         _output.visible = true;
@@ -1820,13 +1821,18 @@
 
   // ---- On-air tracking ----
 
+  /**
+   * The big line names what the audience sees. A passage too long for the
+   * band shows its first verses only: « Psaumes 23:1-3 », and the small line
+   * recalls what was asked.
+   */
   function _setOnAir(label) {
+    label = String(label || "");
     if (dom.onairRef)
       dom.onairRef.textContent =
-        (label || "") +
-        (_output.visible && _output.shown
-          ? " · seuls " + _output.shown + " à l’antenne"
-          : "");
+        _output.visible && _output.shown
+          ? label.replace(/\S+$/, _output.shown)
+          : label;
     _paintOnAir();
   }
 
@@ -1857,7 +1863,11 @@
       var label = dom.onairBar.querySelector(".cp-onair-label");
       if (label)
         label.textContent =
-          ONAIR_LABELS[state === "live" && _output.shown ? "partial" : state];
+          state === "live" && _output.shown
+            ? ONAIR_LABELS.partial +
+              " · demandé " +
+              (/\S+$/.exec(_output.label) || [""])[0]
+            : ONAIR_LABELS[state];
       if (state === "off" && dom.onairRef) dom.onairRef.textContent = "";
     }
     document.body.dataset.onair = state;

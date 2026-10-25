@@ -154,43 +154,11 @@
     return item;
   }
 
-  /**
-   * Fallback when no output can measure the text (no layout engine):
-   * contiguous ranges of about `budget` characters, whole verses only.
-   * Two translations count together.
-   */
-  function estimate(item, budget) {
-    var primary = verses(item.html),
-      second = item.secondary ? verses(item.secondary.html) : [];
-    var size = {};
-    primary.concat(second).forEach(function (v) {
-      size[v.num] = (size[v.num] || 0) + plain(v.html).length;
-    });
-    var ranges = [],
-      start = null,
-      prev = null,
-      used = 0;
-    primary.forEach(function (v) {
-      var n = size[v.num];
-      if (start !== null && used + n > budget) {
-        ranges.push([start, prev]);
-        start = null;
-        used = 0;
-      }
-      if (start === null) start = v.num;
-      used += n;
-      prev = v.num;
-    });
-    if (start !== null) ranges.push([start, prev]);
-    return ranges;
-  }
-
   V.Passage = {
     verses: verses,
     plain: plain,
     range: range,
     split: split,
     merge: merge,
-    estimate: estimate,
   };
 })();

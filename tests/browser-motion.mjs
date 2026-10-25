@@ -89,6 +89,7 @@ const SAMPLER = () => {
       ref: q(".verse-reference") ? q(".verse-reference").textContent.replace(/\s+/g, " ").trim() : "",
       moved: translations.some((t) => t !== "none" && !/^matrix\(1, 0, 0, 1, 0, 0\)$/.test(t)),
       axis: q(".vo-axis") ? getComputedStyle(q(".vo-axis")).transform : "",
+      top: card ? card.getBoundingClientRect().top : null,
     });
     requestAnimationFrame(sample);
   }
@@ -190,6 +191,25 @@ try {
     f = await frames(page);
     assert.ok(Math.min(...f.map((x) => x.scrim)) > 0.999);
     finalOk(f[f.length - 1], "Romains 8:28");
+  });
+
+  await check("Same passage, other position: leaves and enters, never jumps on screen", async () => {
+    await send(page, { ...C, settings: settings() });
+    await settle(page);
+    await frames(page);
+    await send(page, { ...C, settings: settings({ position: "upper-third" }) });
+    await settle(page);
+    const f = await frames(page);
+    let jump = 0;
+    for (let i = 1; i < f.length; i++)
+      if (f[i].card && f[i - 1].card && f[i].scrim > 0.2 && f[i - 1].scrim > 0.2)
+        jump = Math.max(jump, Math.abs(f[i].top - f[i - 1].top));
+    assert.ok(jump < 40, "visible band moved " + Math.round(jump) + " px in one frame");
+    finalOk(f[f.length - 1], "Romains 8:28");
+    assert.ok(f[f.length - 1].top < 300, "now an upper third");
+    await send(page, { ...C, settings: settings() });
+    await settle(page);
+    await frames(page); // the way back is not part of the next scenario
   });
 
   await check("Rapid changes: the latest command wins, nothing is left behind", async () => {

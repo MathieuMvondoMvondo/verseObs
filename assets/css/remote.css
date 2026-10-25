@@ -152,8 +152,8 @@ body[data-link="nocode"] .link-pill::before {
   padding: 4px 2px 2px;
 }
 .eyebrow {
-  font-size: 10px;
-  letter-spacing: 1.6px;
+  font-size: 12px;
+  letter-spacing: 1.4px;
   color: var(--muted);
 }
 .session h1 {
@@ -248,7 +248,7 @@ body[data-link="nocode"] .banner {
 }
 .banner button {
   flex: 0 0 auto;
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 14px;
   border-radius: 9px;
   border: 1px solid #7a6033;
@@ -275,7 +275,7 @@ body[data-link="nocode"] .banner {
   margin-right: auto;
 }
 .slot h2 {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 1.4px;
   text-transform: uppercase;
@@ -297,7 +297,7 @@ body[data-link="nocode"] .banner {
   display: none;
 }
 .slot-live {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 650;
   letter-spacing: 0.4px;
   color: var(--accent-ink);
@@ -481,7 +481,7 @@ body[data-link="reconnecting"] .output {
   color: #fff;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 750;
 }
 body[data-output="pending"] .slot-live {

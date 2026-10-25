@@ -33,6 +33,8 @@
         command: command,
         // A passage too long for its band shows its first verses only.
         shown: visible && renderer && renderer.partial ? renderer.shown : "",
+        // The OBS machine's own setting: the Studio tells the operator.
+        reduced: !!(V.Motion && V.Motion.reduced()),
       });
   }
   /** The Studio's preview monitor tells the operator when a text was reduced. */

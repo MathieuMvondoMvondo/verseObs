@@ -415,6 +415,37 @@ async function run() {
   );
   output.w.VerseObs.DisplayApp.handleMessage({ type: "hide" });
   await until(() => !output.d.querySelector(".verse-card"), "legacy hidden");
+  // Pre-existing: a background value is placed inside url("…"). Only a picture
+  // imported by the Studio (a base64 data URL) may get there.
+  const bg = () => output.d.documentElement.style.getPropertyValue("--bg-image");
+  output.w.VerseObs.DisplayApp.handleMessage({
+    type: "update_style",
+    settings: { layout: "antenne", bgImage: 'x"), url("https://evil.example/t.png' },
+  });
+  // The OBS machine's own « reduce motion » setting is shown to the operator.
+  output.w.matchMedia = (q) => ({ matches: /reduce/.test(q) });
+  output.w.VerseObs.DisplayApp.handleMessage({ type: "ping" });
+  await until(() => cp.d.querySelector("#program-note")?.hidden === false, "reduced shown");
+  check("The Studio says when the OBS machine reduces animations", () =>
+    assert.match(cp.d.querySelector("#program-note").textContent, /animations réduites/i),
+  );
+  output.w.matchMedia = () => ({ matches: false });
+  output.w.VerseObs.DisplayApp.handleMessage({ type: "ping" });
+  await until(() => cp.d.querySelector("#program-note").hidden === true, "reduced cleared");
+  check("A background that is not an imported picture is refused", () =>
+    assert.equal(bg(), "none"),
+  );
+  output.w.VerseObs.DisplayApp.handleMessage({
+    type: "update_style",
+    settings: { layout: "antenne", bgImage: "data:image/png;base64,iVBORw0KGgo=" },
+  });
+  check("An imported picture still becomes the background", () =>
+    assert.equal(bg(), 'url("data:image/png;base64,iVBORw0KGgo=")'),
+  );
+  output.w.VerseObs.DisplayApp.handleMessage({
+    type: "update_style",
+    settings: { layout: "antenne", bgImage: "" },
+  });
   // Race regression: hide must win even during a long entrance transition.
   input(cp, "#settings-container [data-setting=animation]", "fade", "change");
   input(cp, "#settings-container [data-setting=animationDuration]", "1000");

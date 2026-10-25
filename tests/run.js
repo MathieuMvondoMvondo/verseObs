@@ -585,12 +585,6 @@ eq("merging restores the markup", merged23.html.replace(/\s+/g, " "), longItem.h
 eq("merging restores the second reference", merged23.secondary.reference, "Psalms 23:1-6");
 eq("merged item keeps the identifier", merged23.id, "cue-ps23-long");
 ok("merged item is no longer a part", !merged23.group && !merged23.part && !merged23.parts);
-var est = P.estimate(longItem, 260);
-ok(
-  "estimate covers every verse once, in order",
-  est.length >= 2 && est[0][0] === 1 && est[est.length - 1][1] === 6 &&
-    est.every(function (r, i) { return i === 0 || r[0] === est[i - 1][1] + 1; }),
-);
 var kept = VerseObs.Queue.validateItems([Object.assign({}, parts23[1], { id: "cue-part-2" })])[0];
 eq("the conductor keeps the part fields", [kept.group, kept.part, kept.parts, kept.whole].join("|"), "grp-123456|2|2|Psaumes 23:1-6");
 var dropped = VerseObs.Queue.validateItems([{ type: "verse", text: "x", group: "<b>", part: -1, parts: "x", whole: 3 }])[0];
@@ -842,6 +836,34 @@ ok(
       .replace(' xmlns="http://www.w3.org/2000/svg"', ""),
   ),
 );
+
+// ===================================================================
+group("régie — feuille de style intégrée");
+
+var studioCss = fs.readFileSync(path.join(ROOT, "assets/css/studio.css"), "utf8");
+ok(
+  "no separate override layer for the régie",
+  studioCss.indexOf("Régie « antenne »") === -1,
+);
+ok(
+  "the régie components need no !important",
+  !/!important/.test(studioCss.slice(studioCss.indexOf("/* ---- Monitor bay"))),
+);
+ok(
+  "fewer !important than before the régie work (42)",
+  (studioCss.match(/!important/g) || []).length < 42,
+);
+// Every size in a font or font-size declaration (line heights after « / »
+// excepted); 0 px hides a visually replaced label.
+var smallSizes = [];
+(studioCss.match(/font(?:-size)?\s*:[^;{}]+/g) || []).forEach(function (decl) {
+  var value = decl.slice(decl.indexOf(":") + 1),
+    re = /(^|[^\/\w.])(\d+(?:\.\d+)?)px/g,
+    m;
+  while ((m = re.exec(value)))
+    if (Number(m[2]) > 0 && Number(m[2]) < 12) smallSizes.push(decl.trim());
+});
+eq("no font size under 12 px left in the Studio stylesheet", smallSizes.join(" | "), "");
 
 // ===================================================================
 group("control messaging fallback");
