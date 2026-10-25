@@ -21,7 +21,10 @@ const PORT = Number(process.env.STUDIO_PORT || 18622);
 const BASE = `http://127.0.0.1:${PORT}`;
 
 let passed = 0;
+// One check alone while working (STUDIO_CHECK=regex); never in verify-parent.
+const ONLY_CHECK = process.env.STUDIO_CHECK ? new RegExp(process.env.STUDIO_CHECK) : null;
 async function check(name, fn) {
+  if (ONLY_CHECK && !ONLY_CHECK.test(name)) return;
   await fn();
   passed++;
   console.log("  ✓ " + name);
@@ -498,6 +501,118 @@ try {
   });
   assert.deepEqual(multi.errors, []);
   await multi.ctx.close();
+  }
+
+  // ---- « Regrouper » never invents a passage: deleted, moved and re-split
+  // plans, after a reload and through a backup export / import.
+  if (run("merge")) {
+  const mg = await open(1920, 1080);
+  const st = mg.studio;
+  const ready = async () => {
+    await st.waitForSelector(".chapter-verse");
+    await st.waitForFunction(() => document.querySelector("#connection-dot").classList.contains("connected"));
+  };
+  const toTab = (i) => st.evaluate((i) => document.querySelector("#tab-btn-" + i).click(), i);
+  const labels = () =>
+    st.evaluate(() => Array.from(document.querySelectorAll("#queue-container .cp-queue-item")).map((r) => r.dataset.label));
+  const partsShown = () =>
+    st.evaluate(() => Array.from(document.querySelectorAll("#queue-container .cp-queue-part")).map((p) => p.textContent));
+  const stored = () => st.evaluate(() => JSON.parse(localStorage.getItem("verseobs_queue")));
+  const verseNums = (html) => [...String(html).matchAll(/<sup class="verse-num">(\d+)<\/sup>/g)].map((x) => Number(x[1]));
+  const seq = (n) => Array.from({ length: n }, (_, i) => i + 1).join(",");
+  const restore = async (q) => {
+    await st.evaluate((q) => localStorage.setItem("verseobs_queue", JSON.stringify(q)), q);
+    await st.reload();
+    await ready();
+    await toTab(2);
+  };
+  const selectRow = (i) =>
+    st.evaluate((i) => document.querySelectorAll("#queue-container .cp-queue-item")[i].click(), i);
+  const toasts = () => st.evaluate(() => Array.from(document.querySelectorAll(".cp-toast")).map((t) => t.textContent).join(" | "));
+  await prepare(st, "Psaumes 119:1-48");
+  await st.waitForFunction(() => /Découper en 12 plans/.test(document.querySelector("#btn-split")?.textContent || ""));
+  await st.click("#btn-split");
+  await st.waitForFunction(() => document.querySelectorAll("#queue-container .cp-queue-item").length === 12);
+  const Q1 = await stored();
+
+  await check("Regrouper with a deleted plan refuses, names the plan and changes nothing", async () => {
+    await st.evaluate(() => document.querySelectorAll("#queue-container .cp-queue-item")[1].querySelector(".cp-queue-del").click());
+    await selectRow(0);
+    const button = await st.textContent("#btn-merge");
+    assert.match(button, /^Regrouper les 11 plans/, "the button counts the plans present: " + button);
+    assert.doesNotMatch(button, /1-48/, "no passage claimed: " + button);
+    await st.click("#btn-merge");
+    await st.waitForTimeout(300);
+    const rows = await labels();
+    assert.equal(rows.length, 11, "conductor unchanged");
+    assert.ok(!rows.includes("Psaumes 119:1-48"), "no invented passage");
+    assert.match(await toasts(), /Il manque le plan 2\/12 \(119:5-8\)/);
+  });
+  await check("Plans moved by hand are regrouped in verse order", async () => {
+    await restore(Q1);
+    await st.evaluate(() => document.querySelectorAll("#queue-container .cp-queue-item")[2].querySelector('[title="Monter"]').click());
+    assert.deepEqual((await labels()).slice(0, 3), ["Psaumes 119:1-4", "Psaumes 119:9-12", "Psaumes 119:5-8"]);
+    await selectRow(0);
+    assert.equal(await st.textContent("#btn-merge"), "Regrouper les 12 plans (Psaumes 119:1-48)");
+    await st.click("#btn-merge");
+    await st.waitForFunction(() => document.querySelectorAll("#queue-container .cp-queue-item").length === 1);
+    const q = await stored();
+    assert.equal(q.items[0].reference, "Psaumes 119:1-48");
+    assert.equal(verseNums(q.items[0].html).join(","), seq(48), "every verse once, in order");
+  });
+  await check("A plan split again after a style change stays in its passage, survives a reload and a backup, and regroups whole", async () => {
+    await restore(Q1);
+    // Another text size (34 px instead of 44): the column narrows with the
+    // type and plan 1 (119:1-4) no longer fits its band.
+    await toTab(4);
+    await st.evaluate(() => {
+      const range = document.querySelector('#tab-settings [data-setting="fontSize"]');
+      range.value = "34";
+      range.dispatchEvent(new Event("input", { bubbles: true }));
+      range.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await toTab(2);
+    await selectRow(0);
+    await st.waitForFunction(() => /Découper en \d+ plans/.test(document.querySelector("#btn-split")?.textContent || ""));
+    const extra = Number(/(\d+) plans/.exec(await st.textContent("#btn-split"))[1]) - 1;
+    await st.click("#btn-split");
+    await st.waitForFunction((n) => document.querySelectorAll("#queue-container .cp-queue-item").length === n, 12 + extra);
+    const total = 12 + extra;
+    const expectParts = Array.from({ length: total }, (_, i) => `plan ${i + 1}/${total}`);
+    assert.deepEqual(await partsShown(), expectParts, "one passage, renumbered in reading order");
+    const groups = new Set((await stored()).items.map((i) => i.group));
+    assert.equal(groups.size, 1, "a single group");
+    const before = await labels();
+    await st.reload();
+    await ready();
+    await toTab(2);
+    assert.deepEqual(await labels(), before, "same plans after a reload");
+    assert.deepEqual(await partsShown(), expectParts, "same numbering after a reload");
+    // Backup (Habillage › Sauvegarde): export, empty conductor, import.
+    await toTab(4);
+    const [download] = await Promise.all([
+      st.waitForEvent("download"),
+      st.evaluate(() => document.querySelector("#btn-export-data").click()),
+    ]);
+    const file = path.join(ROOT, "artifacts", "merge-backup.json");
+    await download.saveAs(file);
+    await st.evaluate(() => localStorage.setItem("verseobs_queue", JSON.stringify({ items: [], currentIndex: -1 })));
+    await st.setInputFiles("#import-data-input", file);
+    await st.waitForEvent("load", { timeout: 15000 });
+    await ready();
+    await toTab(2);
+    assert.deepEqual(await labels(), before, "same plans after the backup import");
+    assert.deepEqual(await partsShown(), expectParts, "same numbering after the backup import");
+    await selectRow(0);
+    assert.equal(await st.textContent("#btn-merge"), `Regrouper les ${total} plans (Psaumes 119:1-48)`);
+    await st.click("#btn-merge");
+    await st.waitForFunction(() => document.querySelectorAll("#queue-container .cp-queue-item").length === 1);
+    const q = await stored();
+    assert.equal(q.items[0].reference, "Psaumes 119:1-48");
+    assert.equal(verseNums(q.items[0].html).join(","), seq(48));
+  });
+  assert.deepEqual(mg.errors, []);
+  await mg.ctx.close();
   }
 
   // ---- Régie readability: type floor, keyboard focus, phone targets.

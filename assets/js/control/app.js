@@ -852,6 +852,9 @@
             };
           })();
     if (!item || item.type !== "verse") return;
+    // A plan split again (a larger style) stays in its passage: same group,
+    // and the group is numbered again in reading order below.
+    if (inQueue && item.group) group = item.group;
     var parts = P.split(item, pages, group);
     if (!parts.length) {
       _notify(
@@ -861,7 +864,12 @@
       return;
     }
     try {
-      if (inQueue) queue.splice(index, 1, parts);
+      if (inQueue && item.group) {
+        var items = queue.getItems();
+        items.splice.apply(items, [index, 1].concat(parts));
+        queue.splice(0, items.length - parts.length + 1, P.renumber(items, group));
+        queue.select(index);
+      } else if (inQueue) queue.splice(index, 1, parts);
       else {
         var at = queue.getState().total;
         queue.addMany(parts);

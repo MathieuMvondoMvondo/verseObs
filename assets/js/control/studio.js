@@ -98,10 +98,19 @@
         el("queue-selection-text").innerHTML = V.sanitizeHtml(selected.html);
       else
         el("queue-selection-text").textContent = selected ? selected.text : "";
-      el("btn-merge").hidden = !(selected && selected.group);
-      if (selected && selected.group)
+      var plans = groupOf(selected);
+      el("btn-merge").hidden = !plans.length;
+      if (plans.length) {
+        // Counts the plans really present; names the passage only when
+        // every plan is there (Passage.incomplete), never what is missing.
+        var missing = V.Passage.incomplete(plans);
         el("btn-merge").textContent =
-          "Regrouper les " + selected.parts + " plans (" + selected.whole + ")";
+          "Regrouper les " +
+          plans.length +
+          " plans" +
+          (missing ? " · incomplet" : " (" + V.Passage.merge(plans).reference + ")");
+        el("btn-merge").title = missing;
+      }
       if (selected && selected.secondary) {
         var second = document.createElement("span");
         second.className = "queue-secondary-text";
@@ -118,6 +127,13 @@
           (state.total > 1 ? "s" : "") +
           " · enregistré sur cet appareil"
         : "Sauvegarde automatique";
+  }
+  /** The plans of the selected item's split passage, in conductor order. */
+  function groupOf(selected) {
+    if (!selected || !selected.group) return [];
+    return api.queue.getItems().filter(function (item) {
+      return item.group === selected.group;
+    });
   }
   /**
    * Is this conductor item the one the output shows? By its identifier (cue)
@@ -437,6 +453,12 @@
       var parts = indexes.map(function (i) {
         return items[i];
       });
+      // Never a passage that is not all there: say which plan is missing.
+      var missing = V.Passage.incomplete(parts);
+      if (missing) {
+        api.notify(missing + " Regroupement impossible : rien n’a changé.", "error");
+        return;
+      }
       var whole = V.Passage.merge(parts);
       // Plans moved apart by hand are gathered at the first one's place.
       var rest = items.filter(function (item) {

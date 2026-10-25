@@ -591,6 +591,107 @@ var dropped = VerseObs.Queue.validateItems([{ type: "verse", text: "x", group: "
 ok("invalid part fields are dropped", !dropped.group && !dropped.part && !dropped.parts && !dropped.whole);
 
 // ===================================================================
+group("passage — « Regrouper » ne fabrique jamais un passage absent");
+
+var ps119 = rangeOf(lsgRaw, "Psaumes", 119, 1, 48);
+var item119 = {
+  id: "cue-ps119-1-48",
+  type: "verse",
+  text: ps119.text,
+  html: ps119.html,
+  reference: "Psaumes 119:1-48",
+  version: "Louis Segond 1910",
+};
+var ranges119 = [];
+for (var r119 = 1; r119 <= 48; r119 += 4) ranges119.push([r119, r119 + 3]);
+var plans119 = P.split(item119, ranges119, "grp-119119");
+function numsOf(html) {
+  return P.verses(html).map(function (v) { return v.num; });
+}
+function oneToN(n) {
+  var out = [];
+  for (var i = 1; i <= n; i++) out.push(i);
+  return out.join(",");
+}
+eq("twelve plans of four verses", plans119.length, 12);
+eq("a complete group can be regrouped", P.incomplete(plans119), "");
+var withoutPlan2 = plans119.filter(function (_, i) { return i !== 1; });
+eq(
+  "a deleted plan is named with its verses",
+  P.incomplete(withoutPlan2),
+  "Il manque le plan 2/12 (119:5-8).",
+);
+var refusal = "";
+try {
+  P.merge(withoutPlan2);
+} catch (e) {
+  refusal = e.message;
+}
+eq("…and merging refuses instead of inventing Psaumes 119:1-48", refusal, "Il manque le plan 2/12 (119:5-8).");
+eq(
+  "the last plan missing",
+  P.incomplete(plans119.slice(0, 11)),
+  "Il manque le plan 12/12 (119:45-48).",
+);
+eq(
+  "two plans missing in a row",
+  P.incomplete(plans119.filter(function (_, i) { return i !== 1 && i !== 2; })),
+  "Il manque les plans 2 et 3/12 (119:5-12).",
+);
+eq(
+  "two separate holes",
+  P.incomplete(plans119.filter(function (_, i) { return i !== 1 && i !== 6; })),
+  "Il manque le plan 2/12 (119:5-8) et le plan 7/12 (119:25-28).",
+);
+eq(
+  "a verse in two plans is refused",
+  P.incomplete(plans119.concat([plans119[3]])),
+  "Le verset 119:13 figure dans deux plans.",
+);
+var swapped = plans119.slice();
+swapped[1] = plans119[2];
+swapped[2] = plans119[1];
+var mergedSwapped = P.merge(swapped);
+eq("plans moved by hand are merged in verse order", numsOf(mergedSwapped.html).join(","), oneToN(48));
+eq("…under the reference of the verses present", mergedSwapped.reference, "Psaumes 119:1-48");
+eq("…with the passage's identifier", mergedSwapped.id, "cue-ps119-1-48");
+ok(
+  "…and its plain text in reading order",
+  mergedSwapped.text.replace(/\s+/g, " ").indexOf(plans119[1].text.replace(/\s+/g, " ")) <
+    mergedSwapped.text.replace(/\s+/g, " ").indexOf(plans119[2].text.replace(/\s+/g, " ")),
+);
+var claimsMore = P.split(
+  Object.assign({}, item119, { html: rangeOf(lsgRaw, "Psaumes", 119, 1, 12).html }),
+  [[1, 4], [5, 8], [9, 12]],
+  "grp-claims",
+).map(function (p) {
+  return Object.assign({}, p, { whole: "Psaumes 119:1-48" });
+});
+eq(
+  "the reference is computed from the verses present, never copied from the whole",
+  P.merge(claimsMore).reference,
+  "Psaumes 119:1-12",
+);
+// A plan split again inside its group (a larger style): one group, renumbered.
+var subPlans = P.split(plans119[0], [[1, 2], [3, 4]], plans119[0].group);
+eq("a plan split again keeps the passage", subPlans[1].whole, "Psaumes 119:1-48");
+var regrouped = P.renumber(subPlans.concat(plans119.slice(1)), "grp-119119");
+eq(
+  "…its group is renumbered in reading order",
+  regrouped.map(function (p) { return p.part + "/" + p.parts; }).join(" "),
+  oneToN(13).split(",").map(function (n) { return n + "/13"; }).join(" "),
+);
+eq("…and is complete", P.incomplete(regrouped), "");
+var mergedAgain = P.merge(regrouped);
+eq("…merged again: the whole passage", mergedAgain.reference, "Psaumes 119:1-48");
+eq("…with every verse once, in order", numsOf(mergedAgain.html).join(","), oneToN(48));
+eq(
+  "renumbering leaves other items alone",
+  P.renumber([{ type: "text", text: "x" }].concat(plans119.slice(0, 2)), "grp-119119")[0].part,
+  undefined,
+);
+
+// ===================================================================
 group("plan — limites de la version active");
 
 load("assets/js/control/bible-loader.js");
