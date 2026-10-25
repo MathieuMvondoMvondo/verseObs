@@ -239,14 +239,20 @@
             ><span class="cp-onair-dot" aria-hidden="true"></span>Antenne</span
           ><span class="cp-onair-label">Rien n’est diffusé</span
           ><span class="cp-onair-ref" id="onair-ref"></span
-          ><button class="cp-onair-hide" id="onair-hide">
+          ><button
+            class="cp-onair-hide"
+            id="onair-hide"
+            type="button"
+            aria-label="Masquer"
+            aria-keyshortcuts="Escape"
+          >
             <img
               class="icon"
               src="assets/icons/eye-off.svg"
               alt=""
               width="16"
               height="16"
-            />Masquer <kbd>Esc</kbd>
+            /><span class="onair-hide-label">Masquer</span> <kbd>Esc</kbd>
           </button>
         </div>
         <div
@@ -301,11 +307,23 @@
             /><span>Masquer</span> <kbd>Esc</kbd>
           </button>
           <div class="take-step" role="group" aria-label="Sélection du conducteur">
-            <button class="take-nav" id="btn-queue-prev" type="button" title="Élément précédent du conducteur">
-              &lsaquo; Préc.
+            <button
+              class="take-nav"
+              id="btn-queue-prev"
+              type="button"
+              title="Élément précédent du conducteur"
+              aria-label="Élément précédent"
+            >
+              <span aria-hidden="true">&lsaquo;</span> <span class="take-nav-label">Préc.</span>
             </button>
-            <button class="take-nav" id="btn-queue-next" type="button" title="Élément suivant du conducteur">
-              Suiv. &rsaquo;
+            <button
+              class="take-nav"
+              id="btn-queue-next"
+              type="button"
+              title="Élément suivant du conducteur"
+              aria-label="Élément suivant"
+            >
+              <span class="take-nav-label">Suiv.</span> <span aria-hidden="true">&rsaquo;</span>
             </button>
           </div>
         </div>

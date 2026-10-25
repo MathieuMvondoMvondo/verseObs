@@ -1397,6 +1397,44 @@ try {
     assert.deepEqual(r.errors, []);
     await r.ctx.close();
   }
+  const dock = await openRegie(390, 844);
+  await check("Dock at 390×844: one Diffuser in the fixed bottom bar, one Masquer in the fixed 56 px band, in each view", async () => {
+    for (const [tab, name] of views) {
+      await showView(dock.studio, tab);
+      for (const scroll of [0, 700]) {
+        await dock.studio.evaluate((y) => scrollTo(0, y), scroll);
+        await dock.studio.waitForTimeout(150);
+        const g = await dock.studio.evaluate(REGIE);
+        const band = await dock.studio.evaluate(() => {
+          const b = document.querySelector("#onair-bar");
+          const r = b.getBoundingClientRect();
+          return { position: getComputedStyle(b).position, top: r.top, height: r.height };
+        });
+        const where = `390 px, ${name}, scrolled ${scroll}: `;
+        assert.equal(g.takes.length, 1, where + "takes " + JSON.stringify(g.takes));
+        assert.equal(g.hides.length, 1, where + "Masquer " + JSON.stringify(g.hides));
+        const t = g.takes[0],
+          m = g.hides[0];
+        assert.ok(t.fixed && t.bottom <= g.vh && t.top >= g.vh - 96, where + "take in the fixed bottom bar " + JSON.stringify(t));
+        assert.ok(Math.abs(t.width - (g.clientWidth - 32 - 2 * 52)) <= 2, where + "take width " + t.width + " (width − 2×52 px)");
+        assert.ok(band.position === "fixed" && band.top === 0 && band.height <= 56, where + "Antenne band " + JSON.stringify(band));
+        assert.ok(m.top >= 0 && m.bottom <= 56 && m.width >= 44 && m.height >= 44, where + "Masquer in the band " + JSON.stringify(m));
+        // Préc. | Suiv. flank the take in the Conducteur view only.
+        const nav = await dock.studio.evaluate(() =>
+          ["#btn-queue-prev", "#btn-queue-next"].map((s) => {
+            const r = document.querySelector(s).getBoundingClientRect();
+            return r.width ? { w: r.width, h: r.height, left: r.left, right: r.right, top: r.top } : null;
+          }),
+        );
+        if (tab === 2) {
+          assert.ok(nav.every((b) => b && b.w >= 44 && b.h >= 44), where + "Préc./Suiv. " + JSON.stringify(nav));
+          assert.ok(nav[0].right <= t.left && nav[1].left >= t.right, where + "Préc. | Diffuser | Suiv. " + JSON.stringify(nav));
+        } else assert.deepEqual(nav, [null, null], where + "no Préc./Suiv. outside the Conducteur view");
+      }
+    }
+  });
+  assert.deepEqual(dock.errors, []);
+  await dock.ctx.close();
   }
 
   console.log("\n✓ Browser studio: " + passed + " checks passed.");
