@@ -111,6 +111,7 @@
       }
     }
     markLive();
+    strip(state);
     el("session-saved").textContent = !state.saved
       ? "Non enregistré · exportez votre session"
       : state.total
@@ -119,6 +120,37 @@
           (state.total > 1 ? "s" : "") +
           " · enregistré sur cet appareil"
         : "Sauvegarde automatique";
+  }
+  /**
+   * Where the conductor stands, in one line (1280 px) and in the heading of
+   * its compact column: « 3/10 », then what comes next.
+   */
+  function strip(state) {
+    var items = api.queue.getItems(),
+      next = items[state.current],
+      position = state.total ? state.current + "/" + state.total : "";
+    if (el("queue-position")) el("queue-position").textContent = position;
+    var band = el("queue-strip");
+    if (!band) {
+      band = document.createElement("div");
+      band.className = "queue-strip";
+      band.id = "queue-strip";
+      band.innerHTML =
+        '<span class="queue-strip-label"></span><span class="queue-strip-next"></span>' +
+        '<button type="button">Ouvrir le conducteur</button>';
+      band.querySelector("button").addEventListener("click", function () {
+        api.switchTab(2);
+      });
+      document.querySelector(".cp-panel").prepend(band);
+    }
+    band.querySelector(".queue-strip-label").textContent = state.total
+      ? "Conducteur " + position
+      : "Conducteur vide";
+    band.querySelector(".queue-strip-next").textContent = next
+      ? "Ensuite : " + (next.reference || next.title || "Texte libre")
+      : state.total
+        ? "Fin du conducteur"
+        : "";
   }
   /** The plans of the selected item's split passage, in conductor order. */
   function groupOf(selected) {
@@ -173,7 +205,14 @@
       : "PRÊT À DIFFUSER";
   }
   function markPreset() {
-    var current = api.settings.getAll().template;
+    var current = api.settings.getAll().template,
+      pick = el("style-select");
+    if (pick)
+      pick.value = Array.from(pick.options).some(function (o) {
+        return o.value && o.value === current;
+      })
+        ? current
+        : "";
     document.querySelectorAll("[data-preset]").forEach(function (b) {
       b.setAttribute(
         "aria-pressed",
@@ -468,6 +507,18 @@
     });
     api.queue.onChange = updateQueue;
     updateQueue();
+    bindChapterKeys();
+    // « Style » in the editor's heading applies the same bases as the cards
+    // of the Habillage view.
+    el("style-select").addEventListener("change", function () {
+      var preset = this.value,
+        template = V.TEMPLATES[preset];
+      if (!template) return;
+      api.settings.applyTemplate(preset);
+      markPreset();
+      layoutRows();
+      api.notify("Habillage " + template.label + " appliqué", "success");
+    });
     // An item picked in the conductor column of another view is loaded in the
     // preview the same way as in the Conducteur view: the take sends it.
     function openPicked(e) {
@@ -753,8 +804,10 @@
           return Number(a) - Number(b);
         })
         .forEach(function (num) {
-          var button = document.createElement("button");
+          var button = document.createElement("div");
           button.className = "chapter-verse";
+          button.setAttribute("role", "option");
+          button.tabIndex = -1;
           button.dataset.verse = num;
           var n = document.createElement("span");
           n.className = "verse-number";
@@ -772,16 +825,25 @@
         Object.keys(chapter).length + " versets";
       lastVerse = 0;
     }
-    list.querySelectorAll("button").forEach(function (b) {
+    var options = list.querySelectorAll(".chapter-verse");
+    options.forEach(function (b) {
       var selected = Number(b.dataset.verse) === sel.verse;
       b.classList.toggle("selected", selected);
-      b.setAttribute("aria-pressed", String(selected));
+      b.setAttribute("aria-selected", String(selected));
+      b.tabIndex = selected ? 0 : -1;
     });
+    if (!list.querySelector(".selected") && options[0]) options[0].tabIndex = 0;
     if (lastVerse !== sel.verse) {
-      var selected = list.querySelector(".selected");
-      if (selected)
-        list.scrollTop =
-          selected.offsetTop - list.offsetTop - list.clientHeight / 3;
+      var selected = list.querySelector(".selected"),
+        scroller = list.closest(".chapter-scroll") || list;
+      if (selected) {
+        var top =
+          selected.getBoundingClientRect().top -
+          scroller.getBoundingClientRect().top +
+          scroller.scrollTop;
+        scroller.scrollTop = top - scroller.clientHeight / 3;
+        if (list.contains(document.activeElement)) selected.focus();
+      }
       lastVerse = sel.verse;
     }
     el("preview-caption").textContent =
@@ -791,6 +853,27 @@
       (el("bilingual-toggle").checked
         ? " + " + el("secondary-version").value.toUpperCase()
         : "");
+  }
+  /** The chapter is one list: Tab enters it, the arrows walk the verses. */
+  function bindChapterKeys() {
+    var list = el("chapter-list");
+    if (!list) return;
+    list.addEventListener("keydown", function (e) {
+      var options = Array.from(list.querySelectorAll(".chapter-verse")),
+        current = e.target.closest(".chapter-verse"),
+        i = options.indexOf(current),
+        next = null;
+      if (i < 0) return;
+      if (e.key === "ArrowDown") next = options[Math.min(i + 1, options.length - 1)];
+      else if (e.key === "ArrowUp") next = options[Math.max(i - 1, 0)];
+      else if (e.key === "Home") next = options[0];
+      else if (e.key === "End") next = options[options.length - 1];
+      else if (e.key === "Enter" || e.key === " ") next = current;
+      else return;
+      e.preventDefault();
+      api.selectVerse(Number(next.dataset.verse));
+      next.focus();
+    });
   }
   V.Studio = {
     init: init,

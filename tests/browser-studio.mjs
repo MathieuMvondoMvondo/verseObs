@@ -179,9 +179,26 @@ const REGIE = () => {
   const name = (e) => (e.getAttribute("aria-label") || e.textContent || "").replace(/\s+/g, " ").trim();
   const buttons = Array.from(document.querySelectorAll("button, [role=button]")).filter(shown);
   const pick = (re) => buttons.filter((b) => re.test(name(b))).map((b) => ({ id: b.id, text: name(b).slice(0, 60), fixed: !!b.closest(".take-bar, .take") && getComputedStyle(b.closest(".take-bar, .take")).position === "fixed", disabled: b.disabled, ...box(b) }));
+  // On the first screen: inside the viewport and not clipped away by a
+  // scrolling panel (a list scrolled past an item hides it).
   const onScreen = (e) => {
     const r = e.getBoundingClientRect();
-    return r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth;
+    let top = Math.max(r.top, 0),
+      bottom = Math.min(r.bottom, innerHeight),
+      left = Math.max(r.left, 0),
+      right = Math.min(r.right, innerWidth);
+    for (let o = e.parentElement; o && o !== document.body; o = o.parentElement) {
+      const s = getComputedStyle(o);
+      if (s.overflowX !== "visible" || s.overflowY !== "visible") {
+        const c = o.getBoundingClientRect();
+        top = Math.max(top, c.top);
+        bottom = Math.min(bottom, c.bottom);
+        left = Math.max(left, c.left);
+        right = Math.min(right, c.right);
+      }
+      if (s.position === "fixed") break;
+    }
+    return bottom - top > 1 && right - left > 1;
   };
   const controls = Array.from(document.querySelectorAll("button, input, select, textarea, [role=button], a[href]")).filter((e) => shown(e) && onScreen(e));
   const hist = {};
@@ -1393,6 +1410,17 @@ try {
           assert.ok(g.preview.width >= 720 && g.program.width >= 720, where + "monitors " + g.preview.width + " / " + g.program.width);
           assert.ok(g.clientWidth - g.bay.right <= 32, where + "bay ends " + (g.clientWidth - g.bay.right) + " px before the edge");
         }
+      });
+    if (w === 1920)
+      await check("Régie at 1920 px: at most 26 controls on the first screen in each view, with a filled conductor", async () => {
+        const counts = {};
+        for (const [tab, name] of views) {
+          await showView(r.studio, tab);
+          const g = await r.studio.evaluate(REGIE);
+          counts[name] = g.controls;
+          assert.ok(g.controls <= 26, name + ": " + g.controls + " controls: " + g.controlNames.join(" | "));
+        }
+        console.log("    controls on the first screen: " + JSON.stringify(counts));
       });
     assert.deepEqual(r.errors, []);
     await r.ctx.close();

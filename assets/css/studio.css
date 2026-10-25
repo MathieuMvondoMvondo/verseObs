@@ -375,7 +375,7 @@ h1 > span {
   display: block;
 }
 #tab-queue {
-  display: block !important;
+  display: block;
   grid-column: 2;
   grid-row: 1;
   background: #191a1d;
@@ -1445,12 +1445,12 @@ body[data-tab="2"] .cp-panel {
     display: block;
   }
   #tab-queue {
-    display: none !important;
+    display: none;
     position: static;
     max-height: none;
   }
   body[data-tab="2"] #tab-queue {
-    display: block !important;
+    display: block;
   }
   .studio-sidebar {
     width: 155px;
@@ -1817,7 +1817,7 @@ body[data-tab="2"] .cp-panel {
 
 /* Settings are a compact inspector, not a full-screen video followed by sliders. */
 body[data-tab="4"] #tab-queue {
-  display: none !important;
+  display: none;
 }
 body[data-tab="4"] #tab-settings {
   grid-column: 1 / -1;
@@ -4523,5 +4523,262 @@ body[data-tab="2"] .take-step {
   }
   .monitor-switch button {
     min-height: 40px;
+  }
+}
+
+/* ---- Preparation row (brief §1): explorer | editor | conductor at 1920,
+   explorer | editor under a conductor strip at 1280. Quiet: the bay above
+   carries the broadcast. ---- */
+.bible-search-row {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.bible-search-row .search-area {
+  flex: 1 1 240px;
+}
+.bible-search-row .bilingual-controls {
+  display: contents;
+}
+.bilingual-switch {
+  min-height: 44px;
+}
+.bilingual-order {
+  flex-basis: 100%;
+  order: 9;
+}
+.bible-search-row:not(:has(#bilingual-toggle:checked)) .bilingual-order {
+  display: none;
+}
+.style-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--cp-text-muted);
+}
+.style-pick select {
+  height: 36px;
+  min-width: 128px;
+}
+/* Quick access opens under the empty search field (Tab reaches it). */
+.search-area {
+  position: relative;
+}
+.search-area .search-suggestions {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #34373e;
+  border-radius: 10px;
+  background: #1b1c20;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+.search-area:focus-within:has(#search-input:placeholder-shown) .search-suggestions {
+  display: flex;
+}
+.quick-styles {
+  display: none;
+}
+.cp-format-toolbar .cp-mini-btn {
+  margin-left: auto;
+}
+.chapter-scroll {
+  max-height: 420px;
+  overflow: auto;
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
+}
+.chapter-scroll .chapter-list {
+  max-height: none;
+  overflow: visible;
+}
+.chapter-verse {
+  cursor: pointer;
+  text-align: left;
+}
+.chapter-verse:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.cp-nav-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.cp-nav-buttons .verse-step {
+  display: flex;
+  gap: 6px;
+}
+.cp-nav-buttons .cp-btn-nav {
+  min-height: 36px;
+}
+@media (min-width: 1280px) {
+  .cp-nav-row label:has(#verse-select) {
+    display: none;
+  }
+  #tab-bible.active {
+    display: grid;
+    grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
+    grid-template-areas:
+      "explore search"
+      "explore status"
+      "explore editor"
+      "explore favorites";
+    grid-template-rows: auto auto auto 1fr;
+    column-gap: var(--bay-gap);
+    align-items: start;
+  }
+  #tab-bible .bible-workspace {
+    display: contents;
+  }
+  #tab-bible .bible-search-row {
+    grid-area: search;
+    min-height: 48px;
+    margin-bottom: 12px;
+  }
+  #tab-bible #bilingual-status {
+    grid-area: status;
+  }
+  #tab-bible .scripture-panel {
+    grid-area: explore;
+  }
+  #tab-bible .preparation-panel {
+    grid-area: editor;
+  }
+  #tab-bible #favorites-section {
+    grid-area: favorites;
+  }
+  body[data-tab="0"] .cp-panel,
+  body[data-tab="1"] .cp-panel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  body[data-tab="0"] #tab-queue,
+  body[data-tab="1"] #tab-queue {
+    display: none;
+  }
+}
+@media (min-width: 1600px) {
+  body[data-tab="0"] .cp-panel,
+  body[data-tab="1"] .cp-panel {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 1fr);
+    column-gap: var(--bay-gap);
+  }
+  #tab-bible.active {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  }
+  body[data-tab="0"] #tab-queue,
+  body[data-tab="1"] #tab-queue {
+    display: block;
+    grid-column: 2;
+    padding: 14px 12px;
+  }
+  .queue-strip,
+  body .queue-strip {
+    display: none;
+  }
+}
+/* Outside the Conducteur view the conductor is a compact navigator: no
+   session tools, no editing, a click loads the item in the preview. */
+body:not([data-tab="2"]) #tab-queue :is(.session-meta, .session-toolbar, .plan-open, .queue-selection-preview, .queue-tip, #btn-clear-queue, #undo-clear, .cp-queue-actions) {
+  display: none;
+}
+body:not([data-tab="2"]) #tab-queue .cp-queue-item {
+  min-height: 0;
+}
+/* In the Conducteur view, a row's tools appear with the pointer or the
+   keyboard focus (always on touch screens). */
+@media (hover: hover) and (pointer: fine) {
+  body[data-tab="2"] .cp-queue-actions {
+    opacity: 0;
+    transition: opacity 120ms ease;
+  }
+  body[data-tab="2"] .cp-queue-item:hover .cp-queue-actions,
+  body[data-tab="2"] .cp-queue-item:focus-within .cp-queue-actions {
+    opacity: 1;
+  }
+}
+.queue-position {
+  margin-left: auto;
+  color: var(--cp-text-muted);
+}
+.queue-position:empty {
+  display: none;
+}
+/* The output's connection is stated in the header; « Connecter OBS » is the
+   call to action only while no output answers. */
+body.output-connected .connect-top {
+  display: none;
+}
+/* 1280 px: the conductor is one line above the preparation. */
+.queue-strip {
+  display: none;
+}
+@media (min-width: 1280px) and (max-width: 1599px) {
+  body[data-tab="0"] .queue-strip,
+  body[data-tab="1"] .queue-strip {
+    display: flex;
+  }
+}
+.queue-strip {
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  margin-bottom: 16px;
+  padding: 0 4px 0 14px;
+  border: 1px solid var(--cp-border);
+  border-radius: 10px;
+  background: #17181b;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.queue-strip-label {
+  color: #e0e2e6;
+  font-weight: 600;
+}
+.queue-strip-next {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--cp-text-secondary);
+}
+.queue-strip button {
+  margin-left: auto;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 7px;
+  background: #24262b;
+  color: #d5d8df;
+  cursor: pointer;
+}
+.bible-search-row .cp-version-row {
+  width: auto;
+  min-width: 220px;
+  height: 44px;
+}
+.bible-search-row .cp-version-select {
+  min-width: 150px;
+}
+/* Red belongs to the program tally: a prepared passage too long for the
+   band is a warning, in amber, like « Partiel ». */
+.fit-hint.is-warning {
+  color: #f5c46a;
+}
+@media (min-width: 621px) {
+  .studio-sidebar {
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+  .cp-tab,
+  .sidebar-help {
+    padding-left: 0;
+    padding-right: 0;
+    letter-spacing: 0;
   }
 }

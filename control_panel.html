@@ -15,9 +15,10 @@
   <body data-tab="0">
     <a class="skip-link" href="#search-input">Aller à la recherche</a>
     <aside class="studio-sidebar">
-      <a
+      <div
         class="brand"
-        href="control_panel.html"
+        role="img"
+        aria-label="VerseObs Studio 2.0"
         title="VerseObs Studio 2.0 · Votre espace local : vos préparations restent sur cet ordinateur"
         ><img
           class="icon"
@@ -28,8 +29,8 @@
         /><span
           >Verse<span class="brand-light">Obs</span
           ><small>LE STUDIO DE VOTRE ÉQUIPE</small></span
-        ></a
-      >
+        >
+      </div>
       <div class="sidebar-label">ESPACE DE TRAVAIL</div>
       <nav
         class="cp-tabs"
@@ -372,6 +373,13 @@
                   aria-label="Rechercher une référence ou des mots-clés"
                 /><kbd>⌘ F</kbd>
               </div>
+          <div class="search-suggestions" role="group" aria-label="Accès rapide">
+            <span>Accès rapide</span
+            ><button data-reference="Jean 3:16">Jean 3:16</button
+            ><button data-reference="Psaumes 23:1">Psaumes 23</button
+            ><button data-reference="1 Corinthiens 13:4-7">L’amour</button
+            ><button data-reference="Philippiens 4:6-7">La paix</button>
+              </div>
               <div class="cp-search-results" id="search-results"></div>
             </div>
             <div class="cp-version-row">
@@ -385,22 +393,22 @@
                 >local</span
               ><span class="cp-loading" id="version-loading" hidden></span>
             </div>
-          </div>
-          <div class="bilingual-controls">
-            <label class="bilingual-switch"
-              ><input id="bilingual-toggle" type="checkbox" disabled /> Deux
-              versions</label
-            >
-            <label id="secondary-version-field" hidden
-              >Deuxième version<select
-                id="secondary-version"
-                class="cp-select"
-                aria-label="Deuxième version de la Bible"
-              ></select
-            ></label>
-            <span class="bilingual-order"
-              >La première au-dessus, la seconde en dessous</span
-            >
+            <div class="bilingual-controls">
+              <label class="bilingual-switch"
+                ><input id="bilingual-toggle" type="checkbox" disabled /> Deux
+                versions</label
+              >
+              <label id="secondary-version-field" hidden
+                >Deuxième version<select
+                  id="secondary-version"
+                  class="cp-select"
+                  aria-label="Deuxième version de la Bible"
+                ></select
+              ></label>
+              <span class="bilingual-order"
+                >La première au-dessus, la seconde en dessous</span
+              >
+            </div>
           </div>
           <p
             id="bilingual-status"
@@ -408,13 +416,6 @@
             role="status"
             hidden
           ></p>
-          <div class="search-suggestions">
-            <span>Accès rapide</span
-            ><button data-reference="Jean 3:16">Jean 3:16</button
-            ><button data-reference="Psaumes 23:1">Psaumes 23</button
-            ><button data-reference="1 Corinthiens 13:4-7">L’amour</button
-            ><button data-reference="Philippiens 4:6-7">La paix</button>
-          </div>
           <div class="bible-workspace">
             <section class="scripture-panel">
               <div class="section-heading">
@@ -448,12 +449,30 @@
                   </select></label
                 >
               </div>
+              <div class="chapter-scroll">
               <div
                 class="chapter-list"
                 id="chapter-list"
+                role="listbox"
                 aria-label="Versets du chapitre"
               ></div>
               <div class="cp-nav-buttons">
+                <div class="verse-step">
+                  <button
+                    class="cp-btn-nav"
+                    id="btn-prev"
+                    title="Verset précédent"
+                  >
+                    ←</button
+                  ><button
+                    class="cp-btn-nav"
+                    id="btn-next"
+                    title="Verset suivant"
+                  >
+                    →
+                  </button>
+                </div>
+
                 <button
                   class="cp-btn-nav"
                   id="btn-prev-chapter"
@@ -468,11 +487,22 @@
                   Chapitre →
                 </button>
               </div>
+              </div>
             </section>
             <section class="preparation-panel">
               <div class="passage-editor">
                 <div class="section-heading">
                   <h2 id="preview-ref">Votre sélection</h2>
+                  <label class="style-pick"
+                    ><span>Style</span
+                    ><select id="style-select" class="cp-select" aria-label="Style de diffusion">
+                      <option value="antenne">Antenne</option>
+                      <option value="studio">Studio</option>
+                      <option value="papier">Papier</option>
+                      <option value="cinema">Cinéma</option>
+                      <option value="" hidden>Personnalisé</option>
+                    </select></label
+                  >
                   <button
                     class="format-toggle"
                     id="toggle-format"
@@ -553,6 +583,8 @@
                   >
                     &times;
                   </button>
+                  <div class="cp-format-sep"></div>
+                  <button id="btn-copy" class="cp-mini-btn" type="button">Copier le texte</button>
                 </div>
 
                 <div class="cp-preview">
@@ -599,22 +631,6 @@
                 <button class="cp-btn-queue-add" id="btn-add-queue">
                   + Ajouter au conducteur
                 </button>
-                <button id="btn-copy" class="cp-mini-btn">Copier le texte</button>
-                <div class="verse-step">
-                  <button
-                    class="cp-btn-nav"
-                    id="btn-prev"
-                    title="Verset précédent"
-                  >
-                    ←</button
-                  ><button
-                    class="cp-btn-nav"
-                    id="btn-next"
-                    title="Verset suivant"
-                  >
-                    →
-                  </button>
-                </div>
               </div>
               <div class="quick-styles">
                 <div class="section-heading">
@@ -1045,6 +1061,7 @@
             <div class="cp-queue-header">
               <span class="cp-section-label">Votre conducteur</span>
               <span class="cp-queue-counter" id="queue-counter">0 élément</span>
+              <span class="queue-position" id="queue-position"></span>
             </div>
           </div>
 
