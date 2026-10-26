@@ -301,3 +301,116 @@ export async function legacyOutput({ check, open, prepare, BASE }) {
   assert.deepEqual(errors, []);
   await ctx.close();
 }
+
+/**
+ * Review 8 (B2): two translations shown in part. The column labels name the
+ * versions; only a label that also names the passage (Antenne, Carte:
+ * « King James Version · Romans 8:28-29 ») narrows to the verses shown. In
+ * « Onglet » the label is the version alone and the tab names the passage:
+ * it never becomes « KJV:28 ».
+ */
+export async function bilingualPartial({ check, open, prepare, BASE }) {
+  const { readFileSync } = await import("node:fs");
+  const bible = (file) => JSON.parse(readFileSync(new URL("../data/bibles/" + file, import.meta.url), "utf8")).books;
+  const LSG = bible("lsg.json"),
+    KJV = bible("kjv.json");
+  const verses = (books, name, ch, a, b) =>
+    Object.values(books).find((x) => x.name === name).chapters.find((c) => c.chapter === ch).verses.filter((v) => v.verse >= a && v.verse <= b);
+  const marked = (list) => list.map((v) => `<sup class="verse-num">${v.verse}</sup> ${v.text}`).join(" ");
+  const { ctx, studio, output, errors } = await open(1920, 1080);
+  /** Labels, verses really shown (primary and second column), the reference on air. */
+  const LABELS = () => {
+    const card = document.querySelector(".verse-card:not(.vo-probe)");
+    if (!card || !card.querySelector(".verse-secondary")) return null;
+    const nums = (sel) => Array.from(card.querySelectorAll(sel)).map((s) => Number(s.textContent));
+    const roll = card.querySelector(".vo-nums .vo-roll:not(.is-leaving)");
+    const second = card.querySelector(".verse-secondary .verse-translation-label").getBoundingClientRect(),
+      plate = card.getBoundingClientRect();
+    return {
+      layout: (document.querySelector("#verse-container").className.match(/layout-(\w+)/) || [])[1],
+      labels: Array.from(card.querySelectorAll(".verse-translation-label")).map((l) => l.textContent),
+      shown: nums(".vo-copy .verse-text:not(.verse-secondary-text) sup.verse-num"),
+      theirs: nums(".verse-secondary-text sup.verse-num"),
+      roll: roll ? roll.textContent : "",
+      partial: card.dataset.partial || "",
+      inside: second.left >= plate.left - 0.5 && second.right <= plate.right + 0.5,
+    };
+  };
+  const judge = (g, where, version, reference) => {
+    assert.ok(g, where + ": two translations on air");
+    const first = Math.min(...g.shown),
+      last = Math.max(...g.shown),
+      range = first === last ? String(first) : first + "-" + last,
+      tab = g.layout === "onglet",
+      abbr = { "Louis Segond 1910": "LSG", "King James Version": "KJV" };
+    assert.equal(g.labels[0], tab ? "LSG" : "Louis Segond 1910", where + ": first column names its version");
+    const narrowed = g.partial ? reference.replace(/:\d+(-\d+)?$/, ":" + range) : reference;
+    assert.equal(g.labels[1], tab ? abbr[version] || version : version + " · " + narrowed, where + ": second column " + JSON.stringify(g));
+    assert.ok(g.roll.endsWith(":" + range), where + ": the reference on air names the verses shown " + JSON.stringify(g));
+    assert.ok(g.theirs.every((n) => n >= first && n <= last), where + ": second column within the verses shown");
+    assert.ok(g.inside, where + ": the label inside the card");
+  };
+  await check("Two translations in part through the Studio (Onglet sombre, Romains 8:28-30 + KJV, 720p): the labels name the versions", async () => {
+    await output.setViewportSize({ width: 1280, height: 720 });
+    await studio.evaluate(() => document.querySelector('.quick-styles [data-preset="onglet-sombre"]').click());
+    await prepare(studio, "Romains 8:28-30");
+    await studio.check("#bilingual-toggle");
+    await studio.selectOption("#secondary-version", "kjv");
+    await studio.waitForTimeout(700);
+    await studio.click("#btn-show");
+    await output.waitForFunction(LABELS, null, { timeout: 15000 });
+    await output.waitForFunction(SETTLED, null, { timeout: 15000 });
+    const g = await output.evaluate(LABELS);
+    console.log("    studio 720p: " + JSON.stringify(g));
+    assert.equal(g.layout, "onglet");
+    assert.ok(g.partial, "this case is shown in part at 720p (review 8)");
+    judge(g, "studio 720p", "King James Version", "Romans 8:28-30");
+    await studio.click("#btn-hide");
+    await output.waitForFunction(() => !document.querySelector(".verse-card:not(.vo-probe)"), null, { timeout: 10000 });
+    await studio.uncheck("#bilingual-toggle");
+  });
+  await check("Two translations, whole or in part, 1080p and 720p, long version name: labels are versions, the range is the verses shown; Antenne and Carte unchanged", async () => {
+    const seen = [];
+    for (const viewport of [{ width: 1920, height: 1080 }, { width: 1280, height: 720 }]) {
+      await output.setViewportSize(viewport);
+      for (const preset of ["onglet-sombre", "onglet", "antenne", "studio"])
+        for (const [fr, en, ch, a, b, version] of [
+          ["Jean", "John", 11, 35, 36, "King James Version"],
+          ["Jean", "John", 11, 35, 36, "New Revised Standard Version Updated Edition"],
+          ["Romains", "Romans", 8, 28, 30, "King James Version"],
+          ["Romains", "Romans", 8, 28, 39, "New Revised Standard Version Updated Edition"],
+        ]) {
+          const reference = en + " " + ch + ":" + a + "-" + b;
+          const msg = {
+            type: "show_verse",
+            text: verses(LSG, fr, ch, a, b).map((v) => v.text).join(" "),
+            html: marked(verses(LSG, fr, ch, a, b)),
+            reference: fr + " " + ch + ":" + a + "-" + b,
+            version: "Louis Segond 1910",
+            secondary: { text: verses(KJV, en, ch, a, b).map((v) => v.text).join(" "), html: marked(verses(KJV, en, ch, a, b)), reference, version, lang: "en" },
+          };
+          await output.evaluate(() => window.VerseObs.DisplayApp.handleMessage({ type: "hide" }));
+          await output.waitForFunction(() => !document.querySelector(".verse-card:not(.vo-probe)"), null, { timeout: 10000 });
+          await output.evaluate(
+            ({ msg, preset }) => {
+              const V = window.VerseObs;
+              const settings = Object.assign({}, V.DEFAULTS, V.TEMPLATES[preset].settings, { animation: "none", animationDuration: 0, bgImage: "" });
+              V.DisplayApp.handleMessage(Object.assign({}, msg, { settings }));
+            },
+            { msg, preset },
+          );
+          await output.waitForFunction(LABELS, null, { timeout: 15000 });
+          await output.waitForFunction(SETTLED, null, { timeout: 15000 });
+          const g = await output.evaluate(LABELS);
+          const where = viewport.height + "p " + preset + " " + reference + " " + version;
+          seen.push(where + " " + (g.partial ? "partial" : "whole") + " " + JSON.stringify(g.labels) + " " + g.roll);
+          judge(g, where, version, reference);
+        }
+    }
+    console.log("    " + seen.join("\n    "));
+    assert.ok(seen.some((s) => / onglet.* partial /.test(s)) && seen.some((s) => / antenne .* partial /.test(s)) && seen.some((s) => / studio .* partial /.test(s)), "partial cases reached in every layout");
+    assert.ok(seen.some((s) => / whole /.test(s)), "a whole case too");
+  });
+  assert.deepEqual(errors, []);
+  await ctx.close();
+}

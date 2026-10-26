@@ -2638,6 +2638,11 @@ try {
     const { legacyOutput } = await import("./browser-onglet.mjs");
     await legacyOutput({ check, open, prepare, BASE });
   }
+  // ---- Review 8 (B2): two translations shown in part, labels and range.
+  if (run("bilingual")) {
+    const { bilingualPartial } = await import("./browser-onglet.mjs");
+    await bilingualPartial({ check, open, prepare, BASE });
+  }
 
   if (run("paired")) {
     const { pairedDock } = await import("./browser-paired.mjs");
