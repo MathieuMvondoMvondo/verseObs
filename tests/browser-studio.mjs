@@ -2530,6 +2530,11 @@ try {
   }
   }
 
+  if (run("paired")) {
+    const { pairedDock } = await import("./browser-paired.mjs");
+    await pairedDock({ browser, createServer, PORT, check });
+  }
+
   console.log("\n✓ Browser studio: " + passed + " checks passed.");
 } catch (err) {
   console.error(err);

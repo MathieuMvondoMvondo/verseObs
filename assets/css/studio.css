@@ -5222,6 +5222,30 @@ body:not([data-tab="2"]) #tab-queue .cp-queue-title {
 /* The dock: the Antenne band names the product's purpose; the wordmark row
    would push the monitor 56 px down. */
 @media (max-width: 620px) {
+  /* Paired-phone status shares this row: keep the two utility buttons as
+     44 px icons. Their text still supplies their accessible names. */
+  .header-right {
+    min-width: 0;
+    gap: 8px;
+  }
+  .header-right .command-trigger,
+  .header-right .connect-top {
+    display: inline-flex;
+    flex: 0 0 44px;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 8px;
+    font-size: 0;
+    gap: 0;
+  }
+  .header-right .command-trigger kbd {
+    display: none;
+  }
+  .header-right .connect-top .icon {
+    margin-left: 0;
+  }
   .studio-sidebar .brand {
     display: none;
   }
