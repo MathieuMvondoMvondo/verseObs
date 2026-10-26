@@ -921,3 +921,43 @@ body[data-output="pending"] .control-hide {
   flex-wrap: wrap;
   row-gap: 6px;
 }
+/* ==========================================================================
+   Review 3: a reference is a book, which may give way, and verse numbers,
+   always whole. A long book name never cuts « 2:10-13 » in the band or in
+   « Ensuite », and the selection's reference never breaks at its dash.
+   ========================================================================== */
+.ref-nums,
+.ref-more {
+  white-space: nowrap;
+}
+.output-ref:not(:empty),
+.slot-next .slot-ref:not(:empty) {
+  display: flex;
+  align-items: baseline;
+  gap: 0.28em;
+  min-width: 0;
+}
+.output-ref .ref-book,
+.output-ref .ref-more,
+.slot-next .slot-ref .ref-book {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.output-ref .ref-nums,
+.slot-next .slot-ref .ref-nums {
+  flex: none;
+}
+/* The selection and « Ensuite » sit right above the thumb zone: what
+   « Diffuser » sends is next to it, and a short conductor end leaves its
+   free room under the session line, not between the cards and the
+   commands (review 3). The selection's text takes that room first. */
+.remote {
+  min-height: 100vh;
+  min-height: 100svh;
+}
+.slot-current {
+  margin-top: auto;
+}
+

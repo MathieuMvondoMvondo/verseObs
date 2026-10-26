@@ -1323,6 +1323,16 @@ try {
       version: "Louis Segond 1910",
     };
     const jn = { id: "jean316xx", type: "verse", text: "Car Dieu a tant aimé le monde.", reference: "Jean 3:16", version: "Louis Segond 1910" };
+    // A long book name at the end of the conductor (review 3).
+    const ct = Object.values(LSG).find((b) => b.name === "Cantique des Cantiques").chapters.find((c) => c.chapter === 2).verses.filter((v) => v.verse >= 10 && v.verse <= 13);
+    const cant = {
+      id: "cant210x13",
+      type: "verse",
+      text: ct.map((v) => v.text).join(" "),
+      html: ct.map((v) => `<sup class="verse-num">${v.verse}</sup> ${v.text}`).join(" "),
+      reference: "Cantique des Cantiques 2:10-13",
+      version: "Louis Segond 1910",
+    };
     // Two plans of a split passage (« Découper ») after Jean 3:16.
     const plans = [1, 5].map((from, i) => {
       const vs = ps.filter((v) => v.verse >= from && v.verse < from + 4);
@@ -1345,7 +1355,7 @@ try {
         localStorage.setItem("verseobs_queue", q);
         sessionStorage.setItem("__seeded", "1");
       }
-    }, JSON.stringify({ items: [whole, jn, ...plans], currentIndex: 0 }));
+    }, JSON.stringify({ items: [whole, jn, ...plans, cant], currentIndex: 0 }));
     const errors = [];
     const output = await ctx.newPage();
     output.on("pageerror", (e) => errors.push("output: " + e.message));
@@ -1524,6 +1534,115 @@ try {
       assert.equal(chip.seen, "ENVOI EN COURS");
       assert.ok(chip.whole && chip.inside, "chip whole, inside the card: " + JSON.stringify(chip));
       await phone.screenshot({ path: path.join(ROOT, "artifacts", "phone-pending-390.png") });
+    });
+    // ---- Review 3: the phone's worst cases. Where a string sits on screen:
+    // the lines it takes and whether every glyph is inside the boxes that
+    // clip it (an ellipsis hides glyphs that are still laid out).
+    const placed = (selector, needle) =>
+      phone.evaluate(
+        ([selector, needle]) => {
+          const el = document.querySelector(selector);
+          const nodes = [];
+          let text = "";
+          const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+          for (let n; (n = walk.nextNode()); ) {
+            nodes.push([n, text.length]);
+            text += n.data;
+          }
+          const at = text.indexOf(needle);
+          if (at < 0) return { found: false, text };
+          const end = at + needle.length;
+          const a = nodes.find(([n, s]) => s <= at && at < s + n.data.length);
+          const b = nodes.find(([n, s]) => s < end && end <= s + n.data.length);
+          const range = document.createRange();
+          range.setStart(a[0], at - a[1]);
+          range.setEnd(b[0], end - b[1]);
+          const rects = Array.from(range.getClientRects()).filter((r) => r.width > 0.5);
+          const box = range.getBoundingClientRect();
+          let left = 0,
+            right = innerWidth;
+          for (let e = range.commonAncestorContainer; e && e.nodeType; e = e.parentNode) {
+            if (e.nodeType !== 1) continue;
+            if (getComputedStyle(e).overflowX !== "visible") {
+              const c = e.getBoundingClientRect();
+              left = Math.max(left, c.left);
+              right = Math.min(right, c.right);
+            }
+          }
+          return {
+            found: true,
+            text,
+            lines: new Set(rects.map((r) => Math.round(r.top))).size,
+            whole: box.left >= left - 0.5 && box.right <= right + 0.5,
+            box: [Math.round(box.left), Math.round(box.right)],
+            clip: [Math.round(left), Math.round(right)],
+          };
+        },
+        [selector, needle],
+      );
+    // Empty space between the last block of the page and the thumb zone.
+    const room = () =>
+      phone.evaluate(() => {
+        const prev = document.querySelector("[data-command=prev]").getBoundingClientRect();
+        const blocks = Array.from(document.querySelector(".remote").children).filter((e) => e.id !== "output" && !e.hidden && e.getClientRects().length);
+        const bottom = Math.max(...blocks.map((e) => e.getBoundingClientRect().bottom));
+        const text = document.querySelector("#current-text");
+        const card = document.querySelector(".slot-current").getBoundingClientRect();
+        const head = document.querySelector(".remote-top").getBoundingClientRect();
+        return {
+          // what is left under the session line when the cards sit on the thumb zone
+          above: Math.round(card.top - head.bottom),
+          selectionWhole: text.scrollHeight <= text.clientHeight + 1,
+          selection: document.querySelector("#current-ref").textContent,
+          next: document.querySelector("#next-ref").textContent,
+          nextText: document.querySelector("#next-text").textContent.length,
+          selectionLines: Math.round(text.getBoundingClientRect().height / (parseFloat(getComputedStyle(text).lineHeight) || 22)),
+          empty: Math.round(prev.top - bottom),
+          prevTop: Math.round(prev.top),
+          scroll: document.documentElement.scrollHeight - innerHeight,
+        };
+      });
+    await check("Phone 390×844, long book name (review 3): « Cantique des Cantiques 2:10-13 » keeps « 2:10-13 » whole in the band and on one line in the selection", async () => {
+      await phone.click("[data-command=next]");
+      await phone.waitForFunction(() => document.querySelector("#current-ref").textContent === "Cantique des Cantiques 2:10-13");
+      await phone.click("[data-command=show]");
+      await phone.waitForFunction(() => document.querySelector("#output").dataset.state === "pending" && document.querySelector("#output-ref").textContent === "Cantique des Cantiques 2:10-13", null, { timeout: 10000 });
+      await phone.waitForTimeout(300);
+      const band = await placed("#output-ref", "2:10-13");
+      const book = await placed("#output-ref", "Cant");
+      const selection = await placed("#current-ref", "2:10-13");
+      const bandHeight = await phone.evaluate(() => Math.round(document.querySelector("#output").getBoundingClientRect().height));
+      console.log("    long name: " + JSON.stringify({ band, book: book.whole, selection, bandHeight }));
+      await phone.screenshot({ path: path.join(ROOT, "artifacts", "phone-long-name-390.png") });
+      assert.ok(band.found && band.lines === 1 && band.whole, "the verse numbers whole in the band: " + JSON.stringify(band));
+      assert.ok(book.whole, "the book name starts in the band (it may be shortened)");
+      assert.ok(selection.found && selection.lines === 1, "the selection's « 2:10-13 » on one line: " + JSON.stringify(selection));
+      assert.ok(bandHeight <= 56, "band of 56 px");
+    });
+    await check("Phone 390×844, worst cases (review 3): at most 145 px left empty above the thumb zone at the end of the conductor and with a one-line « Ensuite »", async () => {
+      // End of the conductor: « Ensuite » is « Fin du conducteur ».
+      const end = await room();
+      console.log("    end of the conductor: " + JSON.stringify(end));
+      await phone.screenshot({ path: path.join(ROOT, "artifacts", "phone-end-of-conductor-390.png") });
+      // Back to the first item: « Ensuite » is Jean 3:16, one short line.
+      for (const ref of ["Psaumes 119:5-8", "Psaumes 119:1-4", "Jean 3:16", "Psaumes 119:1-48"]) {
+        await phone.click("[data-command=prev]");
+        await phone.waitForFunction((r) => document.querySelector("#current-ref").textContent === r, ref, { timeout: 10000 });
+      }
+      await phone.waitForFunction(() => document.querySelector("#next-ref").textContent === "Jean 3:16");
+      await phone.waitForTimeout(300);
+      const short = await room();
+      console.log("    one-line Ensuite: " + JSON.stringify(short));
+      await phone.screenshot({ path: path.join(ROOT, "artifacts", "phone-short-next-390.png") });
+      assert.equal(end.next, "Fin du conducteur");
+      assert.ok(end.selectionWhole, "the room shows the selection's whole text (4 verses): " + JSON.stringify(end));
+      assert.ok(short.nextText > 0 && short.nextText < 60, "a one-line « Ensuite »");
+      for (const r of [end, short]) {
+        assert.ok(r.empty <= 145, r.empty + " px left empty above the thumb zone: " + JSON.stringify(r));
+        assert.ok(r.empty >= 0, "nothing under the commands: " + JSON.stringify(r));
+        assert.ok(r.scroll <= 1, "the page does not scroll for it: " + r.scroll);
+        assert.ok(r.prevTop >= 844 - 260, "thumb zone unchanged");
+      }
     });
     assert.deepEqual(errors, []);
     await phoneCtx.close();

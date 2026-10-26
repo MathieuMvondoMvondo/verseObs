@@ -3,18 +3,21 @@
   "use strict";
   var V = window.VerseObs;
   // The phone shows up to seven lines of « Ensuite »: as much as the relay
-  // passes (280 characters), the ellipsis included.
-  var EXCERPT = 270;
+  // passes (280 characters), the ellipsis included. The selection may fill
+  // the room above the thumb zone: the relay passes 640 characters of it.
+  var EXCERPT = 270,
+    EXCERPT_SELECTION = 630;
 
-  function excerpt(item) {
+  function excerpt(item, max) {
     if (!item) return null;
+    var limit = max || EXCERPT;
     var text = String(item.text || item.subtitle || "")
       .replace(/\s+/g, " ")
       .trim();
-    if (text.length > EXCERPT)
+    if (text.length > limit)
       text =
         text
-          .slice(0, EXCERPT)
+          .slice(0, limit)
           .replace(/\s+\S*$/, "")
           .replace(/[\s,;:.!?]+$/, "") + "…";
     return {
@@ -62,8 +65,8 @@
       return {
         session: (el("session-name").value || "Ma célébration").slice(0, 100),
         position: { index: items.length ? position.current : 0, total: items.length },
-        current: excerpt(items[index]),
-        next: excerpt(items[index + 1]),
+        current: excerpt(items[index], EXCERPT_SELECTION),
+        next: excerpt(items[index + 1], EXCERPT),
         output: {
           connected: !!output.connected,
           visible: !!output.visible,

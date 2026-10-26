@@ -45,6 +45,8 @@
     var el = $("banner");
     el.hidden = !message;
     el.replaceChildren();
+    // The banner takes room above the selection: its text gives it back.
+    setTimeout(fitSelection);
     if (!message) return;
     var text = document.createElement("span");
     text.textContent = message;
@@ -66,6 +68,75 @@
     clearTimeout(retryTimer);
     setLink(state, pill);
     banner(message, false);
+  }
+
+  /**
+   * A reference in two parts (review 3): the book, which may give way (cut
+   * with « … » in a band, wrapped in a card), and the verse numbers, kept
+   * whole on one line. « Cantique des Cantiques 2:10-13 » never loses
+   * « 2:10-13 » and never breaks at its dash; the text read is the label.
+   * `more` follows the numbers (« (demandé 1-48) »).
+   */
+  function setRef(el, label, more) {
+    label = String(label || "");
+    var key = label + "\n" + (more || "");
+    if (el.dataset.ref === key) return;
+    el.dataset.ref = key;
+    el.textContent = "";
+    if (!label) return;
+    function part(cls, text) {
+      var span = document.createElement("span");
+      span.className = cls;
+      span.textContent = text;
+      el.appendChild(span);
+    }
+    var m = /^(.*\S)\s+(\d[\d:.,\-–]*)$/.exec(label);
+    if (m) {
+      part("ref-book", m[1]);
+      el.appendChild(document.createTextNode(" "));
+      part("ref-nums", m[2]);
+    } else part(/^\d[\d:.,\-–]*$/.test(label) ? "ref-nums" : "ref-book", label);
+    if (more) {
+      el.appendChild(document.createTextNode(" "));
+      part("ref-more", more);
+    }
+  }
+  /**
+   * The selection's text takes the room a short or absent « Ensuite »
+   * leaves above the thumb zone (review 3: at the end of the conductor the
+   * screen stayed empty): more lines of what « Diffuser » sends, never
+   * under the commands, never a scroll.
+   */
+  function fitSelection() {
+    var text = $("current-text"),
+      main = document.querySelector(".remote");
+    if (!text || !main) return;
+    text.style.removeProperty("-webkit-line-clamp");
+    var style = getComputedStyle(text),
+      base = parseInt(style.getPropertyValue("-webkit-line-clamp"), 10);
+    if (!text.textContent || style.display === "none" || !(base > 0)) return;
+    var seen = function (e) {
+      while (e && (e.hidden || !e.getClientRects().length))
+        e = e.previousElementSibling;
+      return e;
+    };
+    var card = text.closest(".slot"),
+      before = card && seen(card.previousElementSibling),
+      last = seen(main.lastElementChild);
+    if (!card || !last) return;
+    // The free room: under the last card (down to the thumb zone) and the
+    // space the cards leave above the selection (they sit on the thumb zone).
+    var lh = parseFloat(style.lineHeight) || 22,
+      limit = window.innerHeight - parseFloat(getComputedStyle(main).paddingBottom),
+      above = before
+        ? card.getBoundingClientRect().top -
+          before.getBoundingClientRect().bottom -
+          (parseFloat(getComputedStyle(main).rowGap) || 0)
+        : 0,
+      below = limit - (last.getBoundingClientRect().bottom + window.scrollY),
+      more = Math.floor((Math.max(0, above) + below) / lh);
+    if (more > 0)
+      text.style.setProperty("-webkit-line-clamp", String(base + more));
   }
 
   /** « Psaumes 119:1-48 » → « 1-48 »; a whole chapter → « chapitre entier ». */
@@ -102,11 +173,10 @@
     $("position").textContent = online && total ? index + " / " + total : "";
     var current = online && s.current,
       next = online && s.next;
-    $("current-ref").textContent = current
-      ? current.label
-      : online
-        ? "Conducteur vide"
-        : "—";
+    setRef(
+      $("current-ref"),
+      current ? current.label : online ? "Conducteur vide" : "—",
+    );
     $("current-text").textContent = current
       ? current.text
       : online
@@ -116,7 +186,10 @@
     var plan = current && current.parts ? "plan " + current.part + "/" + current.parts : "";
     $("current-plan").textContent = plan;
     $("current-plan").hidden = !plan;
-    $("next-ref").textContent = next ? next.label : online && total ? "Fin du conducteur" : "—";
+    setRef(
+      $("next-ref"),
+      next ? next.label : online && total ? "Fin du conducteur" : "—",
+    );
     $("next-text").textContent = next ? next.text : "";
     var out = (online && s.output) || null,
       outState = !out
@@ -143,12 +216,9 @@
     }[outState];
     // Too long for the band: the verses really on air, then what was asked
     // (« Partiel · 119:1-4 (demandé 1-48) »), as the Studio says it.
-    $("output-ref").textContent =
-      outState === "partial"
-        ? out.shown + " (demandé " + asked(out.label) + ")"
-        : out && out.visible && out.label
-          ? out.label
-          : "";
+    if (outState === "partial")
+      setRef($("output-ref"), out.shown, "(demandé " + asked(out.label) + ")");
+    else setRef($("output-ref"), out && out.visible && out.label ? out.label : "");
     // Same rule as the Studio: the item's identifier, label + version only
     // when the output predates identifiers.
     var currentLive = !!(
@@ -179,6 +249,7 @@
     // Masquer stays available while paired: if the link drops, it reconnects
     // first. Once access is revoked or the mode is off, it can do nothing.
     $("btn-hide").disabled = ended;
+    fitSelection();
   }
 
   function clearStale() {
@@ -366,6 +437,7 @@
     if (document.visibilityState === "visible") reconnectNow();
   });
   window.addEventListener("online", reconnectNow);
+  window.addEventListener("resize", fitSelection);
   window.addEventListener("pageshow", function (e) {
     if (e.persisted) reconnectNow();
   });

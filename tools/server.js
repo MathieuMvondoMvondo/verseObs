@@ -87,11 +87,11 @@ function safeEqual(a, b) {
 function text(value, max) {
   return typeof value === "string" ? value.slice(0, max) : "";
 }
-function summary(value) {
+function summary(value, max) {
   if (!value || typeof value !== "object") return null;
   return {
     label: text(value.label, 140),
-    text: text(value.text, 280),
+    text: text(value.text, max),
     // Identifier of the conductor item: the phone marks the row on air by it.
     cue: text(value.cue, 64),
     version: text(value.version, 80),
@@ -129,8 +129,9 @@ function sanitizeState(state) {
   return {
     session: text(state.session, 100),
     position: { index: int(position.index), total: int(position.total) },
-    current: summary(state.current),
-    next: summary(state.next),
+    // The selection's text may fill the phone above its thumb zone.
+    current: summary(state.current, 640),
+    next: summary(state.next, 280),
     output: {
       connected: output.connected === true,
       visible: output.visible === true,
