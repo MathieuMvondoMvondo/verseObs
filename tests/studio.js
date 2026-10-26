@@ -1182,12 +1182,18 @@ async function runRemoteChecks(cp, output, logged) {
     "burst replies",
   );
   const limited = burst.messages.filter((m) => m.reason === "rate_limited").length;
+  // A fresh socket opens its window: the first 10 commands pass, the 11th
+  // and later ones are refused (REMOTE_LIMITS.commands, review 7 N8).
+  const refusedAt = [];
+  for (let i = 0; i < 14; i++)
+    if (burst.messages.find((m) => m.ref === "b" + i).reason === "rate_limited") refusedAt.push(i);
   const flood = await remoteSocket(wsBase + "?code=" + code, lan);
   const closed = new Promise((resolve) => flood.socket.on("close", (c) => resolve(c)));
   for (let i = 0; i < 40; i++) flood.socket.send("{}");
   const floodCode = await closed;
   check("Commands are rate limited and a flood closes the connection", () => {
     assert(limited >= 4, "rate limited replies: " + limited);
+    assert.deepEqual(refusedAt, [10, 11, 12, 13], "the 11th command onwards is refused");
     assert.equal(floodCode, 4429);
   });
 

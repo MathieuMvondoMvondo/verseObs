@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 
 const require = createRequire(import.meta.url);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const { createServer } = require(path.join(ROOT, "tools/server.js"));
+const { createServer, REMOTE_LIMITS } = require(path.join(ROOT, "tools/server.js"));
 const PW = process.env.PLAYWRIGHT_CORE;
 const CHROMIUM = process.env.CHROMIUM;
 if (!PW || !CHROMIUM) {
@@ -1353,6 +1353,12 @@ try {
   // review 2: the whole Psaumes 119:1-48 sent, 119:1-4 on air).
   if (run("phone")) {
   const LAN_PORT = PORT + 2;
+  // N8 (review 7): the relay takes 10 commands per phone and per 5 s window
+  // (REMOTE_LIMITS, product unchanged). STUDIO_PHONE_WINDOW_MS stretches
+  // that window for a stress run only, to show the section never relies on
+  // the window reopening in time.
+  const realWindow = REMOTE_LIMITS.windowMs;
+  if (process.env.STUDIO_PHONE_WINDOW_MS) REMOTE_LIMITS.windowMs = Number(process.env.STUDIO_PHONE_WINDOW_MS);
   const lan = createServer(LAN_PORT, { lan: { addresses: ["127.0.0.1"], port: 0 } });
   await new Promise((r) => lan.listen(LAN_PORT, "127.0.0.1", r));
   try {
@@ -1413,7 +1419,33 @@ try {
     const phoneCtx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
     const phone = await phoneCtx.newPage();
     phone.on("pageerror", (e) => errors.push("phone: " + e.message));
+    // Every refusal the relay sends to the phone (rate_limited, forbidden…).
+    const refusals = [];
+    phone.on("websocket", (ws) =>
+      ws.on("framereceived", ({ payload }) => {
+        try {
+          const m = JSON.parse(String(payload));
+          if (m && m.type === "error") refusals.push(m.reason + " " + (m.ref || ""));
+        } catch {}
+      }),
+    );
     await phone.goto(status.url);
+    // The section sends 13 commands: each goes through command(), which keeps
+    // the phone within the relay's budget. A sliding window 10 % longer than
+    // the relay's fixed one, with one command of margin: wherever the relay's
+    // window starts, no command of the section is refused (checked below).
+    const sent = [];
+    const command = async (name) => {
+      const span = REMOTE_LIMITS.windowMs * 1.1;
+      for (;;) {
+        const now = Date.now();
+        const recent = sent.filter((t) => now - t < span);
+        if (recent.length < REMOTE_LIMITS.commands - 1) break;
+        await phone.waitForTimeout(span - (now - recent[0]) + 20);
+      }
+      sent.push(Date.now());
+      await phone.click(`[data-command=${name}]`);
+    };
     await phone.waitForFunction(() => !document.querySelector("[data-command=show]").disabled, null, { timeout: 20000 });
     const line = () =>
       phone.evaluate(() => ({
@@ -1433,7 +1465,7 @@ try {
         color: getComputedStyle(document.querySelector("#output-label")).color,
       }));
     await check("Phone over the local network: a passage shown in part says « Partiel · 119:1-4 (demandé 1-48) » in amber", async () => {
-      await phone.click("[data-command=show]");
+      await command("show");
       await output.waitForFunction(() => document.querySelector(".verse-card")?.dataset.partial === "119:1-48");
       const shown = await output.evaluate(() => document.querySelector(".vo-nums .vo-roll:not(.is-leaving)").textContent);
       await phone.waitForFunction(() => document.querySelector("#output").dataset.state !== "pending", null, { timeout: 10000 });
@@ -1450,18 +1482,18 @@ try {
       await phone.screenshot({ path: path.join(ROOT, "artifacts", "phone-partial-390.png") });
     });
     await check("Phone: a passage shown whole is confirmed again, without « Partiel »", async () => {
-      await phone.click("[data-command=next]");
+      await command("next");
       await phone.waitForFunction(() => document.querySelector("#current-ref").textContent === "Jean 3:16");
-      await phone.click("[data-command=show]");
+      await command("show");
       await phone.waitForFunction(() => document.querySelector("#output").dataset.state === "confirmed", null, { timeout: 10000 });
       const l = await line();
       assert.equal(l.text, "Sortie confirmée · Jean 3:16");
       assert.equal(l.live, "À l’antenne");
     });
     await check("Phone: 56 px status band, session on one 14 px line, « plan n/N », the four commands fixed in the bottom 260 px (Masquer 16 px under Diffuser)", async () => {
-      await phone.click("[data-command=next]");
+      await command("next");
       await phone.waitForFunction(() => document.querySelector("#current-ref").textContent === "Psaumes 119:1-4");
-      await phone.click("[data-command=show]");
+      await command("show");
       // Confirmed for this plan (the previous check left Jean 3:16 confirmed).
       await phone.waitForFunction(
         () => document.querySelector("#output").dataset.state === "confirmed" && document.querySelector("#output-ref").textContent === "Psaumes 119:1-4",
@@ -1548,9 +1580,9 @@ try {
       assert.doesNotMatch(g.figures, /tabular/, "proportional figures: « 119:5-8 » without gaps");
       // Being sent: the output is gone, the command waits for it (amber).
       await output.close();
-      await phone.click("[data-command=next]");
+      await command("next");
       await phone.waitForFunction(() => document.querySelector("#current-ref").textContent === "Psaumes 119:5-8");
-      await phone.click("[data-command=show]");
+      await command("show");
       await phone.waitForFunction(() => document.querySelector("#output").dataset.state === "pending" && document.querySelector("#output-ref").textContent === "Psaumes 119:5-8", null, { timeout: 10000 });
       g = await read();
       console.log("    phone, being sent: " + JSON.stringify(g));
@@ -1648,9 +1680,9 @@ try {
         };
       });
     await check("Phone 390×844, long book name (review 3): « Cantique des Cantiques 2:10-13 » keeps « 2:10-13 » whole in the band and on one line in the selection", async () => {
-      await phone.click("[data-command=next]");
+      await command("next");
       await phone.waitForFunction(() => document.querySelector("#current-ref").textContent === "Cantique des Cantiques 2:10-13");
-      await phone.click("[data-command=show]");
+      await command("show");
       await phone.waitForFunction(() => document.querySelector("#output").dataset.state === "pending" && document.querySelector("#output-ref").textContent === "Cantique des Cantiques 2:10-13", null, { timeout: 10000 });
       await phone.waitForTimeout(300);
       const band = await placed("#output-ref", "2:10-13");
@@ -1671,7 +1703,7 @@ try {
       await phone.screenshot({ path: path.join(ROOT, "artifacts", "phone-end-of-conductor-390.png") });
       // Back to the first item: « Ensuite » is Jean 3:16, one short line.
       for (const ref of ["Psaumes 119:5-8", "Psaumes 119:1-4", "Jean 3:16", "Psaumes 119:1-48"]) {
-        await phone.click("[data-command=prev]");
+        await command("prev");
         await phone.waitForFunction((r) => document.querySelector("#current-ref").textContent === r, ref, { timeout: 10000 });
       }
       await phone.waitForFunction(() => document.querySelector("#next-ref").textContent === "Jean 3:16");
@@ -1688,6 +1720,26 @@ try {
         assert.ok(r.scroll <= 1, "the page does not scroll for it: " + r.scroll);
         assert.ok(r.prevTop >= 844 - 260, "thumb zone unchanged");
       }
+      assert.deepEqual(refusals, [], "no command of this section refused by the relay");
+    });
+    await check("Phone: the 11th command within one window is refused and the phone says so (relay limit unchanged)", async () => {
+      // A fresh window: the first of these commands opens it.
+      const last = Math.max(0, ...sent);
+      await phone.waitForTimeout(Math.max(0, last + REMOTE_LIMITS.windowMs * 1.1 - Date.now()));
+      const before = refusals.length;
+      await phone.evaluate((n) => {
+        const b = document.querySelector("[data-command=hide]");
+        for (let i = 0; i < n; i++) b.click();
+      }, REMOTE_LIMITS.commands + 1);
+      await phone.waitForFunction(() => /Trop de commandes/.test(document.querySelector("#banner").textContent), null, { timeout: 10000 });
+      const banner = await phone.evaluate(() => ({ text: document.querySelector("#banner").textContent, hidden: document.querySelector("#banner").hidden }));
+      await phone.waitForTimeout(500);
+      const late = refusals.slice(before);
+      console.log("    burst of " + (REMOTE_LIMITS.commands + 1) + ": refusals " + JSON.stringify(late) + ", banner " + JSON.stringify(banner));
+      assert.equal(late.length, 1, "the first 10 pass, exactly one refusal: " + JSON.stringify(late));
+      assert.match(late[0], /^rate_limited /, "the 11th is refused for its rate");
+      assert.equal(banner.hidden, false);
+      assert.equal(banner.text, "Trop de commandes d’affilée : patientez une seconde.");
     });
     assert.deepEqual(errors, []);
     await phoneCtx.close();
@@ -1695,6 +1747,7 @@ try {
   } finally {
     await lan.remote.disable();
     lan.close();
+    REMOTE_LIMITS.windowMs = realWindow;
   }
   }
 
