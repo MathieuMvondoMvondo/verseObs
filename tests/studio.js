@@ -623,6 +623,7 @@ async function run() {
   require("./channel-style")(check);
   await require("./channel-tiebreak")(check);
   require("./color-normalization")(check);
+  await require("./display-style")(check);
   console.log("\n✓ Studio integration: " + passed + " checks passed.");
 }
 async function testBilingual(cp, output) {

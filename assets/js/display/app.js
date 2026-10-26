@@ -87,23 +87,29 @@
   /**
    * A command without a layout comes from an older Studio: keep its card.
    * Stored settings follow the Studio's own migration (see migrateStyle).
+   * A patch (`patch`: what the channel kept of an older style, see
+   * channel.js) changes only the properties it carries: it is never taken
+   * for an older Studio's complete style, so it is neither migrated nor
+   * given the verse's stored picture, and a projector keeps its text size
+   * unless the patch carries one (review 6, N3).
    * Colours are validated here too: a value that could make the output load
    * something (url() …) takes the default colour, whoever sent it.
    */
-  function styleFor(style, stored, defaults) {
+  function styleFor(style, stored, defaults, patch) {
     var result = Object.assign({}, style || {});
-    if (style && style.layout === undefined)
+    if (style && style.layout === undefined && !patch)
       if (stored) V.migrateStyle(style, result, V.DEFAULTS, "studio");
       else V.migrateStyle(style, result);
     V.cleanColors(result, defaults || V.DEFAULTS);
-    if (result.bgImage === undefined) {
+    if (result.bgImage === undefined && !patch) {
       try {
         result.bgImage = localStorage.getItem("verseobs_bgimage") || "";
       } catch (e) {}
     }
     if (projector) {
       result.position = "center";
-      result.fontSize = Math.max(42, Number(result.fontSize) || 42);
+      if (!patch || result.fontSize !== undefined)
+        result.fontSize = Math.max(42, Number(result.fontSize) || 42);
       result.maxWidth = 85;
     }
     return result;
@@ -135,7 +141,7 @@
     }
     if (msg.type === MSG.UPDATE_STYLE) {
       cancelMeasure();
-      renderer.updateStyle(styleFor(msg.settings));
+      renderer.updateStyle(styleFor(msg.settings, false, undefined, msg.patch === true));
       // The new style may fit the text on air differently (whole or in
       // part): the Studio and the phone learn it now, not at the next ping.
       report();

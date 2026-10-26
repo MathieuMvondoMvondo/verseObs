@@ -128,7 +128,9 @@ window.VerseObs.Channel = function (opts) {
   // discard an earlier colour change that arrives last. Order each property
   // independently, including settings carried by a Diffuser. If that
   // Diffuser arrives after a newer style, keep the newer values while still
-  // delivering its text. Nothing about the output's rendering changes.
+  // delivering its text. What is left of an older style is marked as a
+  // patch (`patch`): the output changes only those properties, never takes
+  // it for an older Studio's complete style (review 6, N3).
   var styleValues = Object.create(null);
   function orderStyle(msg) {
     var show = msg.type === V.MSG.SHOW_VERSE || msg.type === V.MSG.SHOW_TEXT;
@@ -136,18 +138,22 @@ window.VerseObs.Channel = function (opts) {
         !msg.settings || typeof msg.settings !== "object") return msg;
     var from = String(msg.sender || ""), id = String(msg.id || ""),
       n = from && id.indexOf(from + ":") === 0 ? Number(id.slice(from.length + 1)) : 0,
-      settings = Object.create(null);
+      settings = Object.create(null),
+      dropped = false;
     Object.keys(msg.settings).forEach(function (k) {
       var slot = "style " + k;
       if (older(msg, slot, from, n)) {
         if (show) settings[k] = styleValues[k];
+        else dropped = true;
       } else {
         settings[k] = styleValues[k] = msg.settings[k];
         record(msg, slot, from, n);
       }
     });
     if (!show && !Object.keys(settings).length) return null;
-    return Object.assign({}, msg, { settings: settings });
+    var out = Object.assign({}, msg, { settings: settings });
+    if (dropped) out.patch = true;
+    return out;
   }
   function receive(msg) {
     if (
