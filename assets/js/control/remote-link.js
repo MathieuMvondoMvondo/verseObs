@@ -2,7 +2,9 @@
 (function () {
   "use strict";
   var V = window.VerseObs;
-  var EXCERPT = 240;
+  // The phone shows up to seven lines of « Ensuite »: as much as the relay
+  // passes (280 characters), the ellipsis included.
+  var EXCERPT = 270;
 
   function excerpt(item) {
     if (!item) return null;

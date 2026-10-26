@@ -1065,10 +1065,17 @@ try {
     const line = () =>
       phone.evaluate(() => ({
         state: document.querySelector("#output").dataset.state,
-        // label · ref, the « · » being drawn by CSS before a non-empty ref
+        // label · ref: the « · » is drawn by CSS before a non-empty ref on
+        // the same line, or the ref has its own line under the label.
         text: [document.querySelector("#output-label").textContent, document.querySelector("#output-ref").textContent]
           .filter(Boolean)
-          .join(getComputedStyle(document.querySelector("#output-ref"), "::before").content === '"· "' ? " · " : " "),
+          .join(
+            getComputedStyle(document.querySelector("#output-ref"), "::before").content === '"· "' ||
+              document.querySelector("#output-ref").getBoundingClientRect().top >=
+                document.querySelector("#output-label").getBoundingClientRect().bottom - 1
+              ? " · "
+              : " ",
+          ),
         live: document.querySelector("#current-live").hidden ? "" : document.querySelector("#current-live").textContent,
         color: getComputedStyle(document.querySelector("#output-label")).color,
       }));
@@ -1148,6 +1155,50 @@ try {
       assert.ok(Math.abs(g.hide.width - (g.vw - 32)) <= 1 && g.hide.height >= 56, "Masquer " + g.hide.width + "×" + g.hide.height);
       for (const b of [g.prev, g.next]) assert.ok(b.width >= 170 && b.height >= 64, "Préc./Suiv. " + b.width + "×" + b.height);
       await phone.screenshot({ path: path.join(ROOT, "artifacts", "phone-thumb-390.png") });
+    });
+    await check("Phone 390×844: the reference sent or on air reads whole in the band, and the space above the thumb zone shows the next text (thumb zone unchanged)", async () => {
+      const read = () =>
+        phone.evaluate(() => {
+          const ref = document.querySelector("#output-ref");
+          const band = document.querySelector("#output").getBoundingClientRect();
+          const r = ref.getBoundingClientRect();
+          const next = document.querySelector(".slot-next").getBoundingClientRect();
+          const text = document.querySelector("#next-text");
+          const lh = parseFloat(getComputedStyle(text).lineHeight) || 22;
+          return {
+            state: document.querySelector("#output").dataset.state,
+            ref: ref.textContent,
+            whole: ref.scrollWidth <= ref.clientWidth + 1 && r.width > 0 && r.right <= band.right && r.bottom <= band.bottom + 0.5,
+            refSize: parseFloat(getComputedStyle(ref).fontSize),
+            band: Math.round(band.height),
+            gap: Math.round(document.querySelector("[data-command=prev]").getBoundingClientRect().top - next.bottom),
+            nextLines: text.getClientRects().length && getComputedStyle(text).display !== "none" ? Math.round(text.getBoundingClientRect().height / lh) : 0,
+            prevTop: Math.round(document.querySelector("[data-command=prev]").getBoundingClientRect().top),
+          };
+        });
+      // On air: the selection (plan 1/2) is confirmed; Ensuite is plan 2/2.
+      let g = await read();
+      console.log("    phone, on air: " + JSON.stringify(g));
+      assert.equal(g.state, "confirmed");
+      assert.ok(g.whole, "the reference on air reads whole: " + JSON.stringify(g));
+      assert.ok(g.refSize >= 15, "reference at 15 px or more");
+      assert.ok(g.band <= 56, "band of 56 px");
+      assert.ok(g.nextLines >= 3, "Ensuite shows its text: " + g.nextLines + " lines");
+      // Before: 291 px empty under a one-line « Ensuite ». At least half of
+      // it now shows the next text (all of it here: 4 verses, 6 lines).
+      assert.ok(g.gap <= 145, g.gap + " px left empty above the thumb zone");
+      assert.ok(g.prevTop >= 844 - 260, "thumb zone unchanged");
+      // Being sent: the output is gone, the command waits for it (amber).
+      await output.close();
+      await phone.click("[data-command=next]");
+      await phone.waitForFunction(() => document.querySelector("#current-ref").textContent === "Psaumes 119:5-8");
+      await phone.click("[data-command=show]");
+      await phone.waitForFunction(() => document.querySelector("#output").dataset.state === "pending" && document.querySelector("#output-ref").textContent === "Psaumes 119:5-8", null, { timeout: 10000 });
+      g = await read();
+      console.log("    phone, being sent: " + JSON.stringify(g));
+      assert.ok(g.whole, "the reference being sent reads whole: " + JSON.stringify(g));
+      assert.equal((await line()).text, "Commande de diffusion · Psaumes 119:5-8");
+      await phone.screenshot({ path: path.join(ROOT, "artifacts", "phone-pending-390.png") });
     });
     assert.deepEqual(errors, []);
     await phoneCtx.close();

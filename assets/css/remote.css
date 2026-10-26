@@ -802,3 +802,99 @@ body[data-output="pending"] .control-hide {
 .output[data-state="partial"] .output-tag {
   background-color: transparent;
 }
+
+/* ==========================================================================
+   N4b: the status band reads the reference whole — the state's words on a
+   small first line, the reference sent or on air on its own 18 px line —
+   and the space above the thumb zone shows what « Ensuite » will send.
+   ========================================================================== */
+.output {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-content: center;
+  column-gap: 12px;
+  row-gap: 0;
+}
+.output-tag {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+.output-label,
+.output[data-state="confirmed"] .output-label {
+  position: static;
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: start;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  overflow: hidden;
+  clip: auto;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+}
+.output-ref,
+.output[data-state="confirmed"] .output-ref {
+  grid-column: 2;
+  grid-row: 2;
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 24px;
+  font-variant-numeric: tabular-nums;
+  color: #f3eee4;
+}
+.output-ref:empty {
+  display: none;
+}
+.output-ref:not(:empty)::before {
+  content: none;
+}
+.output[data-state="confirmed"] .output-label {
+  color: #f3d6d3;
+}
+.output[data-state="partial"] .output-label {
+  padding: 0 6px;
+}
+/* The selection (what « Diffuser » sends) keeps three lines of its text;
+   « Ensuite »: its reference on the first line, then the start of its text,
+   to check it before « Suivant ». Smaller phones keep less of both. */
+.slot-current .slot-text {
+  -webkit-line-clamp: 3;
+}
+.slot-next {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  column-gap: 10px;
+}
+.slot-next .slot-text {
+  display: -webkit-box;
+  grid-column: 1 / -1;
+  margin-top: 6px;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 7;
+  font-size: 15px;
+  line-height: 22px;
+  color: var(--text-2);
+}
+.slot-next .slot-text:empty {
+  display: none;
+}
+@media (max-height: 760px) {
+  .slot-current .slot-text {
+    -webkit-line-clamp: 2;
+  }
+  .slot-next .slot-text {
+    -webkit-line-clamp: 3;
+  }
+}
+@media (max-height: 680px) {
+  .slot-next .slot-text {
+    display: none;
+  }
+}
