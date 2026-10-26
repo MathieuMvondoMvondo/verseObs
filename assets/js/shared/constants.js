@@ -34,6 +34,15 @@ window.VerseObs.ANIMATIONS = {
  * right corner (Math, 26/10, after the ICC broadcasts).
  */
 window.VerseObs.LAYOUTS = { ANTENNE: "antenne", CARTE: "carte", ONGLET: "onglet" };
+/**
+ * Layouts whose presets bring a look of their own (typeface, line height,
+ * width, colours the older bases never set). Leaving one for another base
+ * puts the defaults back for what only its presets set, whatever was
+ * retouched since (Settings.applyTemplate, review 8): a new layout of this
+ * kind lists itself here. Between the older layouts a base still writes its
+ * own keys only.
+ */
+window.VerseObs.OWN_LOOK_LAYOUTS = ["onglet"];
 window.VerseObs.ANTENNE_FONT = "'VerseObs Lecture', Lora, Georgia, serif";
 /** Inter (SIL OFL), bundled: a clean sans for the « Onglet » cards. */
 window.VerseObs.ONGLET_FONT = "'VerseObs Onglet', Inter, 'Segoe UI', Arial, sans-serif";

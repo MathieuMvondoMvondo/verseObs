@@ -498,6 +498,114 @@ delete _store[VerseObs.SETTINGS_KEY];
   });
   delete _store[profile[0]];
 });
+// Review 8 (B1): the same after a retouch in the panel, which names the look
+// « custom » (a typed signature is enough), with or without a reload. What the
+// operator set by hand stays theirs where the new base sets nothing: the
+// signature, a highlight colour, a size the base leaves alone.
+function panelOf(settings, keys) {
+  var els = {};
+  keys.forEach(function (key) {
+    var fns = [];
+    els[key] = {
+      type: key === "fontSize" ? "range" : /Color$/.test(key) ? "color" : "text",
+      tagName: "INPUT",
+      value: "",
+      parentElement: null,
+      getAttribute: function () {
+        return key;
+      },
+      addEventListener: function (t, fn) {
+        fns.push(fn);
+      },
+      set: function (v) {
+        this.value = String(v);
+        fns.forEach(function (fn) {
+          fn();
+        });
+      },
+    };
+  });
+  settings.bindUI({
+    querySelectorAll: function () {
+      return keys.map(function (k) {
+        return els[k];
+      });
+    },
+  });
+  return els;
+}
+[
+  [VerseObs.SETTINGS_KEY, {}, VerseObs.TEMPLATES, ["studio", "papier", "cinema", "minimal", "antenne"]],
+  [VerseObs.FREETEXT_SETTINGS_KEY, { storageKey: VerseObs.FREETEXT_SETTINGS_KEY, defaults: VerseObs.FREETEXT_DEFAULTS, templates: VerseObs.FREETEXT_STYLES }, VerseObs.FREETEXT_STYLES, ["chant", "annonce", "priere", "antenne"]],
+].forEach(function (profile) {
+  var retouches = [
+    ["a typed signature", { signature: "Culte du dimanche" }],
+    ["a signature, then colours and size", { signature: "Culte du dimanche", textColor: "#223344", highlightColor: "#ff3355", fontSize: 47 }],
+  ];
+  ["onglet", "onglet-sombre"].forEach(function (via) {
+    retouches.forEach(function (retouch) {
+      [false, true].forEach(function (reload) {
+        var wrong = [];
+        profile[3].forEach(function (base) {
+          delete _store[profile[0]];
+          var fresh = new VerseObs.Settings(profile[1]);
+          fresh.load();
+          fresh.applyTemplate(base);
+          var expected = fresh.getAll();
+          // A key the base does not set keeps the operator's own value.
+          Object.keys(retouch[1]).forEach(function (k) {
+            if (!Object.prototype.hasOwnProperty.call(profile[2][base].settings, k)) expected[k] = retouch[1][k];
+          });
+          delete _store[profile[0]];
+          var tried = new VerseObs.Settings(profile[1]);
+          tried.load();
+          tried.applyTemplate(via);
+          var panel = panelOf(tried, Object.keys(retouch[1]));
+          Object.keys(retouch[1]).forEach(function (k) {
+            panel[k].set(retouch[1][k]);
+          });
+          if (tried.getAll().template !== "custom") wrong.push(base + ": the retouch did not name the look custom");
+          if (reload) {
+            tried = new VerseObs.Settings(profile[1]);
+            tried.load();
+          }
+          tried.applyTemplate(base);
+          var got = tried.getAll();
+          Object.keys(expected).forEach(function (k) {
+            if (JSON.stringify(got[k]) !== JSON.stringify(expected[k]))
+              wrong.push(base + "." + k + " " + JSON.stringify(got[k]) + " (expected " + JSON.stringify(expected[k]) + ")");
+          });
+        });
+        delete _store[profile[0]];
+        eq(
+          (profile[0] === VerseObs.SETTINGS_KEY ? "Verses" : "Songs") + ": « " + via + " », " + retouch[0] + (reload ? ", reload" : "") +
+            ", then each other base looks like a fresh one (the operator's own keys kept)",
+          JSON.stringify(wrong),
+          "[]",
+        );
+      });
+    });
+  });
+  // Between the older bases nothing changes: a base writes its own keys only.
+  var older = Object.keys(profile[2]).filter(function (k) {
+      return VerseObs.OWN_LOOK_LAYOUTS.indexOf(profile[2][k].settings.layout) === -1;
+    }),
+    moved = [];
+  older.forEach(function (a) {
+    older.forEach(function (b) {
+      if (a === b) return;
+      delete _store[profile[0]];
+      var s = new VerseObs.Settings(profile[1]);
+      s.load();
+      s.applyTemplate(a);
+      var expected = JSON.stringify(Object.assign(s.getAll(), profile[2][b].settings, { template: b }));
+      s.applyTemplate(b);
+      if (JSON.stringify(s.getAll()) !== expected) moved.push(a + " → " + b);
+    });
+  });
+  delete _store[profile[0]];
+  eq("Between the older bases a base still writes its own keys only (" + older.length + " bases)", JSON.stringify(moved), "[]");
+});
 var ongletMigrated = {};
 VerseObs.migrateStyle({ layout: "onglet", template: "onglet" }, ongletMigrated, VerseObs.DEFAULTS, "studio");
 eq("the output's migration keeps the onglet layout too", ongletMigrated.layout, undefined);

@@ -295,18 +295,29 @@
     if (!tmpl) return;
 
     var s = tmpl.settings,
-      before = TEMPLATES[this._settings.template];
-    // Leaving « Onglet »: what it set and the new base does not set goes
-    // back to the defaults, so every other base looks exactly as before.
-    if (before && before.settings.layout === "onglet" && s.layout !== "onglet") {
+      leaving = this._settings.layout,
+      own = window.VerseObs.OWN_LOOK_LAYOUTS || [];
+    // Leaving a layout with a look of its own (« Onglet »): what its presets
+    // set and the new base does not set goes back to the default, so every
+    // other base looks as it does fresh. Read on the settings themselves,
+    // not on the preset's name: any retouch in the panel (a typed signature)
+    // names the look « custom » (review 8, B1). A value the operator set by
+    // hand, which is no preset's, stays theirs.
+    if (own.indexOf(leaving) !== -1 && s.layout !== leaving) {
       var defaults = this._getDefaults();
-      for (var was in before.settings)
-        if (
-          before.settings.hasOwnProperty(was) &&
-          !s.hasOwnProperty(was) &&
-          defaults[was] !== undefined
-        )
-          this._settings[was] = defaults[was];
+      for (var name in TEMPLATES) {
+        if (!TEMPLATES.hasOwnProperty(name)) continue;
+        var was = TEMPLATES[name].settings;
+        if (was.layout !== leaving) continue;
+        for (var k in was)
+          if (
+            was.hasOwnProperty(k) &&
+            !s.hasOwnProperty(k) &&
+            defaults[k] !== undefined &&
+            this._settings[k] === was[k]
+          )
+            this._settings[k] = defaults[k];
+      }
     }
     for (var key in s) {
       if (s.hasOwnProperty(key)) {
