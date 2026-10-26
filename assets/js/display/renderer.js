@@ -333,9 +333,16 @@
         ),
       );
       var secondText = node("div", "verse-text verse-secondary-text");
+      var secondLead = tab && !secondary.html && secondary.reference
+        ? /:(\d+)/.exec(secondary.reference)
+        : null;
       if (secondary.html) {
         secondText.innerHTML = V.sanitizeHtml(secondary.html);
         if (tab) bindNums(secondText);
+      } else if (secondLead) {
+        // « Onglet »: both translations start with their verse number.
+        secondText.appendChild(node("sup", "verse-num vo-lead-num", secondLead[1]));
+        secondText.appendChild(document.createTextNode(secondary.text || ""));
       } else secondText.textContent = secondary.text;
       second.appendChild(secondText);
       copy.appendChild(second);

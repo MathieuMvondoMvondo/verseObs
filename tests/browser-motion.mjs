@@ -467,6 +467,7 @@ try {
       primaryText: box(card.querySelector(".vo-copy > .verse-text")),
       copyText: card.querySelector(".vo-copy").innerText.replace(/\s+/g, " ").trim(),
       sups: Array.from(card.querySelectorAll(".vo-copy sup.verse-num")).filter((s) => getComputedStyle(s).display !== "none").length,
+      align: getComputedStyle(card.querySelector(".vo-copy .verse-text")).textAlign,
       plan: card.querySelector(".vo-plan") ? card.querySelector(".vo-plan").textContent : "",
       planSize: card.querySelector(".vo-plan") ? parseFloat(getComputedStyle(card.querySelector(".vo-plan")).fontSize) : 0,
       partial: card.dataset.partial || "",
@@ -533,10 +534,12 @@ try {
       assert.equal(g.tabText, "Romains 8:28", "one reference for both translations");
       assert.ok(g.second && g.second.left >= g.primaryText.right, "the two translations side by side");
       assert.match(g.copyText, /LSG.*KJV/, "each column named by its version");
+      assert.equal(g.sups, 2, "each translation starts with its verse number");
       g = await shown(SONG, "onglet");
       ongletOk(g, "chant");
       assert.equal(g.tabText, "Chant d'entrée", "the song title in the tab");
       assert.ok(!/Chant d'entrée/.test(g.copyText), "lyrics only in the card");
+      assert.equal(g.align, "center", "lyrics centred in the card");
       g = await shown(FREE, "onglet");
       ongletOk(g, "texte libre", { tab: false });
       g = await shown(A, "onglet-sombre");

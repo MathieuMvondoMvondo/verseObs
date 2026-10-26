@@ -434,7 +434,9 @@ window.VerseObs.FREETEXT_STYLES = {
     settings: {
       layout: "onglet",
       position: "lower-third",
-      textAlign: "left",
+      // Lyrics and free texts are centred in the card: short lines, no
+      // empty half on the right.
+      textAlign: "center",
       fontFamily: window.VerseObs.ONGLET_FONT,
       fontSize: 40,
       lineHeight: 1.3,
@@ -457,7 +459,7 @@ window.VerseObs.FREETEXT_STYLES = {
     settings: {
       layout: "onglet",
       position: "lower-third",
-      textAlign: "left",
+      textAlign: "center",
       fontFamily: window.VerseObs.ONGLET_FONT,
       fontSize: 40,
       lineHeight: 1.3,
