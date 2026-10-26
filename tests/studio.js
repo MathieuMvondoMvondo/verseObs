@@ -208,7 +208,7 @@ async function run() {
   tap.on("message", (data) => {
     try {
       const m = JSON.parse(String(data));
-      if (m.type === "update_style") wire.push(m);
+      if (m.type === "update_style" || m.type === "style_patch") wire.push(m);
     } catch (e) {}
   });
   // The tap is closed whatever happens: an open socket keeps the run alive.
@@ -224,7 +224,8 @@ async function run() {
       assert.equal(wire.length, 1);
       assert.deepEqual(Object.keys(wire[0].settings).filter((k) => k !== "template"), ["fontSize"]);
       assert.equal(wire[0].settings.fontSize, 52);
-      assert.equal(wire[0].patch, true);
+      // Review 8 (B3): a type older outputs ignore, whatever their state.
+      assert.equal(wire[0].type, "style_patch");
       assert(output.d.querySelector("#verse-container").classList.contains("layout-antenne"));
     });
     input(cp, "#settings-container [data-setting=fontSize]", fontBefore);

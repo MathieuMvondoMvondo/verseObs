@@ -36,24 +36,51 @@
   // Commands recently sent by this Studio (id, time): a late acknowledgement of
   // an older one must not confirm the latest command.
   var _commands = [];
-  // Last report of an output without « caps » (review 7, N7): an OBS source
-  // or projector still running an older VerseObs. It would take a style
-  // patch for an older Studio's whole style and cannot draw « Onglet ».
-  var _legacySeen = -Infinity,
+  // Outputs heard by this Studio, by page (sender): whether it understands
+  // live changes and « Onglet » (its « caps », review 7 N7), its role, when
+  // it was first and last heard. An older one (an OBS source or projector
+  // still running an older VerseObs) cannot draw « Onglet » and keeps its
+  // look until the next Diffuser. What a page understands never changes;
+  // its silence proves nothing (a frozen page answers late, review 8 B3).
+  var _outputs = Object.create(null),
     _legacyToast = -Infinity,
-    LEGACY_TTL = 7000;
+    LEGACY_QUIET = 7000;
+  /**
+   * An older output is known until it is replaced: silent for LEGACY_QUIET
+   * (two pings missed) and, since its last report, an up-to-date output of
+   * the same role was heard for the first time (the source refreshed in
+   * OBS, the projector reloaded). Silence alone never lifts the warning; a
+   * new report from it brings it back at once. A Studio knows only the
+   * outputs it has heard: reloaded, it learns again at their next answer.
+   */
   function _legacyOutput() {
-    return performance.now() - _legacySeen < LEGACY_TTL;
+    var now = performance.now(),
+      legacy = false;
+    Object.keys(_outputs).forEach(function (id) {
+      var o = _outputs[id];
+      if (o.current) return;
+      var replaced =
+        now - o.last >= LEGACY_QUIET &&
+        Object.keys(_outputs).some(function (k) {
+          var n = _outputs[k];
+          return n.current && n.role === o.role && n.first > o.last;
+        });
+      if (replaced) delete _outputs[id];
+      else legacy = true;
+    });
+    return legacy;
   }
-  /** A live style change while an older output is connected: not sent. */
+  /**
+   * A live style change goes as STYLE_PATCH, which an older output ignores:
+   * safe whatever this Studio knows of the outputs and whenever they answer.
+   * An older output known: it takes the change at the next Diffuser.
+   */
   function _styleChanged(changes) {
-    if (!_legacyOutput()) {
-      _sendMessage(MSG.UPDATE_STYLE, { settings: changes, patch: true });
-      return;
-    }
-    if (performance.now() - _legacyToast > 10000) {
+    // `patch`: the Studio adds no background to it (_sendMessage).
+    _sendMessage(MSG.STYLE_PATCH, { settings: changes, patch: true });
+    if (_legacyOutput() && performance.now() - _legacyToast > 10000) {
       _legacyToast = performance.now();
-      _notify("Source OBS à actualiser : ce réglage passera au prochain Diffuser.", "info");
+      _notify("Source OBS à actualiser : ce réglage n’y passera qu’au prochain Diffuser.", "info");
     }
   }
   // Last report of the preview monitor (fit, plans of a too long passage).
@@ -1475,9 +1502,16 @@
     }
     if (msg.type === MSG.OUTPUT_STATE) {
       // Any output, program or projector, without « caps » is an older one.
-      var caps = Array.isArray(msg.caps) ? msg.caps : [];
-      if (caps.indexOf("style-patch") === -1 || caps.indexOf("onglet") === -1)
-        _legacySeen = performance.now();
+      var caps = Array.isArray(msg.caps) ? msg.caps : [],
+        page = String(msg.sender || "?"),
+        known = _outputs[page];
+      if (!known)
+        known = _outputs[page] = {
+          first: performance.now(),
+          role: msg.role === "projector" ? "projector" : "program",
+        };
+      known.last = performance.now();
+      known.current = caps.indexOf(MSG.STYLE_PATCH) !== -1 && caps.indexOf("onglet") !== -1;
       _output.legacy = _legacyOutput();
       // Outputs from before roles are program outputs.
       if (msg.role !== "projector") _programSeen = performance.now();

@@ -130,11 +130,12 @@ window.VerseObs.Channel = function (opts) {
   // Diffuser arrives after a newer style, keep the newer values while still
   // delivering its text. What is left of an older style is marked as a
   // patch (`patch`): the output changes only those properties, never takes
-  // it for an older Studio's complete style (review 6, N3).
+  // it for an older Studio's complete style (review 6, N3). A live change
+  // (STYLE_PATCH, review 8) is ordered in the same slots.
   var styleValues = Object.create(null);
   function orderStyle(msg) {
     var show = msg.type === V.MSG.SHOW_VERSE || msg.type === V.MSG.SHOW_TEXT;
-    if ((!show && msg.type !== V.MSG.UPDATE_STYLE) ||
+    if ((!show && msg.type !== V.MSG.UPDATE_STYLE && msg.type !== V.MSG.STYLE_PATCH) ||
         !msg.settings || typeof msg.settings !== "object") return msg;
     var from = String(msg.sender || ""), id = String(msg.id || ""),
       n = from && id.indexOf(from + ":") === 0 ? Number(id.slice(from.length + 1)) : 0,

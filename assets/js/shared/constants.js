@@ -6,6 +6,11 @@ window.VerseObs.MSG = {
   SHOW_TEXT: "show_text",
   HIDE: "hide",
   UPDATE_STYLE: "update_style",
+  // A live style change: only the properties changed (review 8, B3). A type
+  // of its own, so an output from before it (which would take a patch for
+  // an older Studio's whole style) ignores it, however late it wakes up,
+  // and takes the change with the next Diffuser's whole style.
+  STYLE_PATCH: "style_patch",
   PING: "ping",
   PONG: "pong",
   // Preview-only: rendered by the in-dock preview iframe, ignored by the real overlay.

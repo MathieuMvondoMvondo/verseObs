@@ -1,8 +1,9 @@
 "use strict";
 // Styles as the product sends them (review 6, N2): a style change is a
 // patch of the properties one Studio tab changed (control/settings.js tells
-// what changed, control/app.js sends it marked `patch`); a Diffuser carries
-// the tab's whole style. Every message goes through the real channel.
+// what changed, control/app.js sends it as a « style_patch », a type older
+// outputs ignore, review 8 B3); a Diffuser carries the tab's whole style.
+// Every message goes through the real channel.
 const assert = require("node:assert/strict");
 const fs = require("node:fs"),
   path = require("node:path"),
@@ -42,7 +43,7 @@ function styleTab(store) {
   const settings = new ctx.VerseObs.Settings();
   settings.load();
   let sent = null;
-  settings.onChange = (all, changes) => (sent = { type: "update_style", settings: changes, patch: true });
+  settings.onChange = (all, changes) => (sent = { type: "style_patch", settings: changes });
   return {
     all: () => JSON.parse(JSON.stringify(settings.getAll())),
     change(key, value) {
@@ -70,7 +71,7 @@ module.exports = function testStyle(check) {
     receiver.hear(b), receiver.hear(a);
     check("Style: 72 then 30 px, delivered LIFO, ends at 30 px", () => assert.equal(receiver.settings.fontSize, 30));
     check("Style: a change sends only the property changed, as a patch", () =>
-      assert.deepEqual([a.settings, a.patch, b.settings, b.patch], [{ fontSize: 72 }, true, { fontSize: 30 }, true]),
+      assert.deepEqual([a.type, a.settings, b.type, b.settings], ["style_patch", { fontSize: 72 }, "style_patch", { fontSize: 30 }]),
     );
   }
   {

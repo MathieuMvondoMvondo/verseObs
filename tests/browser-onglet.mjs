@@ -237,9 +237,16 @@ export async function ongletStudio({ check, open, prepare, BASE }) {
  */
 export async function legacyOutput({ check, open, prepare, BASE }) {
   const { ctx, studio, output, errors } = await open(1920, 1080);
+  // As 8834e21 and earlier: no « caps », a style patch taken for an older
+  // Studio's whole style (no `patch` flag: Antenne → Carte), and no
+  // « style_patch » (an unknown type is ignored). Review 8 (B3).
   const strip = async (route) => {
     const r = await route.fetch();
-    const body = (await r.text()).replace(/\n\s*caps: \[[^\]]*\],/, "");
+    const body = (await r.text())
+      .replace(/\n\s*caps: \[[^\]]*\],/, "")
+      .replace(/msg\.type === MSG\.STYLE_PATCH \|\| msg\.patch === true/, "false")
+      .replace(/msg\.patch === true/, "false")
+      .replace(/msg\.type === MSG\.UPDATE_STYLE \|\| msg\.type === MSG\.STYLE_PATCH/, "msg.type === MSG.UPDATE_STYLE");
     await route.fulfill({ response: r, body });
   };
   await output.route("**/assets/js/display/app.js*", strip);
@@ -248,13 +255,14 @@ export async function legacyOutput({ check, open, prepare, BASE }) {
     output.evaluate((name) => {
       window.__styles = [];
       new BroadcastChannel(name).onmessage = (e) => {
-        const text = JSON.stringify(e.data);
-        if (/update_style/i.test(text)) window.__styles.push(/"patch":true/.test(text) ? "patch" : "whole");
+        const t = e.data && e.data.type;
+        if (t === "style_patch") window.__styles.push(t);
+        else if (t === "update_style") window.__styles.push(e.data.patch ? "patch" : "whole");
       };
     }, await output.evaluate(() => window.VerseObs.CHANNEL_NAME || "verseobs"));
   await spy();
   // The emulated older output really runs without « caps ».
-  assert.equal(await output.evaluate(() => fetch("assets/js/display/app.js").then((r) => r.text()).then((t) => /caps:/.test(t))), false);
+  assert.equal(await output.evaluate(() => fetch("assets/js/display/app.js").then((r) => r.text()).then((t) => /caps:|MSG\.STYLE_PATCH|patch === true/.test(t))), false);
   const head = () =>
     studio.evaluate(() => ({
       state: document.querySelector("#onair-bar").dataset.state,
@@ -267,7 +275,14 @@ export async function legacyOutput({ check, open, prepare, BASE }) {
       el.value = String(v);
       el.dispatchEvent(new Event("input", { bubbles: true }));
     }, v);
-  await check("An OBS source left on an older version: the régie asks to refresh it, sends it no style patch and never confirms its look", async () => {
+  const outOf = (p) =>
+    p.evaluate(() => ({
+      cls: document.querySelector("#verse-container").className,
+      font: getComputedStyle(document.documentElement).getPropertyValue("--font-size").trim(),
+    }));
+  // Nothing an older output would misread: « style_patch » is ignored there.
+  const misread = (sent) => sent.filter((s) => s !== "style_patch");
+  await check("An OBS source left on an older version: the régie asks to refresh it, sends it nothing it would misread and never confirms its look", async () => {
     await prepare(studio, "Jean 3:16");
     await studio.click("#btn-show");
     await output.waitForFunction(() => document.querySelector(".verse-card:not(.vo-probe)"), null, { timeout: 10000 });
@@ -283,7 +298,58 @@ export async function legacyOutput({ check, open, prepare, BASE }) {
     console.log("    older output: " + JSON.stringify({ head: h, styles: sent }));
     assert.match(h.note, /actualisez/i, "the régie asks to refresh the source");
     assert.notEqual(h.label, "Sortie confirmée", "no confirmation of a look the older output cannot draw");
-    assert.deepEqual(sent, [], "no style patch for an output that would take it for an older Studio's whole style");
+    assert.deepEqual(misread(sent), [], "no update_style for an output that would take a patch for an older Studio's whole style");
+    assert.match((await outOf(output)).cls, /layout-antenne/);
+  });
+  // Review 8 (B3): silence proves nothing. A second, up-to-date output answers
+  // while the older one is frozen (main thread busy), as in the review.
+  const fresh = await ctx.newPage();
+  fresh.on("pageerror", (e) => errors.push("fresh: " + e.message));
+  await fresh.goto(`${BASE}/browser_source.html`);
+  const freeze = (ms) => output.evaluate((ms) => { const end = performance.now() + ms; while (performance.now() < end); }, ms).catch(() => {});
+  const freshAt = (px) => fresh.waitForFunction((px) => getComputedStyle(document.documentElement).getPropertyValue("--font-size").trim() === px, px, { timeout: 5000 });
+  await check("The older output frozen 10 s, a size change at 8 s: never « Sortie confirmée », nothing it would misread, the up-to-date output takes it live", async () => {
+    await studio.click("#btn-show");
+    await fresh.waitForFunction(() => document.querySelector(".verse-card:not(.vo-probe)"), null, { timeout: 10000 });
+    await studio.waitForTimeout(3500);
+    const before = await outOf(output);
+    const frozen = freeze(10000);
+    await studio.waitForTimeout(8000);
+    const at8 = await head();
+    await fontSize(52);
+    await freshAt("52px");
+    await frozen;
+    await output.waitForTimeout(2000);
+    const after = await outOf(output),
+      sent = await output.evaluate(() => window.__styles.slice());
+    console.log("    frozen 10 s: " + JSON.stringify({ at8, before, after, sent, end: await head() }));
+    assert.notEqual(at8.label, "Sortie confirmée", "silence is no proof the older output was refreshed");
+    assert.match(at8.note, /actualisez/i);
+    assert.match(after.cls, /layout-antenne/, "the older output keeps its look");
+    assert.equal(after.font, before.font, "it takes the size at the next Diffuser");
+    assert.deepEqual(misread(sent), [], "nothing it would misread");
+  });
+  await check("A Studio reloaded while the older output is frozen: its first patch, before that output answers, is nothing it would misread; the warning comes back when it answers", async () => {
+    const frozen = freeze(10000);
+    await studio.waitForTimeout(300);
+    await studio.reload();
+    await studio.waitForSelector(".chapter-verse");
+    await prepare(studio, "Jean 3:16");
+    await studio.click("#btn-show");
+    await fontSize(48);
+    const early = await head();
+    await freshAt("48px");
+    await frozen;
+    await studio.waitForFunction(() => !document.querySelector("#program-note").hidden && /actualise/i.test(document.querySelector("#program-note").textContent), null, { timeout: 8000 });
+    await output.waitForTimeout(1500);
+    const after = await outOf(output),
+      late = await head(),
+      sent = await output.evaluate(() => window.__styles.slice());
+    console.log("    reloaded Studio: " + JSON.stringify({ early, after, late, sent }));
+    assert.match(after.cls, /layout-antenne/, "the older output keeps its look");
+    assert.equal(after.font, "52px", "the Diffuser's whole style, not the patch");
+    assert.deepEqual(misread(sent), [], "nothing it would misread");
+    assert.notEqual(late.label, "Sortie confirmée");
   });
   await check("Once the source is refreshed: the note goes, « Sortie confirmée » and live style patches come back", async () => {
     await output.unroute("**/assets/js/display/app.js*", strip);
@@ -296,7 +362,7 @@ export async function legacyOutput({ check, open, prepare, BASE }) {
     await output.waitForFunction(() => window.__styles.length > 0, null, { timeout: 5000 });
     const sent = await output.evaluate(() => window.__styles.slice());
     console.log("    refreshed output: " + JSON.stringify({ head: await head(), styles: sent }));
-    assert.deepEqual([...new Set(sent)], ["patch"], "the size change goes as a patch");
+    assert.deepEqual([...new Set(sent)], ["style_patch"], "the size change goes as a patch");
   });
   assert.deepEqual(errors, []);
   await ctx.close();
