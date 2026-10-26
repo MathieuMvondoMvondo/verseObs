@@ -3440,7 +3440,6 @@ body {
 }
 .remote-count.is-connected::before {
   background: #a9c4ff;
-  box-shadow: 0 0 8px #9bb8ff50;
 }
 .remote-card .remote-here,
 .remote-card .remote-elsewhere {

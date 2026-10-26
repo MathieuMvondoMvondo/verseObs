@@ -1098,6 +1098,26 @@ group("no side band (Math, 26/10)");
   var washes = css.match(/linear-gradient\(\s*90deg[^;]*/g) || [];
   eq(file + ": no horizontal colour wash", washes.join(" | "), "");
 });
+// Two decorative halos flagged in the final visual check (26/10): the
+// connected-phone dot of the régie and the phone's output dot keep their
+// colour, without a glow or ring around them.
+var studioNoComments = fs.readFileSync(path.join(ROOT, "assets/css/studio.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+var remoteNoComments = fs.readFileSync(path.join(ROOT, "assets/css/remote.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+function rulesFor(css, selectorTest) {
+  return (css.match(/[^{}]+\{[^}]*\}/g) || []).filter(function (rule) {
+    return selectorTest.test(rule.slice(0, rule.indexOf("{")));
+  });
+}
+eq(
+  "régie: the connected-phone dot has no halo",
+  rulesFor(studioNoComments, /\.remote-count\.is-connected::before/).filter(function (r) { return /box-shadow:(?!\s*none\b)/.test(r); }).join(" | "),
+  "",
+);
+eq(
+  "phone: the output dot has no halo",
+  rulesFor(remoteNoComments, /\.output-dot/).filter(function (r) { return /box-shadow:(?!\s*none\b)/.test(r); }).join(" | "),
+  "",
+);
 var outputCss = fs
   .readFileSync(path.join(ROOT, "assets/css/display.css"), "utf8")
   .replace(/\/\*[\s\S]*?\*\//g, "");

@@ -25,7 +25,7 @@ function check(name, fn) {
   passed++;
   console.log("  ✓ " + name);
 }
-async function page(route, base = origin) {
+async function page(route, base = origin, opts = {}) {
   const vc = new VirtualConsole();
   const errors = [];
   vc.on("jsdomError", (e) => {
@@ -53,6 +53,8 @@ async function page(route, base = origin) {
         },
         configurable: true,
       });
+      if (opts.platform)
+        Object.defineProperty(w.navigator, "platform", { value: opts.platform, configurable: true });
       w.URL.createObjectURL = () => "blob:test";
       w.URL.revokeObjectURL = () => {};
     },
@@ -78,6 +80,25 @@ async function run() {
     () => cp.d.querySelectorAll(".chapter-verse").length === 36,
     "initial chapter",
   );
+  // Shortcut labels (finalisation 26/10): « Ctrl » on Windows and Linux,
+  // « ⌘ » on a Mac; the commands themselves accept both keys everywhere.
+  const mods = {};
+  for (const platform of ["Win32", "Linux x86_64", "MacIntel"]) {
+    const p = await page("control_panel.html", origin, { platform });
+    await until(() => p.d.querySelectorAll(".chapter-verse").length === 36, "chapter " + platform);
+    mods[platform] = Array.from(p.d.querySelectorAll("kbd")).map((k) => k.textContent.trim());
+    p.w.close();
+  }
+  check("Shortcut labels: Ctrl on Windows and Linux, ⌘ on a Mac", () => {
+    for (const platform of ["Win32", "Linux x86_64"]) {
+      const lone = mods[platform].filter((t) => /⌘/.test(t) && !/Ctrl/.test(t));
+      assert.deepEqual(lone, [], platform + ": no ⌘-only label");
+      for (const key of ["K", "F", "↵"]) assert.ok(mods[platform].includes("Ctrl " + key), platform + ": « Ctrl " + key + " »");
+    }
+    const mac = mods.MacIntel;
+    for (const key of ["K", "F", "↵"]) assert.ok(mac.includes("⌘ " + key), "Mac: « ⌘ " + key + " »");
+    assert.equal(mac.filter((t) => /^Ctrl [KF↵]$/.test(t)).length, 0, "Mac: no « Ctrl » single labels");
+  });
   await wait(300);
   check("Studio loads the twelve local translations", () =>
     assert.equal(cp.d.querySelectorAll("#version-select option").length, 12),

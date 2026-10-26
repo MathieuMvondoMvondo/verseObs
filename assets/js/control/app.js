@@ -79,8 +79,22 @@
   // ---- DOM references ----
   var dom = {};
 
+  /**
+   * Shortcut labels: « ⌘ » on a Mac, « Ctrl » on Windows and Linux. The
+   * commands accept both keys everywhere (keydown checks ctrlKey or metaKey).
+   */
+  function _shortcutLabels() {
+    var nav = window.navigator || {};
+    var platform = (nav.userAgentData && nav.userAgentData.platform) || nav.platform || "";
+    var mac = /Mac|iPhone|iPad|iPod/i.test(platform);
+    var keys = document.querySelectorAll("kbd[data-mod]");
+    for (var i = 0; i < keys.length; i++)
+      keys[i].textContent = (mac ? "⌘ " : "Ctrl ") + keys[i].getAttribute("data-mod");
+  }
+
   function init() {
     _cacheDom();
+    _shortcutLabels();
     window.VerseObs.Studio.prepareSettings();
     _initModules();
     _initTabs();

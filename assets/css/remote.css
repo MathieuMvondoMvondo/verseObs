@@ -205,7 +205,6 @@ body[data-link="nocode"] .link-pill::before {
 }
 .output[data-state="confirmed"] .output-dot {
   background: var(--accent);
-  box-shadow: 0 0 0 4px #9bb8ff22;
 }
 .output[data-state="confirmed"] .output-label {
   color: #d6e2ff;
@@ -466,7 +465,6 @@ body[data-link="reconnecting"] .output {
 }
 .output[data-state="confirmed"] .output-dot {
   background: var(--pgm-strong);
-  box-shadow: 0 0 0 4px rgba(255, 90, 82, 0.18);
 }
 .output[data-state="confirmed"] .output-label {
   color: #fff;
