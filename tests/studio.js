@@ -1247,6 +1247,42 @@ async function runRemoteChecks(cp, output, logged) {
   });
   click(cp, "#btn-hide");
   await until(() => !output.d.querySelector(".verse-card"), "untitled hidden");
+  // « Onglet » (Math, 26/10): chosen in the existing style picker, it goes
+  // to the output and to the preview monitor (its 1920×1080 frame).
+  click(cp, "#tab-btn-0");
+  const pick = cp.d.querySelector("#style-select");
+  check("The style picker, the express bases and the song styles offer « Onglet clair » and « Onglet sombre »", () => {
+    assert.deepEqual(["onglet", "onglet-sombre"].map((v) => !!pick.querySelector(`option[value="${v}"]`)), [true, true]);
+    assert.equal(cp.d.querySelectorAll('[data-preset="onglet"], [data-preset="onglet-sombre"]').length >= 2, true);
+    assert.equal(cp.d.querySelectorAll('#freetext-presets [data-ft-preset^="onglet"]').length, 2);
+    assert.ok(cp.d.querySelector('#settings-container [data-setting="signature"]'), "the optional signature is a setting");
+    assert.ok(cp.d.querySelector('#settings-container [data-setting="layout"] option[value="onglet"]'), "« Onglet » layout offered");
+  });
+  pick.value = "onglet";
+  pick.dispatchEvent(new cp.w.Event("change", { bubbles: true }));
+  click(cp, "#btn-show");
+  await until(
+    () =>
+      output.d.querySelector("#verse-container").classList.contains("layout-onglet") &&
+      output.d.querySelector(".verse-card .vo-margin .vo-refblock"),
+    "onglet on air",
+  );
+  const monitor = cp.d.querySelector("#preview-frame");
+  await until(
+    () => monitor.contentDocument && monitor.contentDocument.querySelector("#verse-container.layout-onglet .verse-card .vo-margin .vo-refblock"),
+    "onglet in the preview monitor",
+  );
+  check("« Onglet clair » chosen in the Studio: the output and the preview monitor show the card and its tab", () => {
+    assert.equal(cp.d.querySelector('.quick-styles [data-preset="onglet"]').getAttribute("aria-pressed"), "true");
+    const tab = output.d.querySelector(".vo-margin").textContent.replace(/\s+/g, " ").trim();
+    // (jsdom's textContent joins the tab's lines without a space)
+    assert.match(tab, /^\S.* \d+:\d+(-\d+)? ?\([A-Z]{3}\)$/, "reference and short version in the tab: " + tab);
+    assert.equal(monitor.contentDocument.querySelector(".vo-margin").textContent.replace(/\s+/g, " ").trim(), tab);
+  });
+  pick.value = "antenne";
+  pick.dispatchEvent(new cp.w.Event("change", { bubbles: true }));
+  click(cp, "#btn-hide");
+  await until(() => !output.d.querySelector(".verse-card"), "onglet hidden");
   check("No script errors in the plan and remote workflows", () =>
     assert.equal(cp.errors.length + output.errors.length + phone.errors.length, 0),
   );

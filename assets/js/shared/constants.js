@@ -28,9 +28,44 @@ window.VerseObs.ANIMATIONS = {
   NONE: "none",
 };
 
-/** "antenne": full-bleed band with the reference in a margin; "carte": framed card. */
-window.VerseObs.LAYOUTS = { ANTENNE: "antenne", CARTE: "carte" };
+/**
+ * "antenne": full-bleed band with the reference in a margin; "carte": framed
+ * card; "onglet": a light or dark card, the reference in a tab on its top
+ * right corner (Math, 26/10, after the ICC broadcasts).
+ */
+window.VerseObs.LAYOUTS = { ANTENNE: "antenne", CARTE: "carte", ONGLET: "onglet" };
 window.VerseObs.ANTENNE_FONT = "'VerseObs Lecture', Lora, Georgia, serif";
+/** Inter (SIL OFL), bundled: a clean sans for the « Onglet » cards. */
+window.VerseObs.ONGLET_FONT = "'VerseObs Onglet', Inter, 'Segoe UI', Arial, sans-serif";
+
+/**
+ * Short names of the bundled translations, for the « Onglet » tab
+ * (« Jean 3:16 (LSG) »). An unknown name is shown as it is.
+ */
+window.VerseObs.VERSION_ABBR = {
+  "Louis Segond 1910": "LSG",
+  "Nouvelle Bible Segond": "NBS",
+  "Bible du Semeur": "SEM",
+  "Martin 1744": "MAR",
+  "Darby Français": "DRB",
+  "Crampon 1923": "CRA",
+  "Perret-Gentil et Rilliet": "PGR",
+  "Oltramare 1874": "OLT",
+  "Genève 1669": "GEN",
+  "King James Version": "KJV",
+  "Darby English": "DBY",
+  "Amplified Bible": "AMP",
+};
+window.VerseObs.versionAbbr = function (name) {
+  var value = String(name || "").trim();
+  return window.VerseObs.VERSION_ABBR[value] || value;
+};
+/** The optional signature of an « Onglet » card: one short line of text. */
+window.VerseObs.cleanSignature = function (value) {
+  return typeof value === "string"
+    ? value.replace(/[\u0000-\u001f\u007f]/g, "").replace(/\s+/g, " ").trim().slice(0, 60)
+    : "";
+};
 
 /**
  * How and where a text is broadcast belongs to the operator: a new default
@@ -61,7 +96,7 @@ window.VerseObs.OPERATOR_KEYS = [
  */
 window.VerseObs.migrateStyle = function (saved, result, defaults, formerDefault) {
   if (!saved || typeof saved !== "object") return result;
-  if (saved.layout !== "antenne" && saved.layout !== "carte") {
+  if (saved.layout !== "antenne" && saved.layout !== "carte" && saved.layout !== "onglet") {
     if (defaults && formerDefault && saved.template === formerDefault) {
       var keep = window.VerseObs.OPERATOR_KEYS;
       for (var key in defaults)
@@ -103,6 +138,8 @@ window.VerseObs.DEFAULTS = {
   borderColor: "#8b8f9b",
   highlightColor: "#f2b544",
   bgImage: "",
+  // « Onglet » only: a short line at the card's bottom right (empty: none).
+  signature: "",
   template: "antenne",
 };
 
@@ -128,6 +165,56 @@ window.VerseObs.TEMPLATES = {
       refPosition: "top-left",
       textAlign: "left",
       maxWidth: 86,
+      shadow: true,
+      bgImage: "",
+    },
+  },
+  onglet: {
+    label: "Onglet clair",
+    settings: {
+      layout: "onglet",
+      fontFamily: window.VerseObs.ONGLET_FONT,
+      textColor: "#17171c",
+      bgColor: "#ffffff",
+      bgOpacity: 1,
+      refBgColor: "#5e3ba3",
+      refColor: "#ffffff",
+      highlightColor: "#ffe08a",
+      borderColor: "#d9d6e3",
+      borderWidth: 0,
+      borderRadius: 30,
+      padding: 30,
+      fontSize: 40,
+      lineHeight: 1.3,
+      refFontSize: 30,
+      refPosition: "top-right",
+      textAlign: "left",
+      maxWidth: 84,
+      shadow: true,
+      bgImage: "",
+    },
+  },
+  "onglet-sombre": {
+    label: "Onglet sombre",
+    settings: {
+      layout: "onglet",
+      fontFamily: window.VerseObs.ONGLET_FONT,
+      textColor: "#f4f3f8",
+      bgColor: "#121318",
+      bgOpacity: 0.9,
+      refBgColor: "#6b47c2",
+      refColor: "#ffffff",
+      highlightColor: "#6b47c2",
+      borderColor: "#3a3b44",
+      borderWidth: 0,
+      borderRadius: 30,
+      padding: 30,
+      fontSize: 40,
+      lineHeight: 1.3,
+      refFontSize: 30,
+      refPosition: "top-right",
+      textAlign: "left",
+      maxWidth: 84,
       shadow: true,
       bgImage: "",
     },
@@ -311,6 +398,7 @@ window.VerseObs.FREETEXT_DEFAULTS = {
   refFontSize: 24,
   highlightColor: "#ffd54a",
   bgImage: "",
+  signature: "",
   template: "chant",
 };
 
@@ -338,6 +426,52 @@ window.VerseObs.FREETEXT_STYLES = {
       borderWidth: 0,
       padding: 30,
       maxWidth: 80,
+      shadow: true,
+    },
+  },
+  onglet: {
+    label: "Onglet clair",
+    settings: {
+      layout: "onglet",
+      position: "lower-third",
+      textAlign: "left",
+      fontFamily: window.VerseObs.ONGLET_FONT,
+      fontSize: 40,
+      lineHeight: 1.3,
+      textColor: "#17171c",
+      bgColor: "#ffffff",
+      bgOpacity: 1,
+      refColor: "#ffffff",
+      refBgColor: "#5e3ba3",
+      refFontSize: 30,
+      highlightColor: "#ffe08a",
+      borderRadius: 30,
+      borderWidth: 0,
+      padding: 30,
+      maxWidth: 84,
+      shadow: true,
+    },
+  },
+  "onglet-sombre": {
+    label: "Onglet sombre",
+    settings: {
+      layout: "onglet",
+      position: "lower-third",
+      textAlign: "left",
+      fontFamily: window.VerseObs.ONGLET_FONT,
+      fontSize: 40,
+      lineHeight: 1.3,
+      textColor: "#f4f3f8",
+      bgColor: "#121318",
+      bgOpacity: 0.9,
+      refColor: "#ffffff",
+      refBgColor: "#6b47c2",
+      refFontSize: 30,
+      highlightColor: "#6b47c2",
+      borderRadius: 30,
+      borderWidth: 0,
+      padding: 30,
+      maxWidth: 84,
       shadow: true,
     },
   },

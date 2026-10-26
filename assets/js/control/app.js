@@ -353,6 +353,8 @@
             secondary: item.secondary || null,
             reference: item.reference,
             version: item.version || "",
+            part: item.part || 0,
+            parts: item.parts || 0,
             settings: settings.getAll(),
           });
         } else {
@@ -1849,6 +1851,8 @@
           version: item.version || "",
           title: item.title || "",
           subtitle: item.subtitle || "",
+          part: item.part || 0,
+          parts: item.parts || 0,
         };
         caption =
           "Sélection " +

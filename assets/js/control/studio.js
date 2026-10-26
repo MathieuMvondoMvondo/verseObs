@@ -354,6 +354,7 @@
       "borderRadius",
       "borderWidth",
       "shadow",
+      "signature",
     ]);
     group(1, "Affiner la typographie", [
       "textAlign",
@@ -387,6 +388,7 @@
     select.dataset.setting = "fontFamily";
     [
       [V.ANTENNE_FONT, "Lora · Antenne"],
+      [V.ONGLET_FONT, "Inter · Onglet"],
       [
         "'Segoe UI', Calibri, 'Helvetica Neue', Arial, sans-serif",
         "Sans sérif · Moderne",

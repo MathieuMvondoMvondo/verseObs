@@ -74,6 +74,7 @@
       borderColor: D.borderColor || "#50c8c8",
       highlightColor: D.highlightColor || "#ffff00",
       bgImage: D.bgImage || "",
+      signature: D.signature || "",
       template: D.template || "custom",
     };
   };
@@ -110,6 +111,8 @@
     }
     // A stored colour that is not one (url() …) takes the default.
     window.VerseObs.cleanColors(this._settings, defaults);
+    if (this._settings.signature !== undefined)
+      this._settings.signature = window.VerseObs.cleanSignature(this._settings.signature);
     try {
       this._settings.bgImage =
         localStorage.getItem(this._imageKey) || this._settings.bgImage || "";
@@ -166,6 +169,7 @@
     // A colour that is not one (url() …) takes the default.
     if (/Color$/.test(key) && !window.VerseObs.isColor(value))
       value = this._getDefaults()[key];
+    if (key === "signature") value = window.VerseObs.cleanSignature(value);
     this._settings[key] = value;
     this.save();
     this._notifyChange();
@@ -240,6 +244,7 @@
           var val = _getInputValue(el);
           if (/Color$/.test(key) && !window.VerseObs.isColor(val))
             val = self._getDefaults()[key];
+          if (key === "signature") val = window.VerseObs.cleanSignature(val);
           self._settings[key] = val;
           self._settings.template = "custom";
           if (self._templateSelect) self._templateSelect.value = "custom";
@@ -289,7 +294,20 @@
     var tmpl = TEMPLATES[templateKey];
     if (!tmpl) return;
 
-    var s = tmpl.settings;
+    var s = tmpl.settings,
+      before = TEMPLATES[this._settings.template];
+    // Leaving « Onglet »: what it set and the new base does not set goes
+    // back to the defaults, so every other base looks exactly as before.
+    if (before && before.settings.layout === "onglet" && s.layout !== "onglet") {
+      var defaults = this._getDefaults();
+      for (var was in before.settings)
+        if (
+          before.settings.hasOwnProperty(was) &&
+          !s.hasOwnProperty(was) &&
+          defaults[was] !== undefined
+        )
+          this._settings[was] = defaults[was];
+    }
     for (var key in s) {
       if (s.hasOwnProperty(key)) {
         this._settings[key] = s[key];

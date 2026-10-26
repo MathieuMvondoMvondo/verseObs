@@ -82,6 +82,7 @@ const SAMPLER = () => {
       scrim: scrim ? num(scrim.opacity) * (stage ? num(stage.opacity) : 1) : 0,
       plate: plate ? num(plate.opacity) * (stage ? num(stage.opacity) : 1) : 0,
       copy: copy ? num(cs(copy).opacity) : 0,
+      body: q(".verse-body") ? num(cs(q(".verse-body")).opacity) * (stage ? num(stage.opacity) : 1) : 0,
       revealing: !!(copy && copy.classList.contains("is-revealing")),
       copies: card ? card.querySelectorAll(".vo-copy").length : 0,
       blocks: card ? card.querySelectorAll(".vo-refblock").length : 0,
@@ -387,6 +388,341 @@ try {
     assert.equal(f[f.length - 1].card, false);
   });
   assert.deepEqual(reduced.errors, []);
+
+  // ---- « Onglet » (Math, 26/10): a card with the reference in a tab ------
+  const LKJV = require(path.join(ROOT, "data/bibles/kjv.json")).books;
+  const kjv = (name, ch, v) =>
+    Object.values(LKJV).find((b) => b.name === name).chapters.find((c) => c.chapter === ch).verses.find((x) => x.verse === v).text;
+  const CHANT = [
+    "À toi la gloire, ô Ressuscité !",
+    "À toi la victoire pour l'éternité !",
+    "Brillant de lumière, l'ange est descendu,",
+    "Il roule la pierre du tombeau vaincu.",
+  ].join("\n");
+  const ROM = { ...C, secondary: { text: kjv("Romans", 8, 28), html: "", reference: "Romans 8:28", version: "King James Version", lang: "en" } };
+  const SONG = { type: "show_text", title: "Chant d'entrée", subtitle: "", text: CHANT };
+  const FREE = {
+    type: "show_text",
+    title: "",
+    subtitle: "",
+    text: "Bienvenue à toutes et à tous. Le culte commence dans cinq minutes : installez-vous, la louange va débuter.",
+  };
+  /** Sends msg with a preset of the page (verse or song presets), extra settings on top. */
+  const sendStyled = (page, msg, preset, extra = {}) =>
+    page.evaluate(
+      ({ msg, preset, extra }) => {
+        const V = window.VerseObs,
+          song = msg.type === "show_text",
+          presets = song ? V.FREETEXT_STYLES : V.TEMPLATES;
+        if (!presets[preset]) throw new Error("no " + (song ? "song" : "verse") + " style « " + preset + " »");
+        const settings = Object.assign({}, song ? V.FREETEXT_DEFAULTS : V.DEFAULTS, presets[preset].settings, extra);
+        V.DisplayApp.handleMessage(Object.assign({}, msg, { settings }));
+      },
+      { msg, preset, extra },
+    );
+  /** What the audience sees of an onglet card (screen px). */
+  const ONGLET_GEOMETRY = () => {
+    const card = document.querySelector(".verse-card:not(.vo-probe)");
+    if (!card) return null;
+    const box = (el) => {
+      if (!el || getComputedStyle(el).display === "none") return null;
+      const r = el.getBoundingClientRect();
+      return r.width && r.height ? { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height } : null;
+    };
+    const tab = card.querySelector(".vo-margin");
+    const painted = [];
+    // Any thin vertical stroke painted inside the card: an accent bar or a rule.
+    card.querySelectorAll("*").forEach((el) => {
+      const cs = getComputedStyle(el);
+      if (cs.display === "none" || cs.visibility === "hidden" || Number(cs.opacity) === 0) return;
+      const r = el.getBoundingClientRect();
+      const filled = cs.backgroundColor !== "rgba(0, 0, 0, 0)" || cs.backgroundImage !== "none";
+      if (filled && r.width > 0 && r.width <= 8 && r.height >= 20) painted.push("bar " + el.className);
+      for (const side of ["Left", "Right"])
+        if (parseFloat(cs["border" + side + "Width"]) > 0 && cs["border" + side + "Style"] !== "none")
+          painted.push("border-" + side.toLowerCase() + " " + el.className);
+      if (/inset/.test(cs.boxShadow)) painted.push("inset shadow " + el.className);
+      for (const pseudo of ["::before", "::after"]) {
+        const ps = getComputedStyle(el, pseudo);
+        if (ps.content !== "none" && ps.display !== "none" && (ps.backgroundColor !== "rgba(0, 0, 0, 0)" || parseFloat(ps.borderLeftWidth) > 0))
+          painted.push(pseudo + " " + el.className);
+      }
+    });
+    return {
+      layout: document.querySelector("#verse-container").className,
+      frame: { width: innerWidth, height: innerHeight },
+      card: box(card.querySelector(".vo-plate")),
+      tab: box(tab),
+      tabText: tab ? tab.innerText.replace(/\s+/g, " ").trim() : "",
+      tabClipped: tab ? tab.scrollWidth > tab.clientWidth + 1 : false,
+      copy: box(card.querySelector(".vo-copy")),
+      second: box(card.querySelector(".verse-secondary")),
+      primaryText: box(card.querySelector(".vo-copy > .verse-text")),
+      copyText: card.querySelector(".vo-copy").innerText.replace(/\s+/g, " ").trim(),
+      sups: Array.from(card.querySelectorAll(".vo-copy sup.verse-num")).filter((s) => getComputedStyle(s).display !== "none").length,
+      plan: card.querySelector(".vo-plan") ? card.querySelector(".vo-plan").textContent : "",
+      planSize: card.querySelector(".vo-plan") ? parseFloat(getComputedStyle(card.querySelector(".vo-plan")).fontSize) : 0,
+      partial: card.dataset.partial || "",
+      roll: card.querySelector(".vo-nums .vo-roll:not(.is-leaving)") ? card.querySelector(".vo-nums .vo-roll:not(.is-leaving)").textContent : "",
+      body: parseFloat(getComputedStyle(card.querySelector(".vo-copy .verse-text")).fontSize),
+      painted,
+    };
+  };
+  /** Whole text, inside the frame, the reference whole in its tab, no accent bar. */
+  function ongletOk(g, what, { tab = true, part = false } = {}) {
+    assert.ok(g, what + ": nothing on air");
+    assert.match(g.layout, /layout-onglet/, what + ": onglet layout");
+    // Too long for the card: its first whole verses, named in the tab (the
+    // Studio then proposes « Découper »). Otherwise the whole text.
+    if (part) assert.ok(g.partial && g.tabText.includes(g.roll), what + ": whole verses, named in the tab (" + g.tabText + ")");
+    else assert.equal(g.partial, "", what + ": text whole, not partial");
+    const scale = g.frame.height / 1080,
+      safeX = g.frame.width * 0.05 - 1,
+      safeY = g.frame.height * 0.05 - 1;
+    for (const [name, b] of [["card", g.card], ["tab", g.tab]]) {
+      if (!b) continue;
+      assert.ok(b.left >= safeX && b.right <= g.frame.width - safeX, what + ": " + name + " inside the frame horizontally " + JSON.stringify(b));
+      assert.ok(b.top >= safeY && b.bottom <= g.frame.height - safeY, what + ": " + name + " inside the frame vertically " + JSON.stringify(b));
+    }
+    assert.ok(g.card, what + ": card painted");
+    assert.ok(g.copy.bottom <= g.card.bottom + 0.5 && g.copy.top >= g.card.top - 0.5, what + ": text inside the card");
+    if (tab) {
+      assert.ok(g.tab, what + ": tab painted");
+      assert.ok(Math.abs(g.tab.bottom - g.card.top) <= 1.5 * scale, what + ": the tab stands on the card");
+      assert.ok(g.tab.right <= g.card.right + 0.5 && g.tab.left >= g.card.left - 0.5, what + ": tab within the card's width");
+      assert.equal(g.tabClipped, false, what + ": reference never clipped in its tab");
+    } else assert.equal(g.tab, null, what + ": no tab");
+    assert.deepEqual(g.painted, [], what + ": no accent bar, rule or side stroke");
+    // computed sizes are in frame units (the 1080-line frame is scaled)
+    assert.ok(g.body >= 31.5, what + ": body " + g.body + " px");
+  }
+
+  for (const viewport of [{ width: 1920, height: 1080 }, { width: 1280, height: 720 }]) {
+    const o = await open("no-preference", viewport);
+    const label = viewport.width + "×" + viewport.height;
+    await check("Onglet " + label + ": every case whole, inside the frame, reference in its tab", async () => {
+      const shown = async (msg, preset, extra) => {
+        await sendStyled(o.page, msg, preset, { animation: "none", ...extra });
+        await o.page.waitForTimeout(250);
+        return o.page.evaluate(ONGLET_GEOMETRY);
+      };
+      let g = await shown(A, "onglet");
+      ongletOk(g, "Jean 3:16");
+      assert.match(g.tabText, /^Jean 3:16 \(LSG\)$/, "reference and version in the tab");
+      assert.ok(g.sups >= 1, "verse number as a superscript");
+      g = await shown(verse("Cantique des Cantiques", 2, 10, 13), "onglet");
+      ongletOk(g, "Cantique des Cantiques 2:10-13", { part: !!g.partial });
+      assert.match(g.tabText, /^Cantique des Cantiques 2:10-1[0-3] \(LSG\)$/);
+      // Its plans: each one whole, the longest reference whole in its tab.
+      g = await shown({ ...verse("Cantique des Cantiques", 2, 10, 11), part: 1, parts: 2 }, "onglet");
+      ongletOk(g, "Cantique des Cantiques 2:10-11");
+      assert.equal(g.tabText, "Cantique des Cantiques 2:10-11 (LSG)");
+      // Even in a narrow card the long reference stays whole in its tab.
+      g = await shown(verse("Cantique des Cantiques", 2, 10, 13), "onglet", { maxWidth: 40 });
+      assert.equal(g.tabClipped, false, "narrow card: reference never clipped");
+      assert.ok(g.tab.left >= g.card.left - 0.5 && g.tab.right <= g.card.right + 0.5, "narrow card: tab within the card");
+      g = await shown(ROM, "onglet");
+      ongletOk(g, "Romains 8:28 LSG/KJV");
+      assert.equal(g.tabText, "Romains 8:28", "one reference for both translations");
+      assert.ok(g.second && g.second.left >= g.primaryText.right, "the two translations side by side");
+      assert.match(g.copyText, /LSG.*KJV/, "each column named by its version");
+      g = await shown(SONG, "onglet");
+      ongletOk(g, "chant");
+      assert.equal(g.tabText, "Chant d'entrée", "the song title in the tab");
+      assert.ok(!/Chant d'entrée/.test(g.copyText), "lyrics only in the card");
+      g = await shown(FREE, "onglet");
+      ongletOk(g, "texte libre", { tab: false });
+      g = await shown(A, "onglet-sombre");
+      ongletOk(g, "Jean 3:16, onglet sombre");
+      // A long passage: its plans are measured by the output with this style,
+      // each one then goes on air whole, with a discreet plan indicator.
+      g = await shown(verse("Psaumes", 119, 1, 24), "onglet");
+      assert.ok(g.partial === "119:1-24" && /^119:1-\d+$/.test(g.roll), "too long: its first verses, named");
+      let first = 1,
+        plans = [];
+      while (first <= 24 && plans.length < 8) {
+        g = await shown(verse("Psaumes", 119, first, 24), "onglet");
+        const last = g.partial ? Number(g.roll.split("-")[1] || g.roll.split(":")[1]) : 24;
+        plans.push([first, last]);
+        first = last + 1;
+      }
+      assert.ok(plans.length >= 2 && plans[plans.length - 1][1] === 24, "plans cover the passage " + JSON.stringify(plans));
+      const [a, b] = plans[1];
+      g = await shown({ ...verse("Psaumes", 119, a, b), part: 2, parts: plans.length }, "onglet");
+      ongletOk(g, "Psaumes 119:" + a + "-" + b + " (plan 2)");
+      assert.ok(g.sups >= 2, "verse numbers in the plan");
+      assert.equal(g.plan, "2/" + plans.length, "plan indicator");
+      assert.ok(g.planSize > 0 && g.planSize <= 22, "plan indicator stays discreet: " + g.planSize + " px (frame units)");
+      // The other styles never show a plan indicator.
+      await sendStyled(o.page, { ...verse("Psaumes", 119, a, b), part: 2, parts: plans.length }, "antenne", { animation: "none" });
+      await o.page.waitForTimeout(250);
+      assert.equal(await o.page.evaluate(() => Array.from(document.querySelectorAll(".vo-plan, .vo-sign")).some((el) => el.getClientRects().length > 0)), false, "no plan or signature outside « Onglet »");
+    });
+    assert.deepEqual(o.errors, []);
+    await o.ctx.close();
+  }
+
+  /** Records every animate() call: what moves, how long, after which delay. */
+  const RECORD = () => {
+    window.__anims = [];
+    const original = Element.prototype.animate;
+    Element.prototype.animate = function (keyframes, options) {
+      window.__anims.push({
+        t: performance.now(),
+        cls: typeof this.className === "string" ? this.className : "",
+        from: keyframes && keyframes[0] ? JSON.stringify(keyframes[0]) : "",
+        to: keyframes && keyframes[1] ? JSON.stringify(keyframes[1]) : "",
+        duration: options && options.duration,
+        delay: (options && options.delay) || 0,
+      });
+      return original.call(this, keyframes, options);
+    };
+  };
+  const anims = (page) => page.evaluate(() => window.__anims.splice(0));
+  const openRecorded = async (reducedMotion) => {
+    const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 }, reducedMotion });
+    await ctx.addInitScript(RECORD);
+    const page = await ctx.newPage();
+    const errors = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.goto(`http://127.0.0.1:${PORT}/browser_source.html`);
+    await page.evaluate(SAMPLER);
+    await page.evaluate(() => document.fonts.ready);
+    return { ctx, page, errors };
+  };
+  const end = (list) => Math.max(0, ...list.map((x) => x.delay + x.duration));
+  const P1 = { ...verse("Psaumes", 119, 1, 2), part: 1, parts: 3 },
+    P2 = { ...verse("Psaumes", 119, 3, 4), part: 2, parts: 3 };
+
+  const rec = await openRecorded("no-preference");
+  await check("Onglet motion: the card rises and fades in, the tab follows, Masquer is quicker", async () => {
+    const p = rec.page;
+    await anims(p);
+    await sendStyled(p, A, "onglet");
+    await settle(p, 1200);
+    let list = await anims(p);
+    const card = list.filter((x) => /verse-body/.test(x.cls)),
+      tab = list.filter((x) => /vo-margin/.test(x.cls));
+    assert.ok(card.length === 1 && tab.length === 1, "one movement for the card, one for the tab: " + JSON.stringify(list.map((x) => x.cls)));
+    assert.match(card[0].from, /"opacity":"0"/, "the card fades in");
+    assert.match(card[0].from, /translateY\((1[0-9]|[6-9])px\)/, "…rising slightly");
+    assert.ok(card[0].duration >= 200 && card[0].duration <= 260, "card in " + card[0].duration + " ms");
+    const lag = tab[0].delay - card[0].delay;
+    assert.ok(lag >= 40 && lag <= 80, "the tab follows " + lag + " ms later");
+    assert.ok(list.every((x) => !/--vo-reveal|scaleY/.test(x.from + x.to)), "no reading mask, no stretched shape");
+    const enter = end(list);
+    let f = await frames(p);
+    assert.equal(f[f.length - 1].plate, 1, "card fully on air");
+    // Masquer: shorter than the entrance.
+    await send(p, { type: "hide" });
+    await settle(p, 900);
+    list = await anims(p);
+    f = await frames(p);
+    assert.equal(f[f.length - 1].card, false, "output empty");
+    assert.ok(list.length > 0 && end(list) < enter, "Masquer (" + end(list) + " ms) quicker than the entrance (" + enter + " ms)");
+  });
+
+  await check("Onglet plan change: only the text changes, the card stays", async () => {
+    const p = rec.page;
+    await sendStyled(p, P1, "onglet");
+    await settle(p, 1200);
+    await frames(p);
+    await anims(p);
+    await sendStyled(p, P2, "onglet");
+    await settle(p, 1200);
+    const f = await frames(p),
+      list = await anims(p);
+    assert.ok(Math.min(...f.map((x) => x.plate)) > 0.999, "the card never fades");
+    assert.ok(f.every((x) => x.card), "never empty between two plans");
+    assert.ok(list.some((x) => /vo-copy/.test(x.cls)), "the text changes");
+    assert.ok(!list.some((x) => /vo-plate|verse-body|vo-margin/.test(x.cls) && /"opacity":"0"/.test(x.from + x.to)), "the card and its tab never leave");
+    assert.ok(Math.min(...f.map((x) => x.body)) > 0.999, "the card is never faded");
+    const g = await p.evaluate(ONGLET_GEOMETRY);
+    ongletOk(g, "plan 2");
+    assert.equal(g.plan, "2/3");
+    assert.equal(g.tabText, "Psaumes 119:3-4 (LSG)");
+  });
+  assert.deepEqual(rec.errors, []);
+  await rec.ctx.close();
+
+  const recReduced = await openRecorded("reduce");
+  await check("Onglet with reduced motion: a simple fade, nothing moves", async () => {
+    const p = recReduced.page;
+    await frames(p);
+    await anims(p);
+    await sendStyled(p, P1, "onglet");
+    await settle(p, 900);
+    await sendStyled(p, P2, "onglet");
+    await settle(p, 900);
+    await send(p, { type: "hide" });
+    await settle(p, 700);
+    const f = await frames(p),
+      list = await anims(p);
+    assert.ok(list.length > 0, "still a fade");
+    assert.ok(list.every((x) => !/translate|scale/.test(x.from + x.to) || /translateY\(0px\)|none/.test(x.from)), "opacity only: " + JSON.stringify(list.filter((x) => /translate|scale/.test(x.from + x.to)).slice(0, 2)));
+    assert.ok(f.every((x) => !x.moved), "nothing moves on screen");
+    assert.equal(f[f.length - 1].card, false);
+  });
+  assert.deepEqual(recReduced.errors, []);
+  await recReduced.ctx.close();
+
+  // The existing styles keep their exact composition: the boxes measured on
+  // dc8afdc, before the onglet layout (tests/fixtures/styles-dc8afdc.json).
+  const FIXTURE = require(path.join(ROOT, "tests/fixtures/styles-dc8afdc.json")).shots;
+  await check("Antenne and Carte keep the composition they had before Onglet (4 cases, 1080p and 720p)", async () => {
+    const cases = {
+      "jean-3-16": A,
+      "psaume-119-plan-2": { ...verse("Psaumes", 119, 5, 8), part: 2, parts: 6 },
+      "romains-8-28-lsg-kjv": ROM,
+      chant: SONG,
+    };
+    let compared = 0;
+    for (const viewport of [{ width: 1920, height: 1080 }, { width: 1280, height: 720 }]) {
+      const o = await open("no-preference", viewport);
+      for (const style of ["antenne", "carte"])
+        for (const [name, msg] of Object.entries(cases)) {
+          const got = await o.page.evaluate(
+            async ({ msg, style }) => {
+              const V = window.VerseObs,
+                song = msg.type === "show_text",
+                key = style === "antenne" ? "antenne" : song ? "chant" : "studio",
+                presets = song ? V.FREETEXT_STYLES : V.TEMPLATES;
+              const settings = Object.assign({}, song ? V.FREETEXT_DEFAULTS : V.DEFAULTS, presets[key].settings, { animation: "none", animationDuration: 0, bgImage: "" });
+              V.DisplayApp.handleMessage({ type: "hide" });
+              await new Promise((r) => setTimeout(r, 60));
+              V.DisplayApp.handleMessage(Object.assign({}, msg, { settings }));
+              await new Promise((r) => setTimeout(r, 450));
+              const card = document.querySelector(".verse-card:not(.vo-probe)");
+              const box = (el) => {
+                const r = el.getBoundingClientRect();
+                return { x: +r.x.toFixed(2), y: +r.y.toFixed(2), w: +r.width.toFixed(2), h: +r.height.toFixed(2) };
+              };
+              return {
+                layout: document.querySelector("#verse-container").className,
+                partial: card.dataset.partial || "",
+                fit: card.dataset.fit,
+                card: box(card),
+                copy: box(card.querySelector(".vo-copy")),
+                margin: box(card.querySelector(".vo-margin")),
+                plate: box(card.querySelector(".vo-plate")),
+                text: card.innerText.replace(/\s+/g, " ").trim().slice(0, 220),
+              };
+            },
+            { msg, style },
+          );
+          const want = FIXTURE[`${style}-${name}-${viewport.width}x${viewport.height}`];
+          assert.ok(want, "fixture for " + style + " " + name);
+          for (const key of ["layout", "partial", "fit", "text"]) assert.equal(got[key], want[key], `${style} ${name} ${viewport.width}: ${key}`);
+          for (const key of ["card", "copy", "margin", "plate"])
+            for (const k of ["x", "y", "w", "h"])
+              assert.ok(Math.abs(got[key][k] - want[key][k]) <= 0.5, `${style} ${name} ${viewport.width}: ${key}.${k} ${got[key][k]} ≠ ${want[key][k]}`);
+          compared++;
+        }
+      assert.deepEqual(o.errors, []);
+      await o.ctx.close();
+    }
+    assert.equal(compared, 16);
+  });
   console.log("\n✓ Browser motion: " + passed + " checks passed.");
 } catch (err) {
   console.error(err);

@@ -436,12 +436,71 @@ delete _store[VerseObs.SETTINGS_KEY];
 ok(
   "every template declares its layout",
   Object.keys(VerseObs.TEMPLATES).every(function (k) {
-    return /^(antenne|carte)$/.test(VerseObs.TEMPLATES[k].settings.layout);
+    return /^(antenne|carte|onglet)$/.test(VerseObs.TEMPLATES[k].settings.layout);
   }) &&
     Object.keys(VerseObs.FREETEXT_STYLES).every(function (k) {
-      return /^(antenne|carte)$/.test(VerseObs.FREETEXT_STYLES[k].settings.layout);
+      return /^(antenne|carte|onglet)$/.test(VerseObs.FREETEXT_STYLES[k].settings.layout);
     }),
 );
+// « Onglet » (Math, 26/10): a third layout, offered next to the others,
+// for the verses and for the songs, light and dark.
+["onglet", "onglet-sombre"].forEach(function (key) {
+  [VerseObs.TEMPLATES, VerseObs.FREETEXT_STYLES].forEach(function (presets, i) {
+    var preset = presets[key];
+    ok(
+      (i ? "song" : "verse") + " style « " + key + " » uses the onglet layout",
+      !!preset && preset.settings.layout === "onglet",
+    );
+    ok(
+      (i ? "song" : "verse") + " style « " + key + " » has only real colours",
+      !!preset &&
+        Object.keys(preset.settings).every(function (k) {
+          return !/Color$/.test(k) || VerseObs.isColor(preset.settings[k]);
+        }),
+    );
+  });
+});
+eq("the onglet styles are named for the operator", [
+  VerseObs.TEMPLATES.onglet && VerseObs.TEMPLATES.onglet.label,
+  VerseObs.TEMPLATES["onglet-sombre"] && VerseObs.TEMPLATES["onglet-sombre"].label,
+].join(" / "), "Onglet clair / Onglet sombre");
+_store[VerseObs.SETTINGS_KEY] = JSON.stringify({ layout: "onglet", template: "onglet", fontSize: 40 });
+legacy = new VerseObs.Settings();
+legacy.load();
+eq("a saved onglet layout stays onglet (never taken for an old card)", legacy.getAll().layout, "onglet");
+eq("…with its own size", legacy.getAll().fontSize, 40);
+eq("the signature is empty by default", legacy.getAll().signature, "");
+legacy.applyTemplate("onglet-sombre");
+eq("« Onglet sombre » applies the onglet layout", legacy.getAll().layout, "onglet");
+legacy.update("signature", "Culte du dimanche");
+eq("the signature is a setting like the others", legacy.getAll().signature, "Culte du dimanche");
+legacy.update("signature", "<b>x</b>" + new Array(90).join("y"));
+ok("a signature stays short plain text", legacy.getAll().signature.length <= 60);
+delete _store[VerseObs.SETTINGS_KEY];
+// Trying « Onglet » never changes another base: Onglet then Studio (or a
+// song's Chant) gives exactly what a fresh Studio (or Chant) gives.
+[
+  [VerseObs.SETTINGS_KEY, {}, ["studio", "papier", "cinema", "minimal", "antenne"]],
+  [VerseObs.FREETEXT_SETTINGS_KEY, { storageKey: VerseObs.FREETEXT_SETTINGS_KEY, defaults: VerseObs.FREETEXT_DEFAULTS, templates: VerseObs.FREETEXT_STYLES }, ["chant", "annonce", "priere", "antenne"]],
+].forEach(function (profile) {
+  profile[2].forEach(function (base) {
+    delete _store[profile[0]];
+    var fresh = new VerseObs.Settings(profile[1]);
+    fresh.load();
+    fresh.applyTemplate(base);
+    var expected = JSON.stringify(fresh.getAll());
+    delete _store[profile[0]];
+    var tried = new VerseObs.Settings(profile[1]);
+    tried.load();
+    tried.applyTemplate("onglet-sombre");
+    tried.applyTemplate(base);
+    eq("Onglet then « " + base + " » looks exactly like a fresh « " + base + " »", JSON.stringify(tried.getAll()), expected);
+  });
+  delete _store[profile[0]];
+});
+var ongletMigrated = {};
+VerseObs.migrateStyle({ layout: "onglet", template: "onglet" }, ongletMigrated, VerseObs.DEFAULTS, "studio");
+eq("the output's migration keeps the onglet layout too", ongletMigrated.layout, undefined);
 
 // Each profile persists under its own key.
 ftSettings.update("fontSize", 51);

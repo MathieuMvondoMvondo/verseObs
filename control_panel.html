@@ -508,6 +508,8 @@
                       <option value="studio">Studio</option>
                       <option value="papier">Papier</option>
                       <option value="cinema">Cinéma</option>
+                      <option value="onglet">Onglet clair</option>
+                      <option value="onglet-sombre">Onglet sombre</option>
                       <option value="" hidden>Personnalisé</option>
                     </select></label
                   >
@@ -665,7 +667,17 @@
                     data-preset="cinema"
                     class="style-choice cinema-style"
                   >
-                    <span>Aa</span><small>Cinéma</small>
+                    <span>Aa</span><small>Cinéma</small></button
+                  ><button
+                    data-preset="onglet"
+                    class="style-choice onglet-style"
+                  >
+                    <span>Aa</span><small>Onglet clair</small></button
+                  ><button
+                    data-preset="onglet-sombre"
+                    class="style-choice onglet-dark-style"
+                  >
+                    <span>Aa</span><small>Onglet sombre</small>
                   </button>
                 </div>
               </div>
@@ -816,6 +828,12 @@
               </button>
               <button class="cp-ft-preset" data-ft-preset="citation">
                 Citation
+              </button>
+              <button class="cp-ft-preset" data-ft-preset="onglet">
+                Onglet clair
+              </button>
+              <button class="cp-ft-preset" data-ft-preset="onglet-sombre">
+                Onglet sombre
               </button>
             </div>
 
@@ -1167,6 +1185,8 @@
                     <option value="studio">Studio</option>
                     <option value="papier">Papier</option>
                     <option value="cinema">Cinéma</option>
+                    <option value="onglet">Onglet clair</option>
+                    <option value="onglet-sombre">Onglet sombre</option>
                     <option value="classique">Classique</option>
                     <option value="eglise">Église</option>
                     <option value="moderne">Moderne</option>
@@ -1187,6 +1207,7 @@
                   <select class="cp-select" data-setting="layout">
                     <option value="antenne">Antenne · bandeau et marge</option>
                     <option value="carte">Carte encadrée</option>
+                    <option value="onglet">Onglet · carte et onglet de référence</option>
                   </select>
                 </div>
               </div>
@@ -1424,6 +1445,20 @@
                     type="color"
                     data-setting="highlightColor"
                     value="#f2d484"
+                  />
+                </div>
+              </div>
+
+              <div class="cp-setting-row">
+                <span class="cp-setting-label">Signature (style Onglet)</span>
+                <div class="cp-setting-control">
+                  <input
+                    type="text"
+                    class="cp-input"
+                    data-setting="signature"
+                    maxlength="60"
+                    placeholder="Facultatif, ex. Culte du dimanche"
+                    style="width: 100%"
                   />
                 </div>
               </div>

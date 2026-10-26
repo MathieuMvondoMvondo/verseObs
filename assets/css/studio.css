@@ -4117,6 +4117,19 @@ body[data-onair="pending"] .cp-btn-hide {
   font-family: "VerseObs Titrage", "Archivo Narrow", sans-serif;
   font-weight: 600;
 }
+/* « Onglet »: the card's own colours, the tab's in the letters. */
+.onglet-style > span {
+  background: #ffffff;
+  color: #5e3ba3;
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-weight: 600;
+}
+.onglet-dark-style > span {
+  background: #121318;
+  color: #b9a5ee;
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-weight: 600;
+}
 
 
 /* ==========================================================================

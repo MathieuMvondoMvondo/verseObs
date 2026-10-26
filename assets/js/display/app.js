@@ -180,6 +180,9 @@
       version: msg.version || "",
       title: msg.title || "",
       subtitle: msg.subtitle || "",
+      // A plan of a split passage (« 2/6 », shown by the « Onglet » card).
+      part: Number(msg.part) || 0,
+      parts: Number(msg.parts) || 0,
       style: style,
       position: style.position,
       animation: preview ? "none" : style.animation,

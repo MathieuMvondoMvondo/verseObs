@@ -1,0 +1,485 @@
+{
+ "from": "dc8afdc (avant le style Onglet), capturé par onglet-outils/styles-px.mjs",
+ "shots": {
+  "antenne-jean-3-16-1920x1080": {
+   "layout": "verse-container layout-antenne lower-third",
+   "partial": "",
+   "fit": "1.00",
+   "card": {
+    "x": 216.95,
+    "y": 808.97,
+    "w": 1486.08,
+    "h": 190.03
+   },
+   "copy": {
+    "x": 414.94,
+    "y": 808.97,
+    "w": 1288.09,
+    "h": 190.03
+   },
+   "margin": {
+    "x": 216.95,
+    "y": 808.97,
+    "w": 158.39,
+    "h": 184.73
+   },
+   "plate": {
+    "x": 414.94,
+    "y": 808.97,
+    "w": 1288.09,
+    "h": 0
+   },
+   "text": "Jean 3:16 Louis Segond 1910 Car Dieu a tant aimé le monde qu’il a donné son Fils unique, afin que quiconque croit en lui ne périsse point, mais qu’il ait la vie éternelle."
+  },
+  "antenne-psaume-119-plan-2-1920x1080": {
+   "layout": "verse-container layout-antenne lower-third",
+   "partial": "",
+   "fit": "0.90",
+   "card": {
+    "x": 216.95,
+    "y": 773.02,
+    "w": 1486.08,
+    "h": 225.98
+   },
+   "copy": {
+    "x": 414.94,
+    "y": 773.02,
+    "w": 1288.09,
+    "h": 225.98
+   },
+   "margin": {
+    "x": 216.95,
+    "y": 773.02,
+    "w": 158.39,
+    "h": 173.56
+   },
+   "plate": {
+    "x": 414.94,
+    "y": 773.02,
+    "w": 1288.09,
+    "h": 0
+   },
+   "text": "Psaumes 119:5-8 Louis Segond 1910 5 Puissent mes actions être bien réglées, Afin que je garde tes statuts ! 6 Alors je ne rougirai point, À la vue de tous tes commandements. 7 Je te louerai dans la droiture de mon cœur, "
+  },
+  "antenne-romains-8-28-lsg-kjv-1920x1080": {
+   "layout": "verse-container layout-antenne lower-third",
+   "partial": "",
+   "fit": "0.78",
+   "card": {
+    "x": 216.95,
+    "y": 764.89,
+    "w": 1486.08,
+    "h": 234.11
+   },
+   "copy": {
+    "x": 414.94,
+    "y": 764.89,
+    "w": 1288.09,
+    "h": 234.11
+   },
+   "margin": {
+    "x": 216.95,
+    "y": 764.89,
+    "w": 158.39,
+    "h": 110.84
+   },
+   "plate": {
+    "x": 414.94,
+    "y": 764.89,
+    "w": 1288.09,
+    "h": 0
+   },
+   "text": "Romains 8:28 Louis Segond 1910 Nous savons, du reste, que toutes choses concourent au bien de ceux qui aiment Dieu, de ceux qui sont appelés selon son dessein. King James Version · Romans 8:28 And we know that all things"
+  },
+  "antenne-chant-1920x1080": {
+   "layout": "verse-container layout-antenne lower-third",
+   "partial": "",
+   "fit": "0.84",
+   "card": {
+    "x": 268.8,
+    "y": 764.45,
+    "w": 1382.39,
+    "h": 234.55
+   },
+   "copy": {
+    "x": 308.98,
+    "y": 764.45,
+    "w": 1302,
+    "h": 234.55
+   },
+   "margin": {
+    "x": 0,
+    "y": 0,
+    "w": 0,
+    "h": 0
+   },
+   "plate": {
+    "x": 268.8,
+    "y": 764.45,
+    "w": 1382.39,
+    "h": 0
+   },
+   "text": "Chant d'entrée À toi la gloire, ô Ressuscité ! À toi la victoire pour l'éternité ! Brillant de lumière, l'ange est descendu, Il roule la pierre du tombeau vaincu."
+  },
+  "carte-jean-3-16-1920x1080": {
+   "layout": "verse-container layout-carte lower-third",
+   "partial": "",
+   "fit": "1.00",
+   "card": {
+    "x": 216.95,
+    "y": 798.41,
+    "w": 1486.08,
+    "h": 200.59
+   },
+   "copy": {
+    "x": 246.95,
+    "y": 855.41,
+    "w": 1426.08,
+    "h": 113.59
+   },
+   "margin": {
+    "x": 236.95,
+    "y": 798.41,
+    "w": 133.69,
+    "h": 39
+   },
+   "plate": {
+    "x": 216.95,
+    "y": 825.41,
+    "w": 1486.08,
+    "h": 173.59
+   },
+   "text": "Jean 3:16 16Car Dieu a tant aimé le monde qu’il a donné son Fils unique, afin que quiconque croit en lui ne périsse point, mais qu’il ait la vie éternelle."
+  },
+  "carte-psaume-119-plan-2-1920x1080": {
+   "layout": "verse-container layout-carte lower-third",
+   "partial": "",
+   "fit": "1.00",
+   "card": {
+    "x": 216.95,
+    "y": 684.81,
+    "w": 1486.08,
+    "h": 314.19
+   },
+   "copy": {
+    "x": 246.95,
+    "y": 741.81,
+    "w": 1426.08,
+    "h": 227.19
+   },
+   "margin": {
+    "x": 236.95,
+    "y": 684.81,
+    "w": 215.61,
+    "h": 39
+   },
+   "plate": {
+    "x": 216.95,
+    "y": 711.81,
+    "w": 1486.08,
+    "h": 287.19
+   },
+   "text": "Psaumes 119:5-8 5 Puissent mes actions être bien réglées, Afin que je garde tes statuts ! 6 Alors je ne rougirai point, À la vue de tous tes commandements. 7 Je te louerai dans la droiture de mon cœur, En apprenant les l"
+  },
+  "carte-romains-8-28-lsg-kjv-1920x1080": {
+   "layout": "verse-container layout-carte lower-third",
+   "partial": "",
+   "fit": "0.80",
+   "card": {
+    "x": 216.95,
+    "y": 634.25,
+    "w": 1486.08,
+    "h": 364.75
+   },
+   "copy": {
+    "x": 246.95,
+    "y": 691.25,
+    "w": 1426.08,
+    "h": 277.75
+   },
+   "margin": {
+    "x": 236.95,
+    "y": 634.25,
+    "w": 183.66,
+    "h": 39
+   },
+   "plate": {
+    "x": 216.95,
+    "y": 661.25,
+    "w": 1486.08,
+    "h": 337.75
+   },
+   "text": "Romains 8:28 Louis Segond 1910 28Nous savons, du reste, que toutes choses concourent au bien de ceux qui aiment Dieu, de ceux qui sont appelés selon son dessein. King James Version · Romans 8:28 And we know that all thin"
+  },
+  "carte-chant-1920x1080": {
+   "layout": "verse-container layout-carte center",
+   "partial": "",
+   "fit": "1.00",
+   "card": {
+    "x": 251.52,
+    "y": 353.64,
+    "w": 1416.95,
+    "h": 372.72
+   },
+   "copy": {
+    "x": 285.52,
+    "y": 387.64,
+    "w": 1348.95,
+    "h": 304.72
+   },
+   "margin": {
+    "x": 0,
+    "y": 0,
+    "w": 0,
+    "h": 0
+   },
+   "plate": {
+    "x": 251.52,
+    "y": 353.64,
+    "w": 1416.95,
+    "h": 372.72
+   },
+   "text": "Chant d'entrée À toi la gloire, ô Ressuscité ! À toi la victoire pour l'éternité ! Brillant de lumière, l'ange est descendu, Il roule la pierre du tombeau vaincu."
+  },
+  "antenne-jean-3-16-1280x720": {
+   "layout": "verse-container layout-antenne lower-third",
+   "partial": "",
+   "fit": "1.00",
+   "card": {
+    "x": 144.64,
+    "y": 539.31,
+    "w": 990.72,
+    "h": 126.69
+   },
+   "copy": {
+    "x": 276.63,
+    "y": 539.31,
+    "w": 858.73,
+    "h": 126.69
+   },
+   "margin": {
+    "x": 144.64,
+    "y": 539.31,
+    "w": 105.59,
+    "h": 123.16
+   },
+   "plate": {
+    "x": 276.63,
+    "y": 539.31,
+    "w": 858.73,
+    "h": 0
+   },
+   "text": "Jean 3:16 Louis Segond 1910 Car Dieu a tant aimé le monde qu’il a donné son Fils unique, afin que quiconque croit en lui ne périsse point, mais qu’il ait la vie éternelle."
+  },
+  "antenne-psaume-119-plan-2-1280x720": {
+   "layout": "verse-container layout-antenne lower-third",
+   "partial": "",
+   "fit": "0.90",
+   "card": {
+    "x": 144.64,
+    "y": 515.34,
+    "w": 990.72,
+    "h": 150.66
+   },
+   "copy": {
+    "x": 276.63,
+    "y": 515.34,
+    "w": 858.73,
+    "h": 150.66
+   },
+   "margin": {
+    "x": 144.64,
+    "y": 515.34,
+    "w": 105.59,
+    "h": 115.71
+   },
+   "plate": {
+    "x": 276.63,
+    "y": 515.34,
+    "w": 858.73,
+    "h": 0
+   },
+   "text": "Psaumes 119:5-8 Louis Segond 1910 5 Puissent mes actions être bien réglées, Afin que je garde tes statuts ! 6 Alors je ne rougirai point, À la vue de tous tes commandements. 7 Je te louerai dans la droiture de mon cœur, "
+  },
+  "antenne-romains-8-28-lsg-kjv-1280x720": {
+   "layout": "verse-container layout-antenne lower-third",
+   "partial": "",
+   "fit": "0.78",
+   "card": {
+    "x": 144.64,
+    "y": 509.93,
+    "w": 990.72,
+    "h": 156.07
+   },
+   "copy": {
+    "x": 276.63,
+    "y": 509.93,
+    "w": 858.73,
+    "h": 156.07
+   },
+   "margin": {
+    "x": 144.64,
+    "y": 509.93,
+    "w": 105.59,
+    "h": 73.9
+   },
+   "plate": {
+    "x": 276.63,
+    "y": 509.93,
+    "w": 858.73,
+    "h": 0
+   },
+   "text": "Romains 8:28 Louis Segond 1910 Nous savons, du reste, que toutes choses concourent au bien de ceux qui aiment Dieu, de ceux qui sont appelés selon son dessein. King James Version · Romans 8:28 And we know that all things"
+  },
+  "antenne-chant-1280x720": {
+   "layout": "verse-container layout-antenne lower-third",
+   "partial": "",
+   "fit": "0.84",
+   "card": {
+    "x": 179.2,
+    "y": 509.64,
+    "w": 921.59,
+    "h": 156.36
+   },
+   "copy": {
+    "x": 205.99,
+    "y": 509.64,
+    "w": 868,
+    "h": 156.36
+   },
+   "margin": {
+    "x": 0,
+    "y": 0,
+    "w": 0,
+    "h": 0
+   },
+   "plate": {
+    "x": 179.2,
+    "y": 509.64,
+    "w": 921.59,
+    "h": 0
+   },
+   "text": "Chant d'entrée À toi la gloire, ô Ressuscité ! À toi la victoire pour l'éternité ! Brillant de lumière, l'ange est descendu, Il roule la pierre du tombeau vaincu."
+  },
+  "carte-jean-3-16-1280x720": {
+   "layout": "verse-container layout-carte lower-third",
+   "partial": "",
+   "fit": "1.00",
+   "card": {
+    "x": 144.64,
+    "y": 532.27,
+    "w": 990.72,
+    "h": 133.73
+   },
+   "copy": {
+    "x": 164.64,
+    "y": 570.27,
+    "w": 950.72,
+    "h": 75.73
+   },
+   "margin": {
+    "x": 157.97,
+    "y": 532.27,
+    "w": 89.13,
+    "h": 26
+   },
+   "plate": {
+    "x": 144.64,
+    "y": 550.27,
+    "w": 990.72,
+    "h": 115.73
+   },
+   "text": "Jean 3:16 16Car Dieu a tant aimé le monde qu’il a donné son Fils unique, afin que quiconque croit en lui ne périsse point, mais qu’il ait la vie éternelle."
+  },
+  "carte-psaume-119-plan-2-1280x720": {
+   "layout": "verse-container layout-carte lower-third",
+   "partial": "",
+   "fit": "1.00",
+   "card": {
+    "x": 144.64,
+    "y": 456.54,
+    "w": 990.72,
+    "h": 209.46
+   },
+   "copy": {
+    "x": 164.64,
+    "y": 494.54,
+    "w": 950.72,
+    "h": 151.46
+   },
+   "margin": {
+    "x": 157.97,
+    "y": 456.54,
+    "w": 143.74,
+    "h": 26
+   },
+   "plate": {
+    "x": 144.64,
+    "y": 474.54,
+    "w": 990.72,
+    "h": 191.46
+   },
+   "text": "Psaumes 119:5-8 5 Puissent mes actions être bien réglées, Afin que je garde tes statuts ! 6 Alors je ne rougirai point, À la vue de tous tes commandements. 7 Je te louerai dans la droiture de mon cœur, En apprenant les l"
+  },
+  "carte-romains-8-28-lsg-kjv-1280x720": {
+   "layout": "verse-container layout-carte lower-third",
+   "partial": "",
+   "fit": "0.80",
+   "card": {
+    "x": 144.64,
+    "y": 422.83,
+    "w": 990.72,
+    "h": 243.17
+   },
+   "copy": {
+    "x": 164.64,
+    "y": 460.83,
+    "w": 950.72,
+    "h": 185.17
+   },
+   "margin": {
+    "x": 157.97,
+    "y": 422.83,
+    "w": 122.44,
+    "h": 26
+   },
+   "plate": {
+    "x": 144.64,
+    "y": 440.83,
+    "w": 990.72,
+    "h": 225.17
+   },
+   "text": "Romains 8:28 Louis Segond 1910 28Nous savons, du reste, que toutes choses concourent au bien de ceux qui aiment Dieu, de ceux qui sont appelés selon son dessein. King James Version · Romans 8:28 And we know that all thin"
+  },
+  "carte-chant-1280x720": {
+   "layout": "verse-container layout-carte center",
+   "partial": "",
+   "fit": "1.00",
+   "card": {
+    "x": 167.68,
+    "y": 235.76,
+    "w": 944.64,
+    "h": 248.48
+   },
+   "copy": {
+    "x": 190.34,
+    "y": 258.43,
+    "w": 899.3,
+    "h": 203.15
+   },
+   "margin": {
+    "x": 0,
+    "y": 0,
+    "w": 0,
+    "h": 0
+   },
+   "plate": {
+    "x": 167.68,
+    "y": 235.76,
+    "w": 944.64,
+    "h": 248.48
+   },
+   "text": "Chant d'entrée À toi la gloire, ô Ressuscité ! À toi la victoire pour l'éternité ! Brillant de lumière, l'ange est descendu, Il roule la pierre du tombeau vaincu."
+  }
+ }
+}

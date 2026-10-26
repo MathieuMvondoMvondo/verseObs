@@ -25,7 +25,7 @@
     "ref-top-center",
     "ref-inline",
   ];
-  var LAYOUTS = ["antenne", "carte"];
+  var LAYOUTS = ["antenne", "carte", "onglet"];
   /*
    * Readability rules (1080p frame; scaled for other frame heights):
    *  - a lower or upper third is read like subtitles: the band, soft edge
@@ -46,7 +46,7 @@
   var FLOOR_FIT = 0.42,
     SAFE_HEIGHT = 0.86;
   var ANIMATED =
-    ".vo-scrim,.vo-axis,.vo-margin,.vo-plate,.vo-copy,.vo-refblock,.vo-line>span,.vo-roll";
+    ".vo-scrim,.vo-axis,.vo-margin,.vo-plate,.vo-copy,.vo-refblock,.vo-line>span,.vo-roll,.verse-body,.vo-plan";
   /*
    * The output composes one logical frame, FRAME_LINES units tall, scaled to
    * the browser source: an OBS source of 1280×720, 1920×1080 or 3840×2160
@@ -124,6 +124,8 @@
         fonts.load('400 40px "VerseObs Lecture"'),
         fonts.load('italic 400 40px "VerseObs Lecture"'),
         fonts.load('600 40px "VerseObs Titrage"'),
+        fonts.load('400 40px "VerseObs Onglet"'),
+        fonts.load('600 40px "VerseObs Onglet"'),
       ]).catch(function () {});
     }
     return Promise.race([
@@ -144,6 +146,8 @@
     this._refPosition = DEFAULTS.refPosition || "top-left";
     this._textAlign = DEFAULTS.textAlign || "left";
     this._signature = null;
+    // « Onglet »: the short line at the card's bottom right (a setting).
+    this._sign = "";
     this._data = null;
     this._gen = 0;
     this.fit = 1;
@@ -209,6 +213,11 @@
     stage.appendChild(node("div", "verse-inline-ref"));
     var body = node("div", "verse-body");
     body.appendChild(node("div", "vo-plate"));
+    // « Onglet » only (hidden otherwise): signature and « plan n/N ».
+    var foot = node("div", "vo-foot");
+    foot.appendChild(node("span", "vo-sign"));
+    foot.appendChild(node("span", "vo-plan"));
+    body.appendChild(foot);
     stage.appendChild(body);
     return stage;
   };
@@ -223,12 +232,28 @@
       plate: stage.querySelector(".vo-plate"),
       copy: stage.querySelector(".vo-copy"),
       block: stage.querySelector(".vo-refblock"),
+      foot: stage.querySelector(".vo-foot"),
+      plan: stage.querySelector(".vo-plan"),
     };
   }
 
-  /** Reference block: book, numbers and (single translation) version name. */
-  function buildReference(data, secondary) {
-    if (!data.reference) return null;
+  /**
+   * Reference block: book, numbers and (single translation) version name.
+   * In an « Onglet » tab the version is its short name (« (LSG) ») and a
+   * song's title takes the reference's place.
+   */
+  function buildReference(data, secondary, layout) {
+    var tab = layout === "onglet";
+    if (!data.reference) {
+      if (!tab || !data.title) return null;
+      var titled = node("div", "vo-refblock"),
+        heading = node("div", "verse-reference"),
+        line = node("span", "vo-line vo-book");
+      line.appendChild(node("span", "", data.title));
+      heading.appendChild(line);
+      titled.appendChild(heading);
+      return titled;
+    }
     var block = node("div", "vo-refblock"),
       split = splitReference(data.reference),
       ref = node("div", "verse-reference"),
@@ -244,26 +269,47 @@
     block.appendChild(ref);
     if (data.version && !secondary) {
       var version = node("div", "vo-line vo-version");
-      version.appendChild(node("span", "", data.version));
+      version.appendChild(
+        node("span", "", tab ? "(" + V.versionAbbr(data.version) + ")" : data.version),
+      );
       block.appendChild(version);
     }
     return block;
   }
 
+  /**
+   * « Onglet »: each verse number sticks to its first word (« ⁵Puissent »),
+   * so a number never ends a line alone. The space after it is dropped; the
+   * superscript's own margin keeps the gap.
+   */
+  function bindNums(text) {
+    Array.prototype.forEach.call(text.querySelectorAll("sup.verse-num"), function (sup) {
+      var next = sup.nextSibling;
+      if (next && next.nodeType === 3) next.nodeValue = next.nodeValue.replace(/^\s+/, "");
+    });
+  }
+
   /** Text block: title/subtitle (free text), passage, optional translation. */
-  function buildCopy(data, secondary) {
-    var copy = node("div", "vo-copy");
-    if (data.title) copy.appendChild(node("div", "verse-title", data.title));
+  function buildCopy(data, secondary, layout) {
+    var copy = node("div", "vo-copy"),
+      tab = layout === "onglet",
+      name = function (version) {
+        return tab ? V.versionAbbr(version) : version;
+      };
+    // In an « Onglet » card the title is in the tab.
+    if (data.title && !(tab && !data.reference))
+      copy.appendChild(node("div", "verse-title", data.title));
     if (data.subtitle)
       copy.appendChild(node("div", "verse-subtitle", data.subtitle));
     if (secondary)
       copy.appendChild(
-        node("div", "verse-translation-label", data.version || ""),
+        node("div", "verse-translation-label", name(data.version || "")),
       );
     var text = node("div", "verse-text");
     if (data.html) {
       // The HTML comes from the Studio's editor; only an inert allowlist passes.
       text.innerHTML = V.sanitizeHtml(data.html);
+      if (tab) bindNums(text);
     } else {
       var match = data.reference ? /:(\d+)/.exec(data.reference) : null;
       if (match) {
@@ -282,12 +328,15 @@
         node(
           "div",
           "verse-translation-label",
-          secondary.version + " · " + secondary.reference,
+          // The tab already names the passage: the column only needs its version.
+          tab ? name(secondary.version) : secondary.version + " · " + secondary.reference,
         ),
       );
       var secondText = node("div", "verse-text verse-secondary-text");
-      if (secondary.html) secondText.innerHTML = V.sanitizeHtml(secondary.html);
-      else secondText.textContent = secondary.text;
+      if (secondary.html) {
+        secondText.innerHTML = V.sanitizeHtml(secondary.html);
+        if (tab) bindNums(secondText);
+      } else secondText.textContent = secondary.text;
       second.appendChild(secondText);
       copy.appendChild(second);
     }
@@ -303,6 +352,8 @@
 
   Renderer.prototype._classes = function (stage, data, secondary) {
     stage.classList.toggle("has-ref", !!data.reference);
+    // « Onglet »: the tab holds the reference, or a song's title.
+    stage.classList.toggle("has-tab", !!(data.reference || data.title));
     stage.classList.toggle("verse-card-bilingual", !!secondary);
     stage.classList.toggle("align-center", this._textAlign === "center");
     stage.classList.toggle("align-right", this._textAlign === "right");
@@ -317,10 +368,11 @@
       secondary = secondaryOf(data);
     this._classes(stage, data, secondary);
     if (p.block) p.block.remove();
-    var block = buildReference(data, secondary);
+    var block = buildReference(data, secondary, this.layout);
     if (block) p.margin.appendChild(block);
     if (p.copy) p.copy.remove();
-    p.body.appendChild(buildCopy(data, secondary));
+    p.body.insertBefore(buildCopy(data, secondary, this.layout), p.foot);
+    this._foot(stage, data);
     fillInline(p.inline, data);
     this._signature = signature(data);
     this._data = data;
@@ -341,12 +393,33 @@
       width +
       "px";
     this._classes(probe, data, secondary);
-    var block = buildReference(data, secondary);
+    var block = buildReference(data, secondary, this.layout);
     if (block) probe.querySelector(".vo-margin").appendChild(block);
-    probe.querySelector(".verse-body").appendChild(buildCopy(data, secondary));
+    probe
+      .querySelector(".verse-body")
+      .insertBefore(buildCopy(data, secondary, this.layout), probe.querySelector(".vo-foot"));
+    this._foot(probe, data);
     this.container.appendChild(probe);
     if (!raw) this._fit(probe);
     return probe;
+  };
+
+  /**
+   * « Onglet »: the signature (a setting) and, for a plan of a split
+   * passage, « 2/6 », discreet at the card's bottom right.
+   */
+  Renderer.prototype._foot = function (stage, data) {
+    var sign = stage.querySelector(".vo-sign"),
+      plan = stage.querySelector(".vo-plan"),
+      part = Number(data && data.part),
+      total = Number(data && data.parts);
+    if (!sign || !plan) return;
+    sign.textContent = this._sign || "";
+    plan.textContent =
+      part >= 1 && total >= 2 && part <= total && total <= 500
+        ? Math.floor(part) + "/" + Math.floor(total)
+        : "";
+    stage.classList.toggle("has-foot", !!(sign.textContent || plan.textContent));
   };
 
   // ---- Measuring -------------------------------------------------------------
@@ -370,9 +443,9 @@
       size = parseFloat(getComputedStyle(stage).fontSize) || 44;
     stage.style.setProperty("--fit", "1");
     var two = stage.classList.contains("verse-card-bilingual"),
-      // In an antenne band, two translations sit side by side (CSS): each
-      // column is read like its own subtitle.
-      columns = band && two && this.layout === "antenne";
+      // In an antenne band or an onglet card, two translations sit side by
+      // side (CSS): each column is read like its own subtitle.
+      columns = band && two && (this.layout === "antenne" || this.layout === "onglet");
     var rules = {
       frame: frame,
       minFit: Math.min(1, (MIN_BODY * frame) / 1080 / size),
@@ -675,11 +748,23 @@
     return { all: all, ok: ok };
   };
 
-  /** Long book names and ranges (« 119:105-112 ») stay inside the margin. */
+  /**
+   * Long book names and ranges (« 119:105-112 ») stay inside the margin;
+   * an « Onglet » tab never grows wider than its card: its text is reduced.
+   */
   Renderer.prototype._fitMargin = function (stage) {
     stage.style.removeProperty("--book-fit");
     stage.style.removeProperty("--nums-fit");
+    stage.style.removeProperty("--tab-fit");
     var margin = stage.querySelector(".vo-margin");
+    if (this.layout === "onglet" && margin && margin.offsetWidth) {
+      var card = stage.querySelector(".verse-body"),
+        room = card ? card.offsetWidth : 0,
+        wide = margin.scrollWidth;
+      if (room && wide > room)
+        stage.style.setProperty("--tab-fit", Math.max(0.5, Math.floor((room / wide) * 1000) / 1000).toFixed(3));
+      return;
+    }
     if (this.layout !== "antenne" || !margin || !margin.clientWidth) return;
     var room = margin.clientWidth,
       book = stage.querySelector(".vo-book > span"),
@@ -782,6 +867,9 @@
       transform: stage.classList.contains("has-ref") ? "none" : "scaleY(0)",
     });
     M.apply(p.margin, { opacity: "1", transform: "none" });
+    if (p.margin) p.margin.style.removeProperty("width");
+    M.apply(p.body, { opacity: "1", transform: "none" });
+    M.apply(p.plan, { opacity: "1" });
     M.apply(p.plate, { opacity: "1", transform: "none" });
     if (p.plate) {
       p.plate.style.removeProperty("top");
@@ -875,6 +963,32 @@
           { from: { opacity: "0" }, duration: 240, easing: E.out },
         ),
       ];
+    } else if (self.layout === "onglet") {
+      // The card rises slightly as it fades in; the tab follows it 60 ms
+      // later. The text arrives with its card: no reading mask here.
+      steps = [
+        M.tween(
+          p.body,
+          { opacity: "1", transform: "none" },
+          {
+            from: { opacity: "0", transform: "translateY(14px)" },
+            duration: 240 * k,
+            easing: E.out,
+          },
+        ),
+        stage.classList.contains("has-tab")
+          ? M.tween(
+              p.margin,
+              { opacity: "1", transform: "none" },
+              {
+                from: { opacity: "0", transform: "translateY(10px)" },
+                duration: 220 * k,
+                delay: 60 * k,
+                easing: E.out,
+              },
+            )
+          : null,
+      ];
     } else if (mode === "fade" || mode === "slide") {
       var lift = mode === "slide" ? "translateY(28px)" : "none";
       steps = [
@@ -948,7 +1062,11 @@
       oldSplit = splitReference(before.reference),
       newSplit = splitReference(data.reference),
       oldSecondary = !!secondaryOf(before),
-      newSecondary = secondaryOf(data);
+      newSecondary = secondaryOf(data),
+      // « Onglet »: the card stays, only its text (and the tab's) changes,
+      // by a short cross-fade: no rolling numbers, no reading mask.
+      tabbed = self.layout === "onglet",
+      textMode = tabbed && mode === "reveal" ? "fade" : mode;
     freezeAll(stage);
     var sameRef =
       !!before.reference &&
@@ -957,7 +1075,7 @@
       oldSecondary === !!newSecondary;
     var roll =
       !sameRef &&
-      mode === "reveal" &&
+      textMode === "reveal" &&
       !!before.reference &&
       !!data.reference &&
       oldSplit.book === newSplit.book &&
@@ -991,9 +1109,11 @@
         { duration: exit, easing: E.exit },
       ),
     ];
+    if (tabbed && p.plan && p.plan.textContent)
+      leaving.push(M.tween(p.plan, { opacity: "0" }, { duration: exit, easing: E.exit }));
     if (!keepBlock && p.block)
       leaving.push(
-        mode === "reveal"
+        textMode === "reveal"
           ? lines(p.block, "out", 0, k, true)
           : M.tween(
               p.block,
@@ -1055,10 +1175,11 @@
         }
       }
       fillInline(p.inline, data);
+      self._foot(stage, data);
       self._signature = signature(data);
       self._data = data;
       // The probe measured this content at this width: reuse its fit.
-      ["--fit", "--nums-fit", "--book-fit"].forEach(function (name) {
+      ["--fit", "--nums-fit", "--book-fit", "--tab-fit"].forEach(function (name) {
         var value = probe.style.getPropertyValue(name);
         if (value) stage.style.setProperty(name, value);
         else stage.style.removeProperty(name);
@@ -1083,6 +1204,13 @@
         plate: self._box(p.plate),
         axis: p.axis.offsetHeight,
       };
+      // « Onglet »: the tab keeps its place and eases to its new width.
+      var tabMorph =
+        tabbed &&
+        mode !== "reduced" &&
+        seen.margin.width > 0 &&
+        natural.margin.width > 0 &&
+        Math.abs(seen.margin.width - natural.margin.width) > 0.5;
 
       // Phase B — morph what stayed, reveal what is new. When the band has
       // to grow, it leads and the text waits for it: no line is ever drawn
@@ -1159,7 +1287,8 @@
           ),
         );
       }
-      if (keepBlock && morph && seen.margin.height && natural.margin.height) {
+      // An « Onglet » tab rides on its card's top edge: it always follows it.
+      if ((keepBlock || tabbed) && morph && seen.margin.height && natural.margin.height) {
         steps.push(
           M.tween(
             p.margin,
@@ -1227,7 +1356,7 @@
         );
       } else if (!keepBlock) {
         var fresh = parts(stage).block;
-        if (mode === "reveal")
+        if (textMode === "reveal")
           steps.push(lines(fresh, "in", Math.max(40 * k, textDelay * 0.6), k));
         else if (fresh)
           fresh.querySelectorAll(".vo-line > span").forEach(function (s) {
@@ -1244,8 +1373,28 @@
             );
           });
       }
+      if (tabMorph)
+        steps.push(
+          M.tween(
+            p.margin,
+            { width: natural.margin.width + "px" },
+            {
+              from: { width: seen.margin.width + "px" },
+              duration: 220 * k,
+              easing: E.out,
+            },
+          ),
+        );
+      if (tabbed && p.plan && p.plan.textContent)
+        steps.push(
+          M.tween(
+            p.plan,
+            { opacity: "1" },
+            { from: { opacity: "0" }, duration: 220 * k, delay: textDelay, easing: E.out },
+          ),
+        );
       steps.push(
-        mode === "reveal"
+        textMode === "reveal"
           ? M.develop(copy, { duration: revealTime(copy, k), delay: textDelay })
           : M.tween(
               copy,
@@ -1295,6 +1444,11 @@
         M.tween(p.plate, { opacity: "1" }, { duration: d }),
         M.tween(p.copy, { opacity: "1" }, { duration: d }),
       ];
+    if (self.layout === "onglet")
+      steps.push(
+        M.tween(p.body, { opacity: "1", transform: "none" }, { duration: d }),
+        M.tween(p.plan, { opacity: "1" }, { duration: d }),
+      );
     if (p.copy && p.copy.classList.contains("is-revealing"))
       steps.push(M.tween(p.copy, { "--vo-reveal": "0px" }, { duration: d }));
     stage.querySelectorAll(".vo-line > span:not(.is-leaving)").forEach(
@@ -1322,6 +1476,12 @@
       steps = [
         M.tween(stage, { opacity: "0" }, { duration: 200, easing: E.exit }),
       ];
+    } else if (self.layout === "onglet") {
+      // Masquer: quicker than the entrance, card and tab together, a soft
+      // fade with a slight descent.
+      var down = { opacity: "0", transform: "translateY(8px)" },
+        out = { duration: 180 * k, easing: E.fade };
+      steps = [M.tween(p.body, down, out), M.tween(p.margin, down, out)];
     } else if (mode === "fade" || mode === "slide") {
       steps = [
         M.tween(
@@ -1434,6 +1594,13 @@
       var off = style.shadow === false || style.shadow === "none";
       set("--shadow", off ? "none" : "0 4px 20px rgba(0, 0, 0, 0.5)");
       set("--text-shadow", off ? "none" : "0 1px 2px rgba(0, 0, 0, 0.55)");
+      // « Onglet »: a quiet drop shadow that only separates the card from
+      // a bright stage.
+      set("--card-shadow", off ? "none" : "0 2px 6px rgba(0, 0, 0, 0.12), 0 14px 34px rgba(0, 0, 0, 0.2)");
+    }
+    if (style.signature !== undefined) {
+      this._sign = V.cleanSignature ? V.cleanSignature(style.signature) : "";
+      if (this.card && this._data) this._foot(this.card, this._data);
     }
     if (style.layout !== undefined) this._setLayout(style.layout);
     if (style.position !== undefined) this._setPosition(style.position);
