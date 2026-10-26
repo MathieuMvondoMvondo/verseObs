@@ -26,21 +26,38 @@ window.VerseObs.Channel = function (opts) {
   // has sent, read or received, and than this machine's clock (a hybrid
   // logical clock): a command sent after another one was seen, by the same
   // tab, another tab or a reloaded Studio, carries a later stamp, even in
-  // the same millisecond. A stamp more than a minute ahead of the clock (the
-  // clock went back since, or a page sent nonsense) orders nothing.
-  var AHEAD = 60000,
-    clock = 0;
-  function trusted(at) {
-    return typeof at === "number" && at > 0 && at <= Date.now() + AHEAD;
+  // the same millisecond. This clock never goes back, even when the
+  // machine's clock does (NTP correction, time changed by hand, a page whose
+  // clock is behind): it then counts on from its last stamp until the
+  // machine's clock catches up. Every stamp heard is followed, however far
+  // ahead: a stamp an hour ahead is what every page sends for an hour after
+  // the clock went back an hour. A new page (a reloaded Studio) starts after
+  // the last message left in localStorage, and follows the output's answer
+  // to its first ping.
+  var clock = 0;
+  function valid(at) {
+    return typeof at === "number" && at > 0 && at <= 8.64e15;
   }
   function see(at) {
-    if (trusted(at) && at > clock) clock = at;
+    if (valid(at) && at > clock) clock = at;
+    // Kept apart from the transient message (which pings overwrite): a
+    // reload never forgets a high-water mark, and a tab need not wait for
+    // another tab's message event before sending after it. Storage may be
+    // unavailable in an isolated OBS context: its channel still follows
+    // every received stamp and the output's answer to the first ping.
+    try {
+      var saved = Number(localStorage.getItem(key + "_clock"));
+      if (valid(saved) && saved > clock) clock = saved;
+      if (clock > 0) localStorage.setItem(key + "_clock", String(clock));
+    } catch (e) {}
   }
   function stamp() {
-    if (!trusted(clock)) clock = 0;
+    see();
     clock = Math.max(Date.now(), clock + 1);
+    see(clock);
     return clock;
   }
+  see();
   try {
     see(JSON.parse(lastRaw).at);
   } catch (e) {}
@@ -51,8 +68,8 @@ window.VerseObs.Channel = function (opts) {
   // hide) replaces the previous one. In each slot, a command older than the
   // one already delivered is dropped: from the same sender, by its command
   // number; from any sender (another tab, a reloaded Studio), by its stamp.
-  // Two senders' commands stamped alike are both delivered, in arrival order.
-  // Every other command is delivered as is.
+  // Two senders' commands stamped alike are both delivered, in
+  // arrival order. Every other command is delivered as is.
   var replaces = {},
     latest = {},
     top = {};
@@ -61,18 +78,24 @@ window.VerseObs.Channel = function (opts) {
     replaces[V.MSG.SHOW_TEXT] =
     replaces[V.MSG.HIDE] =
       "program";
+  function older(msg, slot, from, n) {
+    var last = top[slot];
+    if (n > 0 && latest[from + " " + slot] >= n) return true;
+    return !!last && valid(msg.at) && msg.at < last.at;
+  }
+  function record(msg, slot, from, n) {
+    if (n > 0) latest[from + " " + slot] = n;
+    if (valid(msg.at) && !(top[slot] && top[slot].at >= msg.at))
+      top[slot] = { at: msg.at, from: from };
+  }
   function superseded(msg) {
     var slot = replaces[msg.type],
       id = String(msg.id || ""),
       from = String(msg.sender || "");
     if (!slot) return false;
-    var n = from && id.indexOf(from + ":") === 0 ? Number(id.slice(from.length + 1)) : 0,
-      k = from + " " + slot;
-    if (n > 0 && latest[k] >= n) return true;
-    if (top[slot] && !trusted(top[slot])) delete top[slot];
-    if (trusted(msg.at) && msg.at < top[slot]) return true;
-    if (n > 0) latest[k] = n;
-    if (trusted(msg.at) && !(top[slot] >= msg.at)) top[slot] = msg.at;
+    var n = from && id.indexOf(from + ":") === 0 ? Number(id.slice(from.length + 1)) : 0;
+    if (older(msg, slot, from, n)) return true;
+    record(msg, slot, from, n);
     return false;
   }
   function receive(msg) {
@@ -100,8 +123,7 @@ window.VerseObs.Channel = function (opts) {
     if (!raw || raw === lastRaw) return;
     lastRaw = raw;
     try {
-      var m = JSON.parse(raw);
-      if (!m.ts || Math.abs(Date.now() - m.ts) < 15000) receive(m);
+      receive(JSON.parse(raw));
     } catch (e) {}
   }
   function onStorage(e) {

@@ -619,6 +619,7 @@ async function run() {
   await testPlan(cp, output);
   await testRemote(cp, output);
   await testDedup();
+  require("./channel-clock")(check);
   console.log("\n✓ Studio integration: " + passed + " checks passed.");
 }
 async function testBilingual(cp, output) {
@@ -1339,9 +1340,9 @@ async function testDedup() {
   // A preview is another slot: it neither replaces nor is replaced by the program.
   outputBC.onmessage({ data: cmd("reloaded", 2, "preview", t + 45) });
   outputBC.onmessage({ data: cmd("tabA", 53, "show_text", t + 44) });
-  // A stamp an hour ahead (a clock moved back since, or nonsense) is
-  // delivered but orders nothing: later commands are not held back by it.
-  outputBC.onmessage({ data: cmd("odd", 1, "show_text", t + 3600e3) });
+  // An invalid stamp (outside the Date range) is delivered but orders
+  // nothing: unlike a genuine future clock, it cannot be followed.
+  outputBC.onmessage({ data: cmd("odd", 1, "show_text", 1e16) });
   outputBC.onmessage({ data: cmd("reloaded", 3, "hide", t + 50) });
   check(
     "A Diffuser delivered late never puts back a hidden text (one Studio, two tabs, a reloaded Studio); same millisecond: both applied",
@@ -1358,19 +1359,24 @@ async function testDedup() {
         "hide reloaded:3",
       ]),
   );
-  // This machine's clock goes back ten minutes: commands sent after it
-  // (stamped from the new clock) are still applied, nothing is lost.
+  // This machine's clock goes back ten minutes. A real sender follows the
+  // last stamp, including after a reload, not its newly lower wall clock.
   clockShift = -600e3;
-  outputBC.onmessage({ data: cmd("later", 1, "show_verse", t - 600e3 + 1) });
+  const later = new ctx.VerseObs.Channel({ autoPong: false });
+  later.send({ type: "show_verse" });
+  const afterJump = JSON.parse(backing.verseobs_msg);
+  outputBC.onmessage({ data: afterJump });
   check("After the clock went back, a new command is still applied", () =>
-    assert.equal(program[program.length - 1], "show_verse later:1"),
+    assert.equal(program[program.length - 1], "show_verse " + afterJump.id),
   );
+  later.destroy();
   clockShift = 0;
   output.destroy();
 
   // Stamps of the commands sent: always later than every command the
   // channel has read or received (a reloaded Studio, another tab), one
-  // after the other even within one millisecond; never from an hour ahead.
+  // after the other even within one millisecond. A genuine clock an hour
+  // ahead is followed too: later commands never freeze until it catches up.
   backing.verseobs_msg = JSON.stringify(cmd("before-reload", 7, "show_verse", t + 5000));
   const studio = new ctx.VerseObs.Channel({ autoPong: false });
   const studioBC = listener;
@@ -1386,12 +1392,12 @@ async function testDedup() {
   studio.send({ type: "hide" });
   const a4 = sent();
   check(
-    "Commands are stamped after everything read or received, one after the other, never from an hour ahead",
+    "Commands are stamped after everything read or received, one after the other, even after a clock an hour ahead",
     () => {
       assert.ok(a1 > t + 5000, "after the last command before the reload: " + (a1 - t));
       assert.ok(a2 > a1, "one after the other: " + [a1 - t, a2 - t]);
       assert.ok(a3 > t + 9000, "after another tab's command: " + (a3 - t));
-      assert.ok(a4 > a3 && a4 < t + 60e3, "an hour ahead is not followed: " + (a4 - t));
+      assert.ok(a4 > a3 && a4 > t + 3600e3, "an hour ahead is followed, never frozen: " + (a4 - t));
     },
   );
   studio.destroy();

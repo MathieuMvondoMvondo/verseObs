@@ -41,7 +41,7 @@
   // Several outputs may answer at once (OBS program and projector, which can
   // fit a passage differently): the tally follows the program. A projector's
   // report counts only when no program output has answered for PROGRAM_TTL.
-  var _programSeen = 0;
+  var _programSeen = -Infinity;
   var PROGRAM_TTL = 7000;
   // Each preview command carries a number; the preview's report echoes the
   // number of what it measured. « Découper » applies only the report of the
@@ -1435,8 +1435,8 @@
     }
     if (msg.type === MSG.OUTPUT_STATE) {
       // Outputs from before roles are program outputs.
-      if (msg.role !== "projector") _programSeen = Date.now();
-      else if (Date.now() - _programSeen < PROGRAM_TTL) return;
+      if (msg.role !== "projector") _programSeen = performance.now();
+      else if (performance.now() - _programSeen < PROGRAM_TTL) return;
       if (_isStale(msg)) return;
       _output.reduced = msg.reduced === true;
       if (msg.visible) {
@@ -1479,12 +1479,13 @@
     var ours = _commands.some(function (c) {
       return c.id === msg.command;
     });
-    return ours && Date.now() - last.t < 3000;
+    return ours && performance.now() - last.t < 3000;
   }
   var _commandCount = 0;
   function _newCommand() {
     var id = "k" + (++_commandCount).toString(36) + window.VerseObs.Queue.newId();
-    _commands.push({ id: id, t: Date.now() });
+    // A report expires by elapsed time, never by the machine's wall clock.
+    _commands.push({ id: id, t: performance.now() });
     if (_commands.length > 30) _commands.shift();
     return id;
   }
