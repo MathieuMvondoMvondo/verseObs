@@ -1044,16 +1044,35 @@ try {
     // in the state checked: that state, no transition or animation left in
     // it, never before the same 300 ms, within 5 s. The wait polls every
     // 50 ms, not on animation frames, which are what the VPS is short of.
+    // Waiting never excuses a late colour (review 6, R6-B1: a red held back
+    // 4 s by a transition-delay passed). Every animation and transition of
+    // the head must end within 400 ms of its start, delay included: read as
+    // soon as the state is reached, then at every poll. A timing is known
+    // before the animation starts, so this does not depend on frames either.
+    const headTiming = (s) => {
+      const head = document.querySelector("#onair-bar");
+      const all = head.getAnimations({ subtree: true });
+      const slow = all
+        .map((a) => {
+          const t = a.effect.getComputedTiming();
+          const target = a.effect.target;
+          return {
+            what: (a.transitionProperty || a.animationName || "animation") + " ." + ((target && target.classList && target.classList[0]) || "?"),
+            delay: t.delay,
+            duration: t.duration,
+            end: t.endTime,
+          };
+        })
+        .filter((t) => !(t.delay + Number(t.duration) <= 400 && t.end <= 400));
+      if (slow.length) return { slow, state: head.dataset.state || "" };
+      return head.dataset.state === s && all.length === 0 ? { slow } : false;
+    };
     const settled = async (state) => {
+      const first = await studio.evaluate(headTiming, state);
+      assert.deepEqual((first && first.slow) || [], [], state + ": the head's colour comes within 400 ms, delay included");
       await studio.waitForTimeout(300);
-      await studio.waitForFunction(
-        (s) => {
-          const head = document.querySelector("#onair-bar");
-          return head.dataset.state === s && head.getAnimations({ subtree: true }).length === 0;
-        },
-        state,
-        { timeout: 5000, polling: 50 },
-      );
+      const done = await (await studio.waitForFunction(headTiming, state, { timeout: 5000, polling: 50 })).jsonValue();
+      assert.deepEqual(done.slow, [], state + ": the head's colour comes within 400 ms, delay included (state " + done.state + ")");
     };
     // Preview: something prepared.
     await prepare(studio, "Jean 3:16");
