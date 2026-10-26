@@ -5495,3 +5495,17 @@ body:not([data-tab="2"]) #tab-queue .cp-queue-group .queue-merge {
     grid-row: 1 / span 12;
   }
 }
+/* ---- Type margin in the views with a compact conductor (Textes at 1920
+   sat at the 60 % floor). Next to the live controls the conductor is a
+   navigator: the group header already says « 6 plans », so the rows drop
+   their « plan n/N » chip (the Conducteur view and the phone keep it). ---- */
+body:not([data-tab="2"]) #tab-queue .cp-queue-part {
+  display: none;
+}
+/* Field labels in sentence case, like the rest of the régie: capitals are
+   for the tally (APERÇU, ANTENNE) only. */
+.cp-section-label {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+}

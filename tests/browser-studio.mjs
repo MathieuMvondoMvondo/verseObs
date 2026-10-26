@@ -1697,7 +1697,8 @@ try {
           assert.ok(b.top >= 0 && b.bottom <= g.vh, where + b.text + " off the first screen: " + JSON.stringify(b));
       }
     });
-    await check(`Régie type scale at ${w} px (§3): at most 6 sizes, ≥ 60 % of visible texts at 14 px or more, 12-13 px for meta only`, async () => {
+    // The Textes view at 1920 sat at the 60 % floor: it keeps a margin (≥ 65 %).
+    await check(`Régie type scale at ${w} px (§3): at most 6 sizes, ≥ 60 % of visible texts at 14 px or more${w === 1920 ? " (65 % in Textes)" : ""}, 12-13 px for meta only`, async () => {
       const seen = {};
       for (const [tab, name] of views) {
         await showView(r.studio, tab);
@@ -1705,7 +1706,8 @@ try {
         seen[name] = { sizes: Object.keys(g.hist).map(Number).sort((a, b) => a - b).join("/"), share14: Math.round(g.share14 * 100) + " %" };
         const where = `${w} px, ${name}: `;
         assert.ok(g.sizes <= 6, where + g.sizes + " sizes " + JSON.stringify(g.hist));
-        assert.ok(g.share14 >= 0.6, where + Math.round(g.share14 * 100) + " % at 14 px or more " + JSON.stringify(g.hist));
+        const floor = w === 1920 && name === "Textes" ? 0.65 : 0.6;
+        assert.ok(g.share14 >= floor, where + Math.round(g.share14 * 100) + " % at 14 px or more " + JSON.stringify(g.hist));
         assert.ok(Object.keys(g.hist).every((k) => Number(k) >= 12), where + "under 12 px " + JSON.stringify(g.hist));
         assert.deepEqual(g.smallNotMeta, [], where + "12-13 px outside meta");
       }
