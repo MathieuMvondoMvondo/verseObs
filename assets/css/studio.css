@@ -4027,8 +4027,10 @@ body[data-onair="pending"] .cp-btn-hide {
   background: var(--pending);
   color: var(--pending-ink);
 }
+/* The régie and the phone say « Envoi en cours » (review 3: « Envoi… »
+   looked like a label cut short). */
 .cp-queue-item.is-live-pending .cp-queue-title::after {
-  content: "Envoi…";
+  content: "Envoi en cours";
   background: var(--pending);
   color: var(--pending-ink);
 }

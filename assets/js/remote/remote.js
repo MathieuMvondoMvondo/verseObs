@@ -166,7 +166,7 @@
         ? "Partiel"
         : out && out.confirmed
           ? "À l’antenne"
-          : "Envoi…";
+          : "Envoi en cours";
     $("current-title").parentNode.parentNode.classList.toggle(
       "is-live",
       currentLive,

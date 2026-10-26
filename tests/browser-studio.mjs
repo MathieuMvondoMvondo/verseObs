@@ -990,6 +990,9 @@ try {
     console.log("    being sent: " + JSON.stringify(t));
     assert.notEqual(t.chip, "À l’antenne");
     assert.ok(t.chip && amber(t.chipBg), "amber chip: " + JSON.stringify(t));
+    // One word for it in the régie and on the phone (review 3): no « Envoi… »
+    // whose dots look like a cut label.
+    assert.equal(t.chip, "Envoi en cours");
     assert.equal(t.badge, "ENVOI EN COURS");
     assert.ok(amber(t.badgeInk), "amber badge: " + t.badgeInk);
     await studio.screenshot({ path: path.join(ROOT, "artifacts", "regie-conductor-tally-pending.png") });
@@ -1498,6 +1501,28 @@ try {
       console.log("    phone, being sent: " + JSON.stringify(g));
       assert.ok(g.whole, "the reference being sent reads whole: " + JSON.stringify(g));
       assert.equal((await line()).text, "Commande de diffusion · Psaumes 119:5-8");
+      // The régie's words for a command being sent (review 3), whole: the
+      // chip and the selection's head never run out of the card.
+      const chip = await phone.evaluate(() => {
+        const c = document.querySelector("#current-live");
+        const head = c.parentElement.getBoundingClientRect();
+        const kids = Array.from(c.parentElement.children).filter((e) => !e.hidden);
+        return {
+          text: c.hidden ? "" : c.textContent,
+          seen: getComputedStyle(c).textTransform === "uppercase" ? c.textContent.toUpperCase() : c.textContent,
+          whole: c.scrollWidth <= c.clientWidth + 1,
+          inside: kids.every((e) => {
+            const b = e.getBoundingClientRect();
+            return b.left >= head.left - 0.5 && b.right <= head.right + 0.5;
+          }),
+          kids: kids.map((e) => e.textContent + " " + Math.round(e.getBoundingClientRect().right)),
+          headRight: Math.round(head.right),
+        };
+      });
+      console.log("    phone chip, being sent: " + JSON.stringify(chip));
+      assert.equal(chip.text, "Envoi en cours", "the régie's words");
+      assert.equal(chip.seen, "ENVOI EN COURS");
+      assert.ok(chip.whole && chip.inside, "chip whole, inside the card: " + JSON.stringify(chip));
       await phone.screenshot({ path: path.join(ROOT, "artifacts", "phone-pending-390.png") });
     });
     assert.deepEqual(errors, []);
