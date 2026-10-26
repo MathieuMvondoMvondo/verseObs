@@ -1476,7 +1476,8 @@
     if (msg.type === MSG.OUTPUT_STATE) {
       // Any output, program or projector, without « caps » is an older one.
       var caps = Array.isArray(msg.caps) ? msg.caps : [];
-      if (caps.indexOf("style-patch") === -1 || caps.indexOf("onglet") === -1)
+      // « Ruban » and « Facettes » too: a 2060f1e output lacks them.
+      if (["style-patch", "onglet", "ruban", "facettes"].some(function (c) { return caps.indexOf(c) === -1; }))
         _legacySeen = performance.now();
       _output.legacy = _legacyOutput();
       // Outputs from before roles are program outputs.

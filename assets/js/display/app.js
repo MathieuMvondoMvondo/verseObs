@@ -49,7 +49,9 @@
         // (UPDATE_STYLE with patch: true) and the « Onglet » layout. An
         // output from before this field sends none: the Studio sends it no
         // patch and asks the operator to refresh it.
-        caps: ["style-patch", "onglet"],
+        // « Ruban » and « Facettes » (26/10): an output from 2060f1e announces
+        // neither and would draw another look for them.
+        caps: ["style-patch", "onglet", "ruban", "facettes"],
       });
   }
   /**

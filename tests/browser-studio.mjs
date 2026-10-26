@@ -2643,10 +2643,12 @@ try {
     const { pairedDock } = await import("./browser-paired.mjs");
     await pairedDock({ browser, createServer, PORT, check });
   }
-  // ---- « Ruban » and « Facettes » through the real Studio.
+  // ---- « Ruban » and « Facettes » through the real Studio, and an OBS
+  // source left on 2060f1e that cannot draw them.
   if (run("habillages")) {
-    const { habillagesStudio } = await import("./browser-habillages.mjs");
+    const { habillagesStudio, olderOutputHabillage } = await import("./browser-habillages.mjs");
     await habillagesStudio({ check, open, prepare, BASE });
+    await olderOutputHabillage({ check, open, prepare, BASE });
   }
 
   console.log("\n✓ Browser studio: " + passed + " checks passed.");

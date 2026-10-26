@@ -489,3 +489,53 @@ export async function habillagesStudio({ check, open, prepare, BASE }) {
   assert.deepEqual(errors, []);
   await ctx.close();
 }
+
+/**
+ * An OBS source left on 2060f1e: it reports caps ["style-patch", "onglet"]
+ * and draws another look for a layout it does not know. Like any output
+ * older than the Studio (N7), it is never « Sortie confirmée » and the régie
+ * asks to refresh it — for Ruban and Facettes above all, for Onglet too
+ * (the minimal rule: every capability of this Studio must be announced).
+ */
+export async function olderOutputHabillage({ check, open, prepare }) {
+  const { ctx, studio, output, errors } = await open(1920, 1080);
+  const older = async (route) => {
+    const r = await route.fetch();
+    const body = (await r.text()).replace(/caps: \[[^\]]*\],/, 'caps: ["style-patch", "onglet"],');
+    await route.fulfill({ response: r, body });
+  };
+  await output.route("**/assets/js/display/app.js*", older);
+  await output.reload();
+  assert.equal(await output.evaluate(() => fetch("assets/js/display/app.js").then((r) => r.text()).then((t) => /caps: \["style-patch", "onglet"\],/.test(t))), true);
+  const head = () =>
+    studio.evaluate(() => ({
+      state: document.querySelector("#onair-bar").dataset.state,
+      label: document.querySelector("#onair-bar .cp-onair-label").textContent,
+      note: document.querySelector("#program-note").hidden ? "" : document.querySelector("#program-note").textContent,
+    }));
+  await check("An OBS source left on 2060f1e (no Ruban, no Facettes): never « Sortie confirmée », the régie asks to refresh it, Onglet included", async () => {
+    const seen = {};
+    for (const style of ["ruban", "facettes", "onglet"]) {
+      await studio.selectOption("#style-select", style);
+      await prepare(studio, style === "onglet" ? "Jean 3:16" : "Éphésiens 6:15");
+      await studio.click("#btn-show");
+      await output.waitForFunction(() => document.querySelector(".verse-card:not(.vo-probe)"), null, { timeout: 10000 });
+      await studio.waitForFunction(() => document.querySelector("#onair-bar").dataset.state === "live", null, { timeout: 10000 });
+      // Two pings of the older output (3 s each) after the take.
+      await studio.waitForTimeout(3500);
+      seen[style] = await head();
+    }
+    console.log("    older output: " + JSON.stringify(seen));
+    for (const style of ["ruban", "facettes"]) {
+      assert.notEqual(seen[style].label, "Sortie confirmée", style + ": no confirmation of a look the output cannot draw");
+      assert.equal(seen[style].label, "Sortie à actualiser", style);
+      assert.match(seen[style].note, /actualisez/i, style + ": the régie asks to refresh the source");
+      assert.match(seen[style].note, style === "ruban" ? /Ruban/ : /Facettes/, style + ": the note names the style");
+    }
+    assert.equal(seen.onglet.label, "Sortie à actualiser", "Onglet: an older output all the same");
+    assert.match(seen.onglet.note, /actualisez/i);
+    await studio.click("#btn-hide");
+  });
+  assert.deepEqual(errors, []);
+  await ctx.close();
+}
