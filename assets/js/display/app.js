@@ -45,6 +45,11 @@
         shown: visible && renderer && renderer.partial ? renderer.shown : "",
         // The OBS machine's own setting: the Studio tells the operator.
         reduced: !!(V.Motion && V.Motion.reduced()),
+        // What this output understands (review 7, N7): a style patch
+        // (UPDATE_STYLE with patch: true) and the « Onglet » layout. An
+        // output from before this field sends none: the Studio sends it no
+        // patch and asks the operator to refresh it.
+        caps: ["style-patch", "onglet"],
       });
   }
   /**

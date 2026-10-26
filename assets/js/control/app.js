@@ -36,6 +36,26 @@
   // Commands recently sent by this Studio (id, time): a late acknowledgement of
   // an older one must not confirm the latest command.
   var _commands = [];
+  // Last report of an output without « caps » (review 7, N7): an OBS source
+  // or projector still running an older VerseObs. It would take a style
+  // patch for an older Studio's whole style and cannot draw « Onglet ».
+  var _legacySeen = -Infinity,
+    _legacyToast = -Infinity,
+    LEGACY_TTL = 7000;
+  function _legacyOutput() {
+    return performance.now() - _legacySeen < LEGACY_TTL;
+  }
+  /** A live style change while an older output is connected: not sent. */
+  function _styleChanged(changes) {
+    if (!_legacyOutput()) {
+      _sendMessage(MSG.UPDATE_STYLE, { settings: changes, patch: true });
+      return;
+    }
+    if (performance.now() - _legacyToast > 10000) {
+      _legacyToast = performance.now();
+      _notify("Source OBS à actualiser : ce réglage passera au prochain Diffuser.", "info");
+    }
+  }
   // Last report of the preview monitor (fit, plans of a too long passage).
   var _fitInfo = null;
   // Several outputs may answer at once (OBS program and projector, which can
@@ -266,7 +286,7 @@
     // (review 6, N2). A Diffuser still carries the whole style.
     settings.onChange = function (s, changes) {
       if (_onAirItem && _onAirItem.type !== "text" && changes && Object.keys(changes).length)
-        _sendMessage(MSG.UPDATE_STYLE, { settings: changes, patch: true });
+        _styleChanged(changes);
       _sendPreview();
     };
     settings.onNotify = function (message, type) {
@@ -335,7 +355,7 @@
       // Reflect live in the dock preview, and on the overlay if free text is
       // on air: only what changed, as for the verse style.
       if (_onAirItem && _onAirItem.type === "text" && changes && Object.keys(changes).length) {
-        _sendMessage(MSG.UPDATE_STYLE, { settings: changes, patch: true });
+        _styleChanged(changes);
       }
       _sendPreview();
     };
@@ -1440,6 +1460,11 @@
       }, 7000);
     }
     if (msg.type === MSG.OUTPUT_STATE) {
+      // Any output, program or projector, without « caps » is an older one.
+      var caps = Array.isArray(msg.caps) ? msg.caps : [];
+      if (caps.indexOf("style-patch") === -1 || caps.indexOf("onglet") === -1)
+        _legacySeen = performance.now();
+      _output.legacy = _legacyOutput();
       // Outputs from before roles are program outputs.
       if (msg.role !== "projector") _programSeen = performance.now();
       else if (performance.now() - _programSeen < PROGRAM_TTL) return;
@@ -2012,7 +2037,13 @@
         var detail = partial
           ? " " + _output.shown + " · demandé " + _askedVerses()
           : "";
-        var text = partial ? "Partiel" + detail : ONAIR_LABELS[state];
+        // An older output on air: never « Sortie confirmée » for a look it
+        // may not draw (« Onglet »); the note under the monitor says why.
+        var text = partial
+          ? "Partiel" + detail
+          : state === "live" && _output.legacy
+            ? "Sortie à actualiser"
+            : ONAIR_LABELS[state];
         if (label.textContent !== text) {
           label.textContent = partial ? "Partiel" : text;
           if (partial) {

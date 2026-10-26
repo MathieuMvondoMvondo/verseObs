@@ -223,3 +223,81 @@ export async function ongletStudio({ check, open, prepare, BASE }) {
   assert.deepEqual(errors, []);
   await ctx.close();
 }
+
+/**
+ * N7 (review 7): an OBS source still running an older VerseObs (page not
+ * refreshed after the update) reports without « caps ». It would take a
+ * style patch for an older Studio's whole style (Antenne → Carte at the
+ * first size change) and cannot draw « Onglet ». The Studio sends it no
+ * patch, never says « Sortie confirmée » for it and asks to refresh the
+ * source; once refreshed, patches and the confirmation come back.
+ * The older output is emulated by the real output page served without its
+ * « caps » (the field 8834e21 and earlier never sent); the mixed run with
+ * the real 8834e21 code is a separate probe (onglet-finalisation/n7).
+ */
+export async function legacyOutput({ check, open, prepare, BASE }) {
+  const { ctx, studio, output, errors } = await open(1920, 1080);
+  const strip = async (route) => {
+    const r = await route.fetch();
+    const body = (await r.text()).replace(/\n\s*caps: \[[^\]]*\],/, "");
+    await route.fulfill({ response: r, body });
+  };
+  await output.route("**/assets/js/display/app.js*", strip);
+  await output.reload();
+  const spy = async () =>
+    output.evaluate((name) => {
+      window.__styles = [];
+      new BroadcastChannel(name).onmessage = (e) => {
+        const text = JSON.stringify(e.data);
+        if (/update_style/i.test(text)) window.__styles.push(/"patch":true/.test(text) ? "patch" : "whole");
+      };
+    }, await output.evaluate(() => window.VerseObs.CHANNEL_NAME || "verseobs"));
+  await spy();
+  // The emulated older output really runs without « caps ».
+  assert.equal(await output.evaluate(() => fetch("assets/js/display/app.js").then((r) => r.text()).then((t) => /caps:/.test(t))), false);
+  const head = () =>
+    studio.evaluate(() => ({
+      state: document.querySelector("#onair-bar").dataset.state,
+      label: document.querySelector("#onair-bar .cp-onair-label").textContent,
+      note: document.querySelector("#program-note").hidden ? "" : document.querySelector("#program-note").textContent,
+    }));
+  const fontSize = (v) =>
+    studio.evaluate((v) => {
+      const el = document.querySelector('#settings-container [data-setting="fontSize"]');
+      el.value = String(v);
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+    }, v);
+  await check("An OBS source left on an older version: the régie asks to refresh it, sends it no style patch and never confirms its look", async () => {
+    await prepare(studio, "Jean 3:16");
+    await studio.click("#btn-show");
+    await output.waitForFunction(() => document.querySelector(".verse-card:not(.vo-probe)"), null, { timeout: 10000 });
+    await studio.waitForFunction(() => !document.querySelector("#program-note").hidden && /actualise/i.test(document.querySelector("#program-note").textContent), null, { timeout: 10000 });
+    await studio.waitForFunction(() => document.querySelector("#onair-bar").dataset.state === "live", null, { timeout: 10000 });
+    const h = await head();
+    // Longer than the Studio's memory of an older report (7 s): the older
+    // output answers every PING (3 s), so it is still known as older.
+    await studio.waitForTimeout(8000);
+    await fontSize(50);
+    await studio.waitForTimeout(800);
+    const sent = await output.evaluate(() => window.__styles.slice());
+    console.log("    older output: " + JSON.stringify({ head: h, styles: sent }));
+    assert.match(h.note, /actualisez/i, "the régie asks to refresh the source");
+    assert.notEqual(h.label, "Sortie confirmée", "no confirmation of a look the older output cannot draw");
+    assert.deepEqual(sent, [], "no style patch for an output that would take it for an older Studio's whole style");
+  });
+  await check("Once the source is refreshed: the note goes, « Sortie confirmée » and live style patches come back", async () => {
+    await output.unroute("**/assets/js/display/app.js*", strip);
+    await output.reload();
+    await spy();
+    await studio.click("#btn-show");
+    await output.waitForFunction(() => document.querySelector(".verse-card:not(.vo-probe)"), null, { timeout: 10000 });
+    await studio.waitForFunction(() => document.querySelector("#program-note").hidden && document.querySelector("#onair-bar .cp-onair-label").textContent === "Sortie confirmée", null, { timeout: 15000 });
+    await fontSize(46);
+    await output.waitForFunction(() => window.__styles.length > 0, null, { timeout: 5000 });
+    const sent = await output.evaluate(() => window.__styles.slice());
+    console.log("    refreshed output: " + JSON.stringify({ head: await head(), styles: sent }));
+    assert.deepEqual([...new Set(sent)], ["patch"], "the size change goes as a patch");
+  });
+  assert.deepEqual(errors, []);
+  await ctx.close();
+}

@@ -977,12 +977,15 @@
       };
       el("monitor-program").classList.toggle("is-live", output.visible);
       // Reduced motion is decided by the OBS computer's system setting.
+      // An output still on an older version comes first (review 7, N7).
       var note = el("program-note");
       if (note) {
-        note.hidden = !state.reduced;
-        note.textContent = state.reduced
-          ? "Sortie : animations réduites par le système de l’ordinateur OBS (fondus courts)."
-          : "";
+        note.hidden = !state.reduced && !state.legacy;
+        note.textContent = state.legacy
+          ? "Une source OBS ou un projecteur utilise une version précédente : actualisez-la (clic droit sur la source › Actualiser). D’ici là, les réglages ne passent qu’au prochain Diffuser et le style Onglet n’y est pas dessiné."
+          : state.reduced
+            ? "Sortie : animations réduites par le système de l’ordinateur OBS (fondus courts)."
+            : "";
       }
       if (api) markLive();
       paintTake();

@@ -2633,6 +2633,11 @@ try {
     const { ongletStudio } = await import("./browser-onglet.mjs");
     await ongletStudio({ check, open, prepare, BASE });
   }
+  // ---- N7: an OBS source left on an older version (no « caps »).
+  if (run("legacy")) {
+    const { legacyOutput } = await import("./browser-onglet.mjs");
+    await legacyOutput({ check, open, prepare, BASE });
+  }
 
   if (run("paired")) {
     const { pairedDock } = await import("./browser-paired.mjs");

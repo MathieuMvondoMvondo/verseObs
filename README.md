@@ -33,6 +33,17 @@ Adresses locales par défaut :
 
 Référence officielle : [source Navigateur d’OBS](https://obsproject.com/kb/browser-source).
 
+### Après une mise à jour de VerseObs
+
+Chaque page garde le code chargé à son ouverture. Après une mise à jour, actualisez-les toutes, avant le culte :
+
+1. **Source OBS** : clic droit sur la source › **Actualiser** (ou Propriétés › « Actualiser le cache de la page actuelle »). À refaire pour chaque scène qui a sa propre source.
+2. **Dock du Studio dans OBS** : clic droit dans le dock › **Actualiser**, ou fermez puis rouvrez le dock.
+3. **Projecteur** (`?projector=1`) et **Studio dans un navigateur** : `Ctrl + R` (`⌘ + R` sur Mac).
+4. **Téléphone** : rechargez la page de la télécommande.
+
+Tant qu’une source ou un projecteur tourne encore sur une version précédente, le Studio le dit : la tête Antenne affiche **Sortie à actualiser** au lieu de « Sortie confirmée », et une note sous le moniteur demande de l’actualiser. D’ici là, un réglage changé pendant une diffusion n’est pas envoyé en direct (l’ancienne page le prendrait pour le style complet d’un ancien Studio) : il passe au **Diffuser** suivant, qui porte tout le style. Une ancienne page ne sait pas dessiner le style **Onglet**. La télécommande, elle, n’affiche pas cet avertissement.
+
 ## Préparer et diffuser
 
 - Cherchez `Jean 3:16`, `Jn 3:16-18`, un mot-clé ou une `"phrase exacte"`. La recherche ignore la casse et les accents et tolère certaines fautes.
@@ -117,6 +128,8 @@ L’habillage par défaut, **Antenne**, est conçu pour la vidéo :
 **Mouvement** (« Révélation », par défaut) : à l’entrée, le bandeau se pose, l’axe se trace, la référence monte de sa fente et le texte se révèle dans l’ordre de lecture. Au changement de passage, le bandeau et l’axe restent à l’antenne et s’adaptent à la nouvelle hauteur ; seuls les chiffres qui changent défilent quand on reste dans le même livre. La sortie est courte. Toute commande peut arriver pendant une animation : la dernière l’emporte et repart de ce qui est à l’écran, sans flash ni texte coupé. Aucun mouvement continu à l’antenne. Avec la préférence système de réduction des animations, seuls des fondus courts restent. « Fondu », « Glissement » et « Aucune » restent disponibles.
 
 **Longs passages** : le texte (jamais la référence) est réduit juste assez pour tenir dans la moitié du cadre en tiers inférieur. S’il fallait descendre sous 72 % de sa taille, il occupe plutôt toute la zone de sécurité, puis seulement se réduit davantage. Un texte qui ne tient pas même ainsi est signalé dans le Studio avant diffusion.
+
+**Onglet** (clair ou sombre, pour les versets comme pour les chants) : une carte claire ou sombre très arrondie à gauche, presque en capsule, la référence en gras dans un onglet de couleur posé à angle droit sur son coin haut droit (silhouette mesurée sur la référence envoyée par Math). Numéros de verset en exposant ; signature facultative en bas à droite (champ « Signature (style Onglet) » dans l’habillage des versets et dans celui des textes et chants, vide par défaut) ; « 2/6 » pour un plan découpé. « Rayon bordure » met toute la silhouette à l’échelle. Le projecteur centre toujours le texte ; en Onglet, « Plein écran » garde la carte centrée comme « Centre » (un long texte peut seulement y occuper 84 % du cadre au lieu de 72 %).
 
 Les bases **Studio**, **Papier**, **Cinéma** et les styles historiques gardent la **carte encadrée** (réglage **Mise en page**). Un habillage biblique resté sur l’ancienne base par défaut (Studio) prend le look Antenne (couleurs, polices, tailles, mise en page) mais garde vos réglages de diffusion : position, masquage automatique, animation, durée, largeur et alignement. « Machine à écrire » devient « Révélation », qui conserve la mise en forme et les numéros de verset. Les chants ne changent pas : la carte centrée reste leur style par défaut, et le style **Antenne** (paroles sur le bandeau) est proposé en option avec Chant, Annonce, Prière et Citation.
 
