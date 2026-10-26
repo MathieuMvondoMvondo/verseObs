@@ -675,6 +675,93 @@ try {
     assert.deepEqual(errors, []);
     await ctx.close();
   });
+
+  // ---- The same for the program (review 3, B1): Diffuser then Masquer in
+  // one task, every transport to the OBS output delayed by 400 ms except
+  // the poll of the last command (it hands Masquer over first). The text
+  // must never come back on air. Judged on the output's pixels (a card
+  // leaving stays a while in the DOM, invisible), over three bursts.
+  await check("A Diffuser delivered late never puts back a hidden text: the output's pixels stay empty after Masquer (deliveries to the output delayed by 400 ms)", async () => {
+    const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    await ctx.addInitScript(() => {
+      if (!location.pathname.endsWith("browser_source.html") || /(preview|monitor)=1/.test(location.search)) return;
+      const late = (fn, self) => fn && ((e) => setTimeout(() => fn.call(self, e), 400));
+      for (const Ctor of [BroadcastChannel, WebSocket]) {
+        const d = Object.getOwnPropertyDescriptor(Ctor.prototype, "onmessage");
+        Object.defineProperty(Ctor.prototype, "onmessage", {
+          configurable: true,
+          get: d.get,
+          set(fn) {
+            d.set.call(this, late(fn, this));
+          },
+        });
+      }
+      const add = window.addEventListener;
+      window.addEventListener = function (type, fn, o) {
+        return add.call(this, type, type === "storage" ? late(fn, this) : fn, o);
+      };
+    });
+    const errors = [];
+    const output = await ctx.newPage();
+    await output.setViewportSize({ width: 1280, height: 720 });
+    output.on("pageerror", (e) => errors.push("output: " + e.message));
+    await output.goto(`${BASE}/browser_source.html`);
+    const studio = await ctx.newPage();
+    studio.on("pageerror", (e) => errors.push("studio: " + e.message));
+    await studio.goto(`${BASE}/control_panel.html`);
+    await studio.waitForSelector(".chapter-verse");
+    await studio.waitForFunction(() => document.querySelector("#connection-dot").classList.contains("connected"));
+    // Pixels drawn by the transparent source (what OBS composites), counted
+    // in a blank page from a screenshot without background.
+    const lab = await ctx.newPage();
+    const ink = async () => {
+      const png = (await output.screenshot({ omitBackground: true })).toString("base64");
+      return lab.evaluate(async (b64) => {
+        const img = new Image();
+        img.src = "data:image/png;base64," + b64;
+        await img.decode();
+        const c = document.createElement("canvas");
+        c.width = img.width;
+        c.height = img.height;
+        const g = c.getContext("2d");
+        g.drawImage(img, 0, 0);
+        const d = g.getImageData(0, 0, c.width, c.height).data;
+        let n = 0;
+        for (let i = 3; i < d.length; i += 4) if (d[i] > 8) n++;
+        return n;
+      }, png);
+    };
+    await prepare(studio, "Jean 3:16");
+    await studio.waitForTimeout(600);
+    assert.equal(await ink(), 0, "nothing on the output before Diffuser");
+    const head = () => studio.evaluate(() => document.querySelector("#onair-bar").dataset.state);
+    for (let burst = 1; burst <= 3; burst++) {
+      await studio.evaluate(() => {
+        document.querySelector("#btn-show").click();
+        document.querySelector("#btn-hide").click();
+      });
+      await studio.waitForTimeout(2000);
+      const samples = [];
+      for (let k = 0; k < 5; k++) {
+        samples.push(await ink());
+        await studio.waitForTimeout(300);
+      }
+      console.log("    burst " + burst + ": ink from +2 s " + JSON.stringify(samples) + ", Antenne head " + (await head()));
+      assert.deepEqual(samples, [0, 0, 0, 0, 0], "burst " + burst + ": the hidden text is back on air");
+      assert.equal(await head(), "off", "burst " + burst + ": the régie says nothing is on air");
+    }
+    // The count does see a text on air (not a blind test).
+    await studio.click("#btn-show");
+    await output.waitForFunction(SETTLED, null, { timeout: 10000 });
+    const shown = await ink();
+    console.log("    Diffuser alone: ink " + shown);
+    assert.ok(shown > 5000, "a text on air is counted: " + shown);
+    await studio.click("#btn-hide");
+    await studio.waitForTimeout(2500);
+    assert.equal(await ink(), 0, "Masquer alone empties the output");
+    assert.deepEqual(errors, []);
+    await ctx.close();
+  });
   }
 
   // ---- The Antenne head's states (brief §4), in the phone's words: no

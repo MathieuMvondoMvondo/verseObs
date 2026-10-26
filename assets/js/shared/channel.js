@@ -22,24 +22,57 @@ window.VerseObs.Channel = function (opts) {
   try {
     lastRaw = localStorage.getItem(key);
   } catch (e) {}
+  // Every message carries `at`, a stamp later than every stamp this channel
+  // has sent, read or received, and than this machine's clock (a hybrid
+  // logical clock): a command sent after another one was seen, by the same
+  // tab, another tab or a reloaded Studio, carries a later stamp, even in
+  // the same millisecond. A stamp more than a minute ahead of the clock (the
+  // clock went back since, or a page sent nonsense) orders nothing.
+  var AHEAD = 60000,
+    clock = 0;
+  function trusted(at) {
+    return typeof at === "number" && at > 0 && at <= Date.now() + AHEAD;
+  }
+  function see(at) {
+    if (trusted(at) && at > clock) clock = at;
+  }
+  function stamp() {
+    if (!trusted(clock)) clock = 0;
+    clock = Math.max(Date.now(), clock + 1);
+    return clock;
+  }
+  try {
+    see(JSON.parse(lastRaw).at);
+  } catch (e) {}
   // The poll below reads only the last command written to localStorage: on a
-  // busy machine it may hand a later preview over before BroadcastChannel, a
+  // busy machine it may hand a later command over before BroadcastChannel, a
   // storage event or the relay delivers an earlier one. A preview replaces
-  // the previous one, so an earlier one arriving late is dropped (per
-  // sender, by its command number); every other command is delivered as is.
+  // the previous preview; a program command (show a verse, show a text,
+  // hide) replaces the previous one. In each slot, a command older than the
+  // one already delivered is dropped: from the same sender, by its command
+  // number; from any sender (another tab, a reloaded Studio), by its stamp.
+  // Two senders' commands stamped alike are both delivered, in arrival order.
+  // Every other command is delivered as is.
   var replaces = {},
-    latest = {};
+    latest = {},
+    top = {};
   replaces[V.MSG.PREVIEW] = replaces[V.MSG.PREVIEW_HIDE] = "preview";
+  replaces[V.MSG.SHOW_VERSE] =
+    replaces[V.MSG.SHOW_TEXT] =
+    replaces[V.MSG.HIDE] =
+      "program";
   function superseded(msg) {
     var slot = replaces[msg.type],
       id = String(msg.id || ""),
       from = String(msg.sender || "");
-    if (!slot || !from || id.indexOf(from + ":") !== 0) return false;
-    var n = Number(id.slice(from.length + 1)),
+    if (!slot) return false;
+    var n = from && id.indexOf(from + ":") === 0 ? Number(id.slice(from.length + 1)) : 0,
       k = from + " " + slot;
-    if (!(n > 0)) return false;
-    if (latest[k] >= n) return true;
-    latest[k] = n;
+    if (n > 0 && latest[k] >= n) return true;
+    if (top[slot] && !trusted(top[slot])) delete top[slot];
+    if (trusted(msg.at) && msg.at < top[slot]) return true;
+    if (n > 0) latest[k] = n;
+    if (trusted(msg.at) && !(top[slot] >= msg.at)) top[slot] = msg.at;
     return false;
   }
   function receive(msg) {
@@ -55,6 +88,7 @@ window.VerseObs.Channel = function (opts) {
     if (seen.has(id)) return;
     seen.add(id);
     if (seen.size > 600) seen.delete(seen.values().next().value);
+    see(msg.at);
     if (superseded(msg)) return;
     if (msg.type === V.MSG.PING && opts.autoPong !== false)
       self.send({ type: V.MSG.PONG });
@@ -118,6 +152,7 @@ window.VerseObs.Channel = function (opts) {
       sender: sender,
       id: sender + ":" + ++seq,
       ts: Date.now(),
+      at: stamp(),
     });
     var raw = JSON.stringify(msg);
     try {
@@ -142,6 +177,7 @@ window.VerseObs.Channel = function (opts) {
             sender: sender,
             id: sender + ":" + ++seq,
             ts: Date.now(),
+            at: stamp(),
           }),
         ),
       );

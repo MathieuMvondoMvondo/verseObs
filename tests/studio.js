@@ -1167,10 +1167,12 @@ async function testDedup() {
     listener,
     delivered = 0;
   const backing = {};
+  // This machine's clock as the channel reads it (moved back in one check).
+  let clockShift = 0;
   const ctx = {
     console,
     Set,
-    Date,
+    Date: { now: () => Date.now() + clockShift },
     Math,
     JSON,
     Object,
@@ -1256,6 +1258,91 @@ async function testDedup() {
       ]),
   );
   preview.destroy();
+
+  // The program the same way (show a verse, show a text, hide): a Diffuser
+  // delivered late must never put back on air a text hidden since, whoever
+  // sent the two commands: one Studio, two Studio tabs, a reloaded Studio
+  // (a new sender). Two senders' commands stamped in the same millisecond
+  // are both legitimate: both are applied, in arrival order.
+  const program = [];
+  const output = new ctx.VerseObs.Channel({ autoPong: false });
+  const outputBC = listener;
+  output.onMessage((m) => program.push(m.type + " " + m.id));
+  const t = Date.now();
+  const cmd = (sender, n, type, at) => ({ type, id: sender + ":" + n, sender, ts: t, at, text: "T" });
+  // One Studio, Diffuser (9) then Masquer (10) in one task: the poll hands
+  // Masquer over first, BroadcastChannel brings Diffuser later.
+  backing.verseobs_msg = JSON.stringify(cmd("studio", 10, "hide", t + 2));
+  interval();
+  outputBC.onmessage({ data: cmd("studio", 9, "show_verse", t + 1) });
+  // Tab B hid what tab A showed; A's Diffuser arrives after B's Masquer.
+  outputBC.onmessage({ data: cmd("tabB", 3, "hide", t + 20) });
+  outputBC.onmessage({ data: cmd("tabA", 50, "show_text", t + 19) });
+  // Same millisecond, two senders.
+  outputBC.onmessage({ data: cmd("tabA", 51, "show_verse", t + 30) });
+  outputBC.onmessage({ data: cmd("tabB", 4, "hide", t + 30) });
+  // A reloaded Studio hid; the Studio before the reload arrives late.
+  outputBC.onmessage({ data: cmd("reloaded", 1, "hide", t + 41) });
+  outputBC.onmessage({ data: cmd("tabA", 52, "show_verse", t + 40) });
+  // A preview is another slot: it neither replaces nor is replaced by the program.
+  outputBC.onmessage({ data: cmd("reloaded", 2, "preview", t + 45) });
+  outputBC.onmessage({ data: cmd("tabA", 53, "show_text", t + 44) });
+  // A stamp an hour ahead (a clock moved back since, or nonsense) is
+  // delivered but orders nothing: later commands are not held back by it.
+  outputBC.onmessage({ data: cmd("odd", 1, "show_text", t + 3600e3) });
+  outputBC.onmessage({ data: cmd("reloaded", 3, "hide", t + 50) });
+  check(
+    "A Diffuser delivered late never puts back a hidden text (one Studio, two tabs, a reloaded Studio); same millisecond: both applied",
+    () =>
+      assert.deepEqual(program, [
+        "hide studio:10",
+        "hide tabB:3",
+        "show_verse tabA:51",
+        "hide tabB:4",
+        "hide reloaded:1",
+        "preview reloaded:2",
+        "show_text tabA:53",
+        "show_text odd:1",
+        "hide reloaded:3",
+      ]),
+  );
+  // This machine's clock goes back ten minutes: commands sent after it
+  // (stamped from the new clock) are still applied, nothing is lost.
+  clockShift = -600e3;
+  outputBC.onmessage({ data: cmd("later", 1, "show_verse", t - 600e3 + 1) });
+  check("After the clock went back, a new command is still applied", () =>
+    assert.equal(program[program.length - 1], "show_verse later:1"),
+  );
+  clockShift = 0;
+  output.destroy();
+
+  // Stamps of the commands sent: always later than every command the
+  // channel has read or received (a reloaded Studio, another tab), one
+  // after the other even within one millisecond; never from an hour ahead.
+  backing.verseobs_msg = JSON.stringify(cmd("before-reload", 7, "show_verse", t + 5000));
+  const studio = new ctx.VerseObs.Channel({ autoPong: false });
+  const studioBC = listener;
+  const sent = () => JSON.parse(backing.verseobs_msg).at;
+  studio.send({ type: "show_verse" });
+  const a1 = sent();
+  studio.send({ type: "hide" });
+  const a2 = sent();
+  studioBC.onmessage({ data: cmd("other-tab", 1, "show_text", t + 9000) });
+  studio.send({ type: "hide" });
+  const a3 = sent();
+  studioBC.onmessage({ data: cmd("odd", 2, "show_text", t + 3600e3) });
+  studio.send({ type: "hide" });
+  const a4 = sent();
+  check(
+    "Commands are stamped after everything read or received, one after the other, never from an hour ahead",
+    () => {
+      assert.ok(a1 > t + 5000, "after the last command before the reload: " + (a1 - t));
+      assert.ok(a2 > a1, "one after the other: " + [a1 - t, a2 - t]);
+      assert.ok(a3 > t + 9000, "after another tab's command: " + (a3 - t));
+      assert.ok(a4 > a3 && a4 < t + 60e3, "an hour ahead is not followed: " + (a4 - t));
+    },
+  );
+  studio.destroy();
 }
 run()
   .catch((e) => {
