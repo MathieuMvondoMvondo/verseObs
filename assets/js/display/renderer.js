@@ -309,7 +309,14 @@
     if (data.html) {
       // The HTML comes from the Studio's editor; only an inert allowlist passes.
       text.innerHTML = V.sanitizeHtml(data.html);
-      if (tab) bindNums(text);
+      if (tab) {
+        bindNums(text);
+        // « Onglet »: a single verse from the editor (no marker) still opens
+        // on its number, as the cards of the reference.
+        var lead = data.reference ? /:(\d+)$/.exec(data.reference) : null;
+        if (lead && !text.querySelector("sup.verse-num"))
+          text.insertBefore(node("sup", "verse-num vo-lead-num", lead[1]), text.firstChild);
+      }
     } else {
       var match = data.reference ? /:(\d+)/.exec(data.reference) : null;
       if (match) {
@@ -1151,7 +1158,8 @@
       p.copy.remove();
       var copy = probe.querySelector(".vo-copy");
       copy.style.opacity = "0";
-      p.body.appendChild(copy);
+      // The text goes back above the « Onglet » signature line.
+      p.body.insertBefore(copy, p.foot || null);
       var oldRoll = null,
         newRoll = null,
         probeRoll = probe.querySelector(".vo-nums .vo-roll"),

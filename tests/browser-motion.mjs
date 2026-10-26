@@ -464,9 +464,11 @@ try {
       tabClipped: tab ? tab.scrollWidth > tab.clientWidth + 1 : false,
       copy: box(card.querySelector(".vo-copy")),
       second: box(card.querySelector(".verse-secondary")),
+      foot: box(card.querySelector(".vo-foot")),
       primaryText: box(card.querySelector(".vo-copy > .verse-text")),
       copyText: card.querySelector(".vo-copy").innerText.replace(/\s+/g, " ").trim(),
       sups: Array.from(card.querySelectorAll(".vo-copy sup.verse-num")).filter((s) => getComputedStyle(s).display !== "none").length,
+      firstNum: (Array.from(card.querySelectorAll(".vo-copy .verse-text:not(.verse-secondary-text) sup.verse-num")).find((s) => getComputedStyle(s).display !== "none") || {}).textContent || "",
       align: getComputedStyle(card.querySelector(".vo-copy .verse-text")).textAlign,
       plan: card.querySelector(".vo-plan") ? card.querySelector(".vo-plan").textContent : "",
       planSize: card.querySelector(".vo-plan") ? parseFloat(getComputedStyle(card.querySelector(".vo-plan")).fontSize) : 0,
@@ -494,6 +496,8 @@ try {
     }
     assert.ok(g.card, what + ": card painted");
     assert.ok(g.copy.bottom <= g.card.bottom + 0.5 && g.copy.top >= g.card.top - 0.5, what + ": text inside the card");
+    // signature and « 2/6 » close the card, under the text
+    if (g.foot) assert.ok(g.foot.top >= g.copy.bottom - 0.5 && g.foot.bottom <= g.card.bottom + 0.5, what + ": signature and plan under the text " + JSON.stringify([g.copy, g.foot]));
     if (tab) {
       assert.ok(g.tab, what + ": tab painted");
       assert.ok(Math.abs(g.tab.bottom - g.card.top) <= 1.5 * scale, what + ": the tab stands on the card");
@@ -518,6 +522,10 @@ try {
       ongletOk(g, "Jean 3:16");
       assert.match(g.tabText, /^Jean 3:16 \(LSG\)$/, "reference and version in the tab");
       assert.ok(g.sups >= 1, "verse number as a superscript");
+      // From the Studio a single verse comes with its editor's html (no
+      // verse marker): the card still opens on its number.
+      g = await shown({ ...A, html: A.text }, "onglet");
+      assert.equal(g.firstNum, "16", "the Studio's single verse starts with its number");
       g = await shown(verse("Cantique des Cantiques", 2, 10, 13), "onglet");
       ongletOk(g, "Cantique des Cantiques 2:10-13", { part: !!g.partial });
       assert.match(g.tabText, /^Cantique des Cantiques 2:10-1[0-3] \(LSG\)$/);
@@ -634,11 +642,12 @@ try {
 
   await check("Onglet plan change: only the text changes, the card stays", async () => {
     const p = rec.page;
-    await sendStyled(p, P1, "onglet");
+    const sign = { signature: "Culte du dimanche" };
+    await sendStyled(p, P1, "onglet", sign);
     await settle(p, 1200);
     await frames(p);
     await anims(p);
-    await sendStyled(p, P2, "onglet");
+    await sendStyled(p, P2, "onglet", sign);
     await settle(p, 1200);
     const f = await frames(p),
       list = await anims(p);
@@ -647,8 +656,10 @@ try {
     assert.ok(list.some((x) => /vo-copy/.test(x.cls)), "the text changes");
     assert.ok(!list.some((x) => /vo-plate|verse-body|vo-margin/.test(x.cls) && /"opacity":"0"/.test(x.from + x.to)), "the card and its tab never leave");
     assert.ok(Math.min(...f.map((x) => x.body)) > 0.999, "the card is never faded");
+    // measured right after the change (a style update would rebuild the card)
     const g = await p.evaluate(ONGLET_GEOMETRY);
     ongletOk(g, "plan 2");
+    assert.ok(g.foot, "signature and plan shown after the change");
     assert.equal(g.plan, "2/3");
     assert.equal(g.tabText, "Psaumes 119:3-4 (LSG)");
   });
