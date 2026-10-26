@@ -27,6 +27,7 @@
     this.onNotify = null; // callback(message, type) — surfaced to the UI toast
     this._bindings = [];
     this._templateSelect = null;
+    this._sent = null; // values as of the last change notified (see _notifyChange)
   }
 
   Settings.prototype._notify = function (message, type) {
@@ -113,6 +114,7 @@
       this._settings.bgImage =
         localStorage.getItem(this._imageKey) || this._settings.bgImage || "";
     } catch (e) {}
+    this._sent = this.getAll();
     return this._settings;
   };
 
@@ -183,11 +185,21 @@
   };
 
   /**
-   * Send UPDATE_STYLE message (excludes bgImage from broadcast).
+   * Tell the Studio what changed: onChange(settings without bgImage, changes).
+   * `changes` holds only the properties this tab changed since its last
+   * notification (bgImage included when it changed): another tab's change
+   * to another property is never overwritten by this tab's older values
+   * (review 6, N2).
    */
   Settings.prototype._notifyChange = function () {
+    var now = this.getAll(),
+      before = this._sent || {},
+      changes = {};
+    for (var key in now)
+      if (now.hasOwnProperty(key) && now[key] !== before[key]) changes[key] = now[key];
+    this._sent = now;
     if (typeof this.onChange === "function") {
-      this.onChange(this.getForMessage());
+      this.onChange(this.getForMessage(), changes);
     }
   };
 

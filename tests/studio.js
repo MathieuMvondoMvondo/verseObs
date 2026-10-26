@@ -172,6 +172,40 @@ async function run() {
     assert.equal(output.d.querySelectorAll(".vo-axis").length, 1);
     assert.equal(output.d.querySelectorAll(".vo-copy").length, 1);
   });
+  // Review 6 (N2): what the Studio really sends for a style change on air,
+  // read on the relay: only the properties this tab changed, marked as a
+  // patch, never its whole style (a second tab's change to another
+  // property would be lost). The output applies it in its layout.
+  const wire = [];
+  const tap = new WebSocket("ws://127.0.0.1:" + PORT + "/verseobs-relay", { origin });
+  await new Promise((resolve, reject) => (tap.on("open", resolve), tap.on("error", reject)));
+  tap.on("message", (data) => {
+    try {
+      const m = JSON.parse(String(data));
+      if (m.type === "update_style") wire.push(m);
+    } catch (e) {}
+  });
+  // The tap is closed whatever happens: an open socket keeps the run alive.
+  try {
+    const fontBefore = cp.d.querySelector("#settings-container [data-setting=fontSize]").value;
+    input(cp, "#settings-container [data-setting=fontSize]", "52");
+    await until(() => wire.length > 0, "style change on the relay");
+    await until(
+      () => output.d.documentElement.style.getPropertyValue("--font-size") === "52px",
+      "style change applied",
+    );
+    check("A style change on air sends only the property changed, as a patch, and the output applies it", () => {
+      assert.equal(wire.length, 1);
+      assert.deepEqual(Object.keys(wire[0].settings).filter((k) => k !== "template"), ["fontSize"]);
+      assert.equal(wire[0].settings.fontSize, 52);
+      assert.equal(wire[0].patch, true);
+      assert(output.d.querySelector("#verse-container").classList.contains("layout-antenne"));
+    });
+    input(cp, "#settings-container [data-setting=fontSize]", fontBefore);
+    await until(() => wire.length > 1, "style restored");
+  } finally {
+    tap.terminate();
+  }
   // Objects come from the page's realm: compare them as plain JSON.
   const split = (r) =>
     JSON.parse(JSON.stringify(output.w.VerseObs.Renderer.splitReference(r)));

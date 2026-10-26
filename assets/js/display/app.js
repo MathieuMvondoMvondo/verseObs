@@ -87,11 +87,12 @@
   /**
    * A command without a layout comes from an older Studio: keep its card.
    * Stored settings follow the Studio's own migration (see migrateStyle).
-   * A patch (`patch`: what the channel kept of an older style, see
-   * channel.js) changes only the properties it carries: it is never taken
-   * for an older Studio's complete style, so it is neither migrated nor
-   * given the verse's stored picture, and a projector keeps its text size
-   * unless the patch carries one (review 6, N3).
+   * A patch (`patch`: the properties a Studio changed, or what the channel
+   * kept of an older style, see channel.js) changes only the properties it
+   * carries: it is never taken for an older Studio's complete style, so it
+   * is neither migrated nor given the verse's stored picture, and a
+   * projector keeps its text size unless the patch carries one (review 6,
+   * N2 and N3).
    * Colours are validated here too: a value that could make the output load
    * something (url() …) takes the default colour, whoever sent it.
    */

@@ -261,9 +261,12 @@
     settings.bindUI(dom.settingsContainer);
     settings.bindExtras(dom.settingsContainer);
     settings._updateUI();
-    settings.onChange = function (s) {
-      if (_onAirItem && _onAirItem.type !== "text")
-        _sendMessage(MSG.UPDATE_STYLE, { settings: settings.getAll() });
+    // A style change sends only what this tab changed (a patch), never its
+    // whole style: two tabs setting two properties both stay on air
+    // (review 6, N2). A Diffuser still carries the whole style.
+    settings.onChange = function (s, changes) {
+      if (_onAirItem && _onAirItem.type !== "text" && changes && Object.keys(changes).length)
+        _sendMessage(MSG.UPDATE_STYLE, { settings: changes, patch: true });
       _sendPreview();
     };
     settings.onNotify = function (message, type) {
@@ -328,10 +331,11 @@
     freeTextStyle.onNotify = function (message, type) {
       _notify(message, type);
     };
-    freeTextStyle.onChange = function (s) {
-      // Reflect live in the dock preview, and on the overlay if free text is on air.
-      if (_onAirItem && _onAirItem.type === "text") {
-        _sendMessage(MSG.UPDATE_STYLE, { settings: freeTextStyle.getAll() });
+    freeTextStyle.onChange = function (s, changes) {
+      // Reflect live in the dock preview, and on the overlay if free text is
+      // on air: only what changed, as for the verse style.
+      if (_onAirItem && _onAirItem.type === "text" && changes && Object.keys(changes).length) {
+        _sendMessage(MSG.UPDATE_STYLE, { settings: changes, patch: true });
       }
       _sendPreview();
     };
@@ -1492,7 +1496,8 @@
   function _sendMessage(type, data) {
     var msg = Object.assign({ type: type }, data || {});
     // Carry the background with the command for isolated OBS browser contexts.
-    if (msg.settings && msg.settings.bgImage === undefined)
+    // A patch leaves the background as it is unless it changes it.
+    if (msg.settings && msg.settings.bgImage === undefined && !msg.patch)
       msg.settings.bgImage = "";
     var show = [MSG.SHOW_VERSE, MSG.SHOW_TEXT].indexOf(type) !== -1;
     if (show || type === MSG.HIDE) msg.command = _newCommand();
