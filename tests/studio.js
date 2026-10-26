@@ -1261,6 +1261,7 @@ async function runRemoteChecks(cp, output, logged) {
     assert.equal(cp.d.querySelectorAll('[data-preset="onglet"], [data-preset="onglet-sombre"]').length >= 2, true);
     assert.equal(cp.d.querySelectorAll('#freetext-presets [data-ft-preset^="onglet"]').length, 2);
     assert.ok(cp.d.querySelector('#settings-container [data-setting="signature"]'), "the optional signature is a setting");
+    assert.ok(cp.d.querySelector('#freetext-style-container [data-setting="signature"]'), "songs have their own signature setting");
     assert.ok(cp.d.querySelector('#settings-container [data-setting="layout"] option[value="onglet"]'), "« Onglet » layout offered");
   });
   pick.value = "onglet";

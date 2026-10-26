@@ -2575,6 +2575,12 @@ try {
   }
   }
 
+  // ---- « Onglet » through the real Studio, every position, the projector.
+  if (run("onglet")) {
+    const { ongletStudio } = await import("./browser-onglet.mjs");
+    await ongletStudio({ check, open, prepare, BASE });
+  }
+
   if (run("paired")) {
     const { pairedDock } = await import("./browser-paired.mjs");
     await pairedDock({ browser, createServer, PORT, check });
