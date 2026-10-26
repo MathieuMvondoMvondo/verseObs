@@ -1027,12 +1027,33 @@ try {
         [sel, chip],
       );
     const hue = ([r, g, b]) => (g > r + 40 && g > b + 20 ? "green" : r > 150 && g > 120 && b < 120 && r - b > 90 ? "amber" : r > 150 && g < 90 && b < 90 ? "red" : "other");
-    const calm = (h, colour, where) => {
+    const calm = (h, colour, where, state) => {
+      if (state) assert.equal(h.state, state, where + ": head state");
       assert.equal(h.image, "none", where + ": flat surface, no gradient (" + h.image.slice(0, 60) + ")");
-      assert.equal(hue(h.chip), colour, where + ": tally chip " + h.chip);
+      assert.equal(hue(h.chip), colour, where + ": tally chip " + h.chip + " (state " + h.state + ")");
       assert.equal(hue(h.border.slice(0, 3)), colour, where + ": hairline border " + h.border);
       const [r, g, b] = h.surface;
       assert.ok(Math.max(r, g, b) <= 40, where + ": a dark, quiet surface " + h.surface);
+    };
+    // The head reaches its colour by a 160 ms transition, plus the 180 ms
+    // fill on confirmation (« Interface motion (§6) » checks the durations).
+    // Both start at the page's next frame. On a loaded VPS that frame may
+    // be a second away (measured in review 5): 300 ms after the head turned
+    // « live », its transition had not started yet and the colour read was
+    // its starting amber. So the colour is read once the head has settled
+    // in the state checked: that state, no transition or animation left in
+    // it, never before the same 300 ms, within 5 s. The wait polls every
+    // 50 ms, not on animation frames, which are what the VPS is short of.
+    const settled = async (state) => {
+      await studio.waitForTimeout(300);
+      await studio.waitForFunction(
+        (s) => {
+          const head = document.querySelector("#onair-bar");
+          return head.dataset.state === s && head.getAnimations({ subtree: true }).length === 0;
+        },
+        state,
+        { timeout: 5000, polling: 50 },
+      );
     };
     // Preview: something prepared.
     await prepare(studio, "Jean 3:16");
@@ -1040,8 +1061,8 @@ try {
     // Being sent: no output answers yet, the command waits (amber).
     await studio.click("#btn-show");
     await studio.waitForFunction(() => document.querySelector("#onair-bar").dataset.state === "pending");
-    await studio.waitForTimeout(300);
-    calm(await look("#onair-bar", ".cp-onair-tally"), "amber", "Antenne, envoi");
+    await settled("pending");
+    calm(await look("#onair-bar", ".cp-onair-tally"), "amber", "Antenne, envoi", "pending");
     // On air: the output answers and confirms (red).
     const output = await ctx.newPage();
     await output.setViewportSize({ width: 1920, height: 1080 });
@@ -1050,8 +1071,13 @@ try {
     await studio.waitForFunction(() => document.querySelector("#connection-dot").classList.contains("connected"), null, { timeout: 10000 });
     await studio.click("#btn-show");
     await studio.waitForFunction(() => document.querySelector("#onair-bar").dataset.state === "live", null, { timeout: 10000 });
-    await studio.waitForTimeout(300);
-    calm(await look("#onair-bar", ".cp-onair-tally"), "red", "Antenne, à l'antenne");
+    // STUDIO_STARVE=<ms>, never set by verify-parent: occupies the Studio's
+    // main thread for that long right after the confirmation, as a loaded VPS
+    // does, so the read below may come before the page's next frame.
+    if (process.env.STUDIO_STARVE)
+      studio.evaluate((ms) => { const end = performance.now() + ms; while (performance.now() < end); }, Number(process.env.STUDIO_STARVE)).catch(() => {});
+    await settled("live");
+    calm(await look("#onair-bar", ".cp-onair-tally"), "red", "Antenne, à l'antenne", "live");
     assert.deepEqual(errors, []);
     await ctx.close();
   });
