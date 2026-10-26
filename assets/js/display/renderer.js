@@ -25,7 +25,21 @@
     "ref-top-center",
     "ref-inline",
   ];
-  var LAYOUTS = ["antenne", "carte", "onglet"];
+  var LAYOUTS = ["antenne", "carte", "onglet", "ruban", "facettes"];
+  /*
+   * Layouts whose reference (or a song's title) sits on the graphic itself:
+   * the « Onglet » tab, the « Ruban » tab, the « Facettes » shoulder. Their
+   * versions are abbreviated (« LSG ») and each verse number sticks to its
+   * first word.
+   */
+  var TABBED = { onglet: true, ruban: true, facettes: true };
+  /*
+   * « Ruban » and « Facettes » (Math, 26/10, second reference): a drawn
+   * silhouette (stripes, cut and medallion; angular planes and a shoulder)
+   * that enters before the text, stays on air from one plan to the next and
+   * leaves quicker than it came.
+   */
+  var SHAPED = { ruban: true, facettes: true };
   /*
    * Readability rules (1080p frame; scaled for other frame heights):
    *  - a lower or upper third is read like subtitles: the band, soft edge
@@ -46,7 +60,7 @@
   var FLOOR_FIT = 0.42,
     SAFE_HEIGHT = 0.86;
   var ANIMATED =
-    ".vo-scrim,.vo-axis,.vo-margin,.vo-plate,.vo-copy,.vo-refblock,.vo-line>span,.vo-roll,.verse-body,.vo-plan";
+    ".vo-scrim,.vo-axis,.vo-margin,.vo-plate,.vo-copy,.vo-refblock,.vo-line>span,.vo-roll,.verse-body,.vo-plan,.vo-medal,.vo-medal-plan";
   /*
    * The output composes one logical frame, FRAME_LINES units tall, scaled to
    * the browser source: an OBS source of 1280×720, 1920×1080 or 3840×2160
@@ -212,8 +226,18 @@
     stage.appendChild(node("div", "vo-axis"));
     stage.appendChild(node("div", "vo-margin"));
     stage.appendChild(node("div", "verse-inline-ref"));
-    var body = node("div", "verse-body");
-    body.appendChild(node("div", "vo-plate"));
+    var body = node("div", "verse-body"),
+      plate = node("div", "vo-plate");
+    // Drawn parts of « Ruban » (stripes, returns, medallion): hidden in
+    // every other layout (display.css).
+    ["vo-stries", "vo-ret vo-ret-haut", "vo-ret vo-ret-bas", "vo-medal"].forEach(function (c) {
+      var part = node("span", c);
+      part.setAttribute("aria-hidden", "true");
+      plate.appendChild(part);
+    });
+    // The medallion carries the plan's place (« 2/6 ») of a split passage.
+    plate.querySelector(".vo-medal").appendChild(node("span", "vo-medal-plan"));
+    body.appendChild(plate);
     // « Onglet » only (hidden otherwise): signature and « plan n/N ».
     var foot = node("div", "vo-foot");
     foot.appendChild(node("span", "vo-sign"));
@@ -235,7 +259,22 @@
       block: stage.querySelector(".vo-refblock"),
       foot: stage.querySelector(".vo-foot"),
       plan: stage.querySelector(".vo-plan"),
+      medal: stage.querySelector(".vo-medal"),
+      medalPlan: stage.querySelector(".vo-medal-plan"),
     };
+  }
+
+  /**
+   * « Ruban » and « Facettes »: the band is uncovered from the left (a
+   * slanted front for Facettes). The polygon reaches beyond the band so the
+   * stripes, returns and medallion are never cut once it is complete.
+   */
+  function wipe(open, layout) {
+    var lean = layout === "facettes" ? 6 : 0,
+      x = open ? 108 : -4;
+    return (
+      "polygon(-4% -60%, " + (x + lean) + "% -60%, " + x + "% 160%, -4% 160%)"
+    );
   }
 
   /**
@@ -244,7 +283,7 @@
    * song's title takes the reference's place.
    */
   function buildReference(data, secondary, layout) {
-    var tab = layout === "onglet";
+    var tab = !!TABBED[layout];
     if (!data.reference) {
       if (!tab || !data.title) return null;
       var titled = node("div", "vo-refblock"),
@@ -271,7 +310,17 @@
     if (data.version && !secondary) {
       var version = node("div", "vo-line vo-version");
       version.appendChild(
-        node("span", "", tab ? "(" + V.versionAbbr(data.version) + ")" : data.version),
+        node(
+          "span",
+          "",
+          // « Onglet »: « (LSG) » after the reference; « Ruban » and
+          // « Facettes »: « LSG » on its own line.
+          layout === "onglet"
+            ? "(" + V.versionAbbr(data.version) + ")"
+            : tab
+              ? V.versionAbbr(data.version)
+              : data.version,
+        ),
       );
       block.appendChild(version);
     }
@@ -293,7 +342,7 @@
   /** Text block: title/subtitle (free text), passage, optional translation. */
   function buildCopy(data, secondary, layout) {
     var copy = node("div", "vo-copy"),
-      tab = layout === "onglet",
+      tab = !!TABBED[layout],
       name = function (version) {
         return tab ? V.versionAbbr(version) : version;
       };
@@ -426,6 +475,7 @@
   Renderer.prototype._foot = function (stage, data) {
     var sign = stage.querySelector(".vo-sign"),
       plan = stage.querySelector(".vo-plan"),
+      medal = stage.querySelector(".vo-medal-plan"),
       part = Number(data && data.part),
       total = Number(data && data.parts);
     if (!sign || !plan) return;
@@ -434,6 +484,8 @@
       part >= 1 && total >= 2 && part <= total && total <= 500
         ? Math.floor(part) + "/" + Math.floor(total)
         : "";
+    // « Ruban »: the same place in its medallion (empty in other layouts).
+    if (medal) medal.textContent = this.layout === "ruban" ? plan.textContent : "";
     stage.classList.toggle("has-foot", !!(sign.textContent || plan.textContent));
   };
 
@@ -460,7 +512,7 @@
     var two = stage.classList.contains("verse-card-bilingual"),
       // In an antenne band or an onglet card, two translations sit side by
       // side (CSS): each column is read like its own subtitle.
-      columns = band && two && (this.layout === "antenne" || this.layout === "onglet");
+      columns = band && two && (this.layout === "antenne" || !!TABBED[this.layout]);
     var rules = {
       frame: frame,
       minFit: Math.min(1, (MIN_BODY * frame) / 1080 / size),
@@ -772,7 +824,7 @@
     stage.style.removeProperty("--nums-fit");
     stage.style.removeProperty("--tab-fit");
     var margin = stage.querySelector(".vo-margin");
-    if (this.layout === "onglet" && margin && margin.offsetWidth) {
+    if ((this.layout === "onglet" || this.layout === "ruban") && margin && margin.offsetWidth) {
       var card = stage.querySelector(".verse-body"),
         room = card ? card.offsetWidth : 0,
         wide = margin.scrollWidth;
@@ -780,7 +832,8 @@
         stage.style.setProperty("--tab-fit", Math.max(0.5, Math.floor((room / wide) * 1000) / 1000).toFixed(3));
       return;
     }
-    if (this.layout !== "antenne" || !margin || !margin.clientWidth) return;
+    // « Facettes »: its shoulder holds the reference like the antenne margin.
+    if ((this.layout !== "antenne" && this.layout !== "facettes") || !margin || !margin.clientWidth) return;
     var room = margin.clientWidth,
       book = stage.querySelector(".vo-book > span"),
       nums = stage.querySelector(".vo-nums");
@@ -889,7 +942,11 @@
     if (p.plate) {
       p.plate.style.removeProperty("top");
       p.plate.style.removeProperty("bottom");
+      // « Ruban », « Facettes »: the entrance's wipe is over.
+      p.plate.style.removeProperty("clip-path");
     }
+    M.apply(p.medal, { opacity: "1", transform: "none" });
+    M.apply(p.medalPlan, { opacity: "1" });
     if (p.copy) {
       p.copy.classList.remove("is-revealing");
       p.copy.style.removeProperty("--vo-reveal");
@@ -976,6 +1033,59 @@
           stage,
           { opacity: "1" },
           { from: { opacity: "0" }, duration: 240, easing: E.out },
+        ),
+      ];
+    } else if (SHAPED[self.layout]) {
+      // « Ruban » and « Facettes »: the shape first, then the text on a
+      // shape already in place. The band is uncovered from the left (its
+      // stripes lead, like a ribbon drawn in); Ruban's tab rises and its
+      // medallion settles; Facettes' shoulder slides in first and the plane
+      // follows it. Opacity, translation and uniform scale only: nothing is
+      // stretched. No reading mask.
+      var ruban = self.layout === "ruban",
+        hasTab = stage.classList.contains("has-tab");
+      steps = [
+        M.tween(
+          p.plate,
+          { clipPath: wipe(true, self.layout) },
+          {
+            from: { clipPath: wipe(false, self.layout) },
+            duration: 340 * k,
+            delay: (ruban || !hasTab ? 0 : 70) * k,
+            easing: E.out,
+          },
+        ),
+        hasTab
+          ? M.tween(
+              p.margin,
+              { opacity: "1", transform: "none" },
+              {
+                from: {
+                  opacity: "0",
+                  transform: ruban ? "translateY(12px)" : "translateX(-28px)",
+                },
+                duration: 260 * k,
+                delay: (ruban ? 150 : 0) * k,
+                easing: E.out,
+              },
+            )
+          : null,
+        ruban
+          ? M.tween(
+              p.medal,
+              { opacity: "1", transform: "none" },
+              {
+                from: { opacity: "0", transform: "scale(0.72)" },
+                duration: 300 * k,
+                delay: 170 * k,
+                easing: E.out,
+              },
+            )
+          : null,
+        M.tween(
+          p.copy,
+          { opacity: "1" },
+          { from: { opacity: "0" }, duration: 260 * k, delay: 260 * k, easing: E.out },
         ),
       ];
     } else if (self.layout === "onglet") {
@@ -1080,7 +1190,7 @@
       newSecondary = secondaryOf(data),
       // « Onglet »: the card stays, only its text (and the tab's) changes,
       // by a short cross-fade: no rolling numbers, no reading mask.
-      tabbed = self.layout === "onglet",
+      tabbed = !!TABBED[self.layout],
       textMode = tabbed && mode === "reveal" ? "fade" : mode;
     freezeAll(stage);
     var sameRef =
@@ -1126,6 +1236,15 @@
     ];
     if (tabbed && p.plan && p.plan.textContent)
       leaving.push(M.tween(p.plan, { opacity: "0" }, { duration: exit, easing: E.exit }));
+    if (SHAPED[self.layout]) {
+      // The shape stays on air: an entrance cut short ends here, quickly.
+      if (p.plate.style.clipPath)
+        leaving.push(M.tween(p.plate, { clipPath: wipe(true, self.layout) }, { duration: exit, easing: E.out }));
+      if (self.layout === "ruban")
+        leaving.push(M.tween(p.medal, { opacity: "1", transform: "none" }, { duration: exit, easing: E.out }));
+      if (p.medalPlan && p.medalPlan.textContent)
+        leaving.push(M.tween(p.medalPlan, { opacity: "0" }, { duration: exit, easing: E.exit }));
+    }
     if (!keepBlock && p.block)
       leaving.push(
         textMode === "reveal"
@@ -1409,6 +1528,14 @@
             { from: { opacity: "0" }, duration: 220 * k, delay: textDelay, easing: E.out },
           ),
         );
+      if (tabbed && p.medalPlan && p.medalPlan.textContent)
+        steps.push(
+          M.tween(
+            p.medalPlan,
+            { opacity: "1" },
+            { from: { opacity: "0" }, duration: 220 * k, delay: textDelay, easing: E.out },
+          ),
+        );
       steps.push(
         textMode === "reveal"
           ? M.develop(copy, { duration: revealTime(copy, k), delay: textDelay })
@@ -1460,11 +1587,19 @@
         M.tween(p.plate, { opacity: "1" }, { duration: d }),
         M.tween(p.copy, { opacity: "1" }, { duration: d }),
       ];
-    if (self.layout === "onglet")
+    if (self.layout === "onglet" || SHAPED[self.layout])
       steps.push(
         M.tween(p.body, { opacity: "1", transform: "none" }, { duration: d }),
         M.tween(p.plan, { opacity: "1" }, { duration: d }),
       );
+    if (SHAPED[self.layout]) {
+      steps.push(
+        M.tween(p.medal, { opacity: "1", transform: "none" }, { duration: d }),
+        M.tween(p.medalPlan, { opacity: "1" }, { duration: d }),
+      );
+      if (p.plate.style.clipPath)
+        steps.push(M.tween(p.plate, { clipPath: wipe(true, self.layout) }, { duration: d, easing: E.out }));
+    }
     if (p.copy && p.copy.classList.contains("is-revealing"))
       steps.push(M.tween(p.copy, { "--vo-reveal": "0px" }, { duration: d }));
     stage.querySelectorAll(".vo-line > span:not(.is-leaving)").forEach(
@@ -1492,9 +1627,10 @@
       steps = [
         M.tween(stage, { opacity: "0" }, { duration: 200, easing: E.exit }),
       ];
-    } else if (self.layout === "onglet") {
+    } else if (self.layout === "onglet" || SHAPED[self.layout]) {
       // Masquer: quicker than the entrance, card and tab together, a soft
-      // fade with a slight descent.
+      // fade with a slight descent (« Ruban », « Facettes »: the same, the
+      // medallion and the shoulder leave with their band).
       var down = { opacity: "0", transform: "translateY(8px)" },
         out = { duration: 180 * k, easing: E.fade };
       steps = [M.tween(p.body, down, out), M.tween(p.margin, down, out)];

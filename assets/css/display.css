@@ -786,6 +786,453 @@ body {
   display: none;
 }
 
+/* ---- Layouts « ruban » and « facettes » (Math, 26/10, second reference) ----
+   Two broadcast graphics with a drawn silhouette. Their parts (stripes,
+   returns, medallion) exist in every card and are drawn by these two only. */
+.vo-stries,
+.vo-ret,
+.vo-medal {
+  display: none;
+}
+
+/* « Ruban »: measured on references/ruban-decoupe-reference-math.jpg and
+   brought to 1080 lines. An opaque white band across the safe area; its left
+   end breaks into fine stripes that fade out (never under the text); on the
+   right a concave cut, tangent to a white return above and below, holds a
+   dark medallion; an orange tab stands on the band, its right edge over the
+   medallion's. For 3 or 4 lines the cut becomes a slot (straight between
+   its two arcs): the medallion stays the same circle, the returns the same
+   thickness. Opaque on purpose: the parts overlap by 1 px, never a seam. */
+.layout-ruban {
+  --rb-font: "VerseObs Onglet", Inter, "Segoe UI", Arial, sans-serif;
+  --rb-cut: 66px;
+  --rb-disc: 58px;
+  --rb-ret: 22px;
+  --rb-tail: 70px;
+  --rb-low: 30px;
+  --rb-stries: 112px;
+  --rb-c: rgb(var(--bg-color));
+}
+.layout-ruban.lower-third,
+.layout-ruban.upper-third {
+  justify-content: center;
+}
+.layout-ruban.lower-third {
+  padding-bottom: var(--safe-y);
+}
+.layout-ruban.upper-third {
+  padding-top: var(--safe-y);
+}
+.layout-ruban .verse-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.layout-ruban .vo-scrim,
+.layout-ruban .verse-inline-ref {
+  display: none;
+}
+/* The tab: the reference, then the short version (or a song's title). */
+.layout-ruban .vo-margin {
+  position: relative;
+  z-index: 1;
+  align-self: flex-end;
+  min-width: calc(var(--ref-font-size) * 13.5);
+  max-width: 100%;
+  margin-right: calc(var(--rb-tail) - var(--rb-disc));
+  margin-bottom: -1px;
+  padding: 0.42em 1.5em 0.36em;
+  overflow: hidden;
+  white-space: nowrap;
+  text-align: center;
+  background: var(--ref-bg-color);
+  color: var(--ref-ink, var(--ref-color));
+  border-radius: calc(var(--ref-font-size) * 0.62) calc(var(--ref-font-size) * 0.62) 0 0;
+  font-family: var(--rb-font);
+  font-size: calc(var(--ref-font-size) * var(--tab-fit, 1));
+  font-weight: 700;
+  line-height: 1.14;
+  font-variant-numeric: lining-nums proportional-nums;
+}
+.layout-ruban .verse-card:not(.has-tab) > .vo-margin {
+  display: none;
+}
+.layout-ruban .vo-refblock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.layout-ruban .verse-reference {
+  display: flex;
+  align-items: baseline;
+  gap: 0.28em;
+}
+.layout-ruban .vo-version {
+  font-size: 0.86em;
+  letter-spacing: 0.06em;
+}
+/* The band */
+.layout-ruban .verse-body {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: calc(2 * (var(--rb-ret) + var(--rb-cut)));
+  padding: var(--padding) calc(var(--rb-tail) + var(--rb-cut) + 38px) var(--padding)
+    calc(var(--rb-stries) + 96px);
+}
+.layout-ruban .vo-plate {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+}
+/* The solid band: a soft top-left corner, the cut on the right (two arcs
+   centred on the medallion, joined by a straight slot when it is taller). */
+.layout-ruban .vo-plate::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--rb-stries) + 36px);
+  right: var(--rb-tail);
+  border-top-left-radius: 28px 40px;
+  background:
+    radial-gradient(
+        circle at 100% 100%,
+        transparent calc(var(--rb-cut) - 0.6px),
+        var(--rb-c) calc(var(--rb-cut) + 0.6px)
+      )
+      right top / calc(var(--rb-cut) + 1px) calc(var(--rb-ret) + var(--rb-cut)) no-repeat,
+    radial-gradient(
+        circle at 100% 0,
+        transparent calc(var(--rb-cut) - 0.6px),
+        var(--rb-c) calc(var(--rb-cut) + 0.6px)
+      )
+      right bottom / calc(var(--rb-cut) + 1px) calc(var(--rb-ret) + var(--rb-cut)) no-repeat,
+    linear-gradient(var(--rb-c), var(--rb-c)) left top / calc(100% - var(--rb-cut)) 100%
+      no-repeat;
+}
+/* Stripes: the band's left end breaks into fine lines that fade out to the
+   left and the top (the band seems drawn in from the left). Three layers:
+   the lines, a second set that closes their gaps near the solid band (the
+   stripes melt into it), and every third line reaching further (uneven
+   lengths, as in the reference). */
+.layout-ruban .vo-stries,
+.layout-ruban .vo-stries::before,
+.layout-ruban .vo-stries::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: calc(var(--rb-stries) + 86px);
+}
+.layout-ruban .vo-stries {
+  display: block;
+  background: repeating-linear-gradient(to bottom, var(--rb-c) 0 5px, transparent 5px 8px);
+  -webkit-mask-image: radial-gradient(ellipse 100% 210% at 100% 100%, #000 46%, transparent 100%);
+  mask-image: radial-gradient(ellipse 100% 210% at 100% 100%, #000 46%, transparent 100%);
+}
+.layout-ruban .vo-stries::before,
+.layout-ruban .vo-stries::after {
+  content: "";
+  width: 100%;
+}
+.layout-ruban .vo-stries::before {
+  background: repeating-linear-gradient(to bottom, transparent 0 5px, var(--rb-c) 5px 8px);
+  -webkit-mask-image: linear-gradient(to right, transparent 42%, #000 74%);
+  mask-image: linear-gradient(to right, transparent 42%, #000 74%);
+}
+.layout-ruban .vo-stries::after {
+  background: repeating-linear-gradient(to bottom, var(--rb-c) 0 5px, transparent 5px 24px);
+  -webkit-mask-image: radial-gradient(ellipse 125% 120% at 100% 72%, #000 30%, transparent 100%);
+  mask-image: radial-gradient(ellipse 125% 120% at 100% 72%, #000 30%, transparent 100%);
+}
+/* Returns: above and below the cut, from its centre to the right; the upper
+   one ends rounded past the medallion, the lower one shorter, in stripes. */
+.layout-ruban .vo-ret {
+  display: block;
+  position: absolute;
+  left: calc(100% - var(--rb-tail) - 1px);
+  height: var(--rb-ret);
+}
+.layout-ruban .vo-ret-haut {
+  top: 0;
+  right: 0;
+  background: var(--rb-c);
+  border-radius: 0 calc(var(--rb-ret) / 2) calc(var(--rb-ret) / 2) 0;
+}
+.layout-ruban .vo-ret-bas {
+  bottom: 0;
+  width: calc(var(--rb-low) + 1px);
+  background:
+    linear-gradient(var(--rb-c), var(--rb-c)) left top / 10px 100% no-repeat,
+    repeating-linear-gradient(to bottom, var(--rb-c) 0 5px, transparent 5px 8.5px);
+  -webkit-mask-image: linear-gradient(to right, #000 35%, transparent);
+  mask-image: linear-gradient(to right, #000 35%, transparent);
+}
+/* The medallion: a dark disc and a thin ring of the tab's colour; a split
+   passage shows its place there (« 2/6 »). Never a logo. */
+.layout-ruban .vo-medal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  width: calc(2 * var(--rb-disc));
+  height: calc(2 * var(--rb-disc));
+  right: calc(var(--rb-tail) - var(--rb-disc));
+  top: calc(50% - var(--rb-disc));
+  border-radius: 50%;
+  background: radial-gradient(
+    circle closest-side,
+    var(--text-color) calc(72% - 1.2px),
+    var(--ref-bg-color) calc(72% - 0.6px) calc(72% + 0.9px),
+    var(--text-color) calc(72% + 1.5px)
+  );
+  color: rgb(var(--bg-color));
+  font-family: var(--rb-font);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.layout-ruban .verse-text,
+.layout-facettes .verse-text {
+  font-family: var(--font-family);
+  font-weight: 400;
+  letter-spacing: -0.003em;
+}
+.layout-ruban .verse-text .verse-num,
+.layout-facettes .verse-text .verse-num {
+  font-family: "VerseObs Onglet", Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 0.52em;
+  font-weight: 600;
+  vertical-align: 0.78em;
+  margin-right: 0.16em;
+  opacity: 0.6;
+  font-variant-numeric: lining-nums;
+}
+.layout-ruban .verse-text mark,
+.layout-facettes .verse-text mark {
+  color: inherit;
+}
+.layout-ruban .verse-subtitle,
+.layout-facettes .verse-subtitle {
+  font-family: "VerseObs Onglet", Inter, "Segoe UI", Arial, sans-serif;
+  font-size: 0.6em;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  opacity: 0.62;
+  margin-bottom: 0.5em;
+}
+.layout-ruban .verse-title,
+.layout-facettes .verse-title {
+  font-family: "VerseObs Onglet", Inter, "Segoe UI", Arial, sans-serif;
+  font-weight: 600;
+  font-size: 1em;
+  margin-bottom: 0.3em;
+}
+.layout-ruban .verse-translation-label,
+.layout-facettes .verse-translation-label {
+  font-family: "VerseObs Onglet", Inter, "Segoe UI", Arial, sans-serif;
+  font-size: calc(var(--ref-font-size) * 0.72);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.3;
+  text-transform: uppercase;
+  color: var(--text-color);
+  opacity: 0.56;
+  margin-bottom: 0.4em;
+}
+.layout-ruban .verse-secondary,
+.layout-facettes .verse-secondary {
+  margin-top: 0.75em;
+}
+/* Two translations in a third: side by side, each column named. */
+.lower-third.layout-ruban .verse-card-bilingual .vo-copy,
+.upper-third.layout-ruban .verse-card-bilingual .vo-copy,
+.lower-third.layout-facettes .verse-card-bilingual .vo-copy,
+.upper-third.layout-facettes .verse-card-bilingual .vo-copy {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas:
+    "label second"
+    "text second";
+  column-gap: 1.7em;
+  align-items: start;
+}
+.lower-third.layout-ruban .verse-card-bilingual .vo-copy > .verse-translation-label,
+.upper-third.layout-ruban .verse-card-bilingual .vo-copy > .verse-translation-label,
+.lower-third.layout-facettes .verse-card-bilingual .vo-copy > .verse-translation-label,
+.upper-third.layout-facettes .verse-card-bilingual .vo-copy > .verse-translation-label {
+  grid-area: label;
+}
+.lower-third.layout-ruban .verse-card-bilingual .vo-copy > .verse-text,
+.upper-third.layout-ruban .verse-card-bilingual .vo-copy > .verse-text,
+.lower-third.layout-facettes .verse-card-bilingual .vo-copy > .verse-text,
+.upper-third.layout-facettes .verse-card-bilingual .vo-copy > .verse-text {
+  grid-area: text;
+}
+.lower-third.layout-ruban .verse-card-bilingual .verse-secondary,
+.upper-third.layout-ruban .verse-card-bilingual .verse-secondary,
+.lower-third.layout-facettes .verse-card-bilingual .verse-secondary,
+.upper-third.layout-facettes .verse-card-bilingual .verse-secondary {
+  grid-area: second;
+  margin-top: 0;
+}
+.layout-ruban .verse-card.align-center .vo-copy,
+.layout-facettes .verse-card.align-center .vo-copy {
+  text-align: center;
+}
+
+/* « Facettes »: tense, angular planes. A shoulder of the tab's colour holds
+   the reference (book, numbers, version) and rises above a dark plane; its
+   right edge is cut at 15°, the plane's top right corner is bevelled at 45°.
+   The reference belongs to the shape; the plane's left end slides under the
+   shoulder. No stroke, no glow. */
+.layout-facettes {
+  --fc-font: "VerseObs Onglet", Inter, "Segoe UI", Arial, sans-serif;
+  --fc-rise: 26px;
+  --fc-tuck: 120px;
+  --fc-cut: 44px;
+  --fc-shoulder: calc(var(--ref-font-size) * 7.2);
+}
+.layout-facettes.lower-third,
+.layout-facettes.upper-third {
+  justify-content: center;
+}
+.layout-facettes.lower-third {
+  padding-bottom: var(--safe-y);
+}
+.layout-facettes.upper-third {
+  padding-top: var(--safe-y);
+}
+.layout-facettes .verse-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+}
+.layout-facettes .verse-card.has-tab {
+  grid-template-columns: var(--fc-shoulder) minmax(0, 1fr);
+}
+.layout-facettes .vo-scrim,
+.layout-facettes .verse-inline-ref {
+  display: none;
+}
+.layout-facettes .vo-margin {
+  grid-column: 1;
+  grid-row: 1;
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
+  overflow: hidden;
+  min-width: 0;
+  padding: 16px 46px 16px 26px;
+  color: var(--ref-ink, var(--ref-color));
+  font-family: var(--fc-font);
+  font-size: var(--ref-font-size);
+  font-weight: 700;
+  line-height: 1.1;
+}
+.layout-facettes .vo-margin::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--ref-bg-color);
+  transform: skewX(-15deg);
+  transform-origin: 0 0;
+}
+/* A second facet at the shoulder's foot: the same colour, a shade deeper,
+   under the reference (never behind a letter). */
+.layout-facettes .vo-margin::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: rgba(0, 0, 0, 0.17);
+  clip-path: polygon(0 100%, 100% 62%, 100% 100%);
+  transform: skewX(-15deg);
+  transform-origin: 0 0;
+}
+.layout-facettes .verse-card:not(.has-tab) > .vo-margin {
+  display: none;
+}
+.layout-facettes .vo-refblock,
+.layout-facettes .verse-reference {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.layout-facettes .vo-book {
+  font-size: calc(0.7em * var(--book-fit, 1));
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: normal;
+}
+.layout-facettes .vo-nums {
+  font-size: calc(1.36em * var(--nums-fit, 1));
+  letter-spacing: -0.01em;
+  font-variant-numeric: lining-nums proportional-nums;
+  white-space: nowrap;
+}
+.layout-facettes .vo-version {
+  margin-top: 0.3em;
+  font-size: 0.6em;
+  letter-spacing: 0.14em;
+  opacity: 0.88;
+}
+.layout-facettes .verse-body {
+  grid-row: 1;
+  grid-column: -2 / -1;
+  position: relative;
+  isolation: isolate;
+  padding: var(--padding) calc(var(--padding) * 1.6 + var(--fc-cut) * 0.5) calc(var(--padding) * 1.1)
+    calc(var(--padding) + 8px);
+}
+.layout-facettes .has-tab > .verse-body {
+  margin-top: var(--fc-rise);
+}
+.layout-facettes .vo-plate {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+}
+.layout-facettes .has-tab .vo-plate {
+  left: calc(-1 * var(--fc-tuck));
+}
+.layout-facettes .vo-plate::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: rgba(var(--bg-color), var(--bg-opacity));
+  background-image: var(--bg-image);
+  background-size: cover;
+  background-position: center;
+  clip-path: polygon(0 0, calc(100% - var(--fc-cut)) 0, 100% var(--fc-cut), 100% 100%, 0 100%);
+}
+.layout-facettes .has-foot .vo-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.9em;
+  margin-top: 0.55em;
+  margin-bottom: -0.35em;
+  font-family: var(--fc-font);
+  font-size: calc(var(--ref-font-size) * 0.64);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  color: var(--text-color);
+  opacity: 0.55;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.layout-facettes .vo-sign:empty,
+.layout-facettes .vo-plan:empty {
+  display: none;
+}
+
 /* ---- Projector window ----------------------------------------------------- */
 body.projector {
   background: #121315;

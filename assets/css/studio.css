@@ -4116,6 +4116,19 @@ body[data-onair="pending"] .cp-btn-hide {
   font-family: Inter, "Segoe UI", Arial, sans-serif;
   font-weight: 600;
 }
+/* « Ruban », « Facettes »: the band's colour, the tab's orange in the letters. */
+.ruban-style > span {
+  background: #ffffff;
+  color: #c4620f;
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-weight: 700;
+}
+.facettes-style > span {
+  background: #15171c;
+  color: #f0943f;
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  font-weight: 700;
+}
 
 
 /* ==========================================================================

@@ -296,9 +296,11 @@
 
     var s = tmpl.settings,
       before = TEMPLATES[this._settings.template];
-    // Leaving « Onglet »: what it set and the new base does not set goes
-    // back to the defaults, so every other base looks exactly as before.
-    if (before && before.settings.layout === "onglet" && s.layout !== "onglet") {
+    // Leaving « Onglet » (or « Ruban », « Facettes »): what it set and the
+    // new base does not set goes back to the defaults, so every other base
+    // looks exactly as before.
+    var drawn = { onglet: 1, ruban: 1, facettes: 1 };
+    if (before && drawn[before.settings.layout] && s.layout !== before.settings.layout) {
       var defaults = this._getDefaults();
       for (var was in before.settings)
         if (

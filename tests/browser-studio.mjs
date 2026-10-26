@@ -2643,6 +2643,11 @@ try {
     const { pairedDock } = await import("./browser-paired.mjs");
     await pairedDock({ browser, createServer, PORT, check });
   }
+  // ---- « Ruban » and « Facettes » through the real Studio.
+  if (run("habillages")) {
+    const { habillagesStudio } = await import("./browser-habillages.mjs");
+    await habillagesStudio({ check, open, prepare, BASE });
+  }
 
   console.log("\n✓ Browser studio: " + passed + " checks passed.");
 } catch (err) {

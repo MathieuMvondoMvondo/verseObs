@@ -436,10 +436,10 @@ delete _store[VerseObs.SETTINGS_KEY];
 ok(
   "every template declares its layout",
   Object.keys(VerseObs.TEMPLATES).every(function (k) {
-    return /^(antenne|carte|onglet)$/.test(VerseObs.TEMPLATES[k].settings.layout);
+    return /^(antenne|carte|onglet|ruban|facettes)$/.test(VerseObs.TEMPLATES[k].settings.layout);
   }) &&
     Object.keys(VerseObs.FREETEXT_STYLES).every(function (k) {
-      return /^(antenne|carte|onglet)$/.test(VerseObs.FREETEXT_STYLES[k].settings.layout);
+      return /^(antenne|carte|onglet|ruban|facettes)$/.test(VerseObs.FREETEXT_STYLES[k].settings.layout);
     }),
 );
 // « Onglet » (Math, 26/10): a third layout, offered next to the others,
@@ -501,6 +501,55 @@ delete _store[VerseObs.SETTINGS_KEY];
 var ongletMigrated = {};
 VerseObs.migrateStyle({ layout: "onglet", template: "onglet" }, ongletMigrated, VerseObs.DEFAULTS, "studio");
 eq("the output's migration keeps the onglet layout too", ongletMigrated.layout, undefined);
+
+// « Ruban » and « Facettes » (Math, 26/10, second reference): two more
+// broadcast graphics, offered next to the others for the verses and the
+// songs; Antenne, Carte and Onglet are untouched.
+[["ruban", "Ruban"], ["facettes", "Facettes"]].forEach(function (pair) {
+  var key = pair[0];
+  [VerseObs.TEMPLATES, VerseObs.FREETEXT_STYLES].forEach(function (presets, i) {
+    var preset = presets[key];
+    ok((i ? "song" : "verse") + " style « " + key + " » exists and draws its own layout", !!preset && preset.settings.layout === key && preset.label === pair[1]);
+    ok(
+      (i ? "song" : "verse") + " style « " + key + " » has only real colours",
+      !!preset &&
+        Object.keys(preset.settings).every(function (k) {
+          return !/Color$/.test(k) || VerseObs.isColor(preset.settings[k]);
+        }),
+    );
+  });
+  var migrated = {};
+  VerseObs.migrateStyle({ layout: key, template: key }, migrated, VerseObs.DEFAULTS, "studio");
+  eq("the output's migration keeps the " + key + " layout (never an old card)", migrated.layout, undefined);
+  _store[VerseObs.SETTINGS_KEY] = JSON.stringify({ layout: key, template: key, fontSize: 41 });
+  var saved = new VerseObs.Settings();
+  saved.load();
+  eq("a saved " + key + " layout stays " + key, saved.getAll().layout, key);
+  delete _store[VerseObs.SETTINGS_KEY];
+});
+eq("the layouts the output knows", JSON.stringify(VerseObs.LAYOUTS), JSON.stringify({ ANTENNE: "antenne", CARTE: "carte", ONGLET: "onglet", RUBAN: "ruban", FACETTES: "facettes" }));
+// Trying Ruban or Facettes never changes another base either.
+[
+  [VerseObs.SETTINGS_KEY, {}, ["studio", "papier", "cinema", "minimal", "antenne", "onglet", "onglet-sombre"]],
+  [VerseObs.FREETEXT_SETTINGS_KEY, { storageKey: VerseObs.FREETEXT_SETTINGS_KEY, defaults: VerseObs.FREETEXT_DEFAULTS, templates: VerseObs.FREETEXT_STYLES }, ["chant", "annonce", "priere", "antenne", "onglet", "onglet-sombre"]],
+].forEach(function (profile) {
+  profile[2].forEach(function (base) {
+    delete _store[profile[0]];
+    var fresh = new VerseObs.Settings(profile[1]);
+    fresh.load();
+    fresh.applyTemplate(base);
+    var expected = JSON.stringify(fresh.getAll());
+    ["ruban", "facettes"].forEach(function (tried) {
+      delete _store[profile[0]];
+      var s = new VerseObs.Settings(profile[1]);
+      s.load();
+      s.applyTemplate(tried);
+      s.applyTemplate(base);
+      eq(tried + " then « " + base + " » looks exactly like a fresh « " + base + " »", JSON.stringify(s.getAll()), expected);
+    });
+  });
+  delete _store[profile[0]];
+});
 
 // Each profile persists under its own key.
 ftSettings.update("fontSize", 51);

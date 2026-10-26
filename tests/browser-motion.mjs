@@ -764,6 +764,11 @@ try {
     }
     assert.equal(compared, 16);
   });
+  // « Ruban » and « Facettes » (Math, 26/10, second reference), then the
+  // four existing styles against their 2060f1e composition.
+  const H = await import("./browser-habillages.mjs");
+  await H.habillagesMotion({ check, open, verse, ROM, SONG, FREE, sendStyled, frames, send, settle, openRecorded, anims });
+  await H.existingUnchanged({ check, open, verse, ROM, SONG });
   console.log("\n✓ Browser motion: " + passed + " checks passed.");
 } catch (err) {
   console.error(err);

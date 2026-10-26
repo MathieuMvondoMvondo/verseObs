@@ -33,7 +33,17 @@ window.VerseObs.ANIMATIONS = {
  * card; "onglet": a light or dark card, the reference in a tab on its top
  * right corner (Math, 26/10, after the ICC broadcasts).
  */
-window.VerseObs.LAYOUTS = { ANTENNE: "antenne", CARTE: "carte", ONGLET: "onglet" };
+window.VerseObs.LAYOUTS = {
+  ANTENNE: "antenne",
+  CARTE: "carte",
+  ONGLET: "onglet",
+  // Math, 26/10 (second reference): a white sculpted band, stripes at its
+  // left end, a concave cut around a medallion, an orange tab on top.
+  RUBAN: "ruban",
+  // Angular planes: a coloured shoulder carrying the reference rises above
+  // a dark plane with a bevelled corner.
+  FACETTES: "facettes",
+};
 window.VerseObs.ANTENNE_FONT = "'VerseObs Lecture', Lora, Georgia, serif";
 /** Inter (SIL OFL), bundled: a clean sans for the « Onglet » cards. */
 window.VerseObs.ONGLET_FONT = "'VerseObs Onglet', Inter, 'Segoe UI', Arial, sans-serif";
@@ -96,7 +106,7 @@ window.VerseObs.OPERATOR_KEYS = [
  */
 window.VerseObs.migrateStyle = function (saved, result, defaults, formerDefault) {
   if (!saved || typeof saved !== "object") return result;
-  if (saved.layout !== "antenne" && saved.layout !== "carte" && saved.layout !== "onglet") {
+  if (["antenne", "carte", "onglet", "ruban", "facettes"].indexOf(saved.layout) === -1) {
     if (defaults && formerDefault && saved.template === formerDefault) {
       var keep = window.VerseObs.OPERATOR_KEYS;
       for (var key in defaults)
@@ -216,6 +226,58 @@ window.VerseObs.TEMPLATES = {
       textAlign: "left",
       maxWidth: 84,
       shadow: true,
+      bgImage: "",
+    },
+  },
+  // « Ruban » (Math, 26/10, second reference): an opaque white band across
+  // the safe area, black text, the tab orange (white bold reaches 3.2:1 on
+  // it, so the output keeps the reference's white letters).
+  ruban: {
+    label: "Ruban",
+    settings: {
+      layout: "ruban",
+      fontFamily: window.VerseObs.ONGLET_FONT,
+      textColor: "#0e0e10",
+      bgColor: "#ffffff",
+      bgOpacity: 1,
+      refBgColor: "#df721b",
+      refColor: "#ffffff",
+      highlightColor: "#ffd9ad",
+      borderColor: "#d9d6e3",
+      borderWidth: 0,
+      padding: 30,
+      fontSize: 44,
+      lineHeight: 1.3,
+      refFontSize: 31,
+      refPosition: "top-right",
+      textAlign: "left",
+      maxWidth: 90,
+      shadow: false,
+      bgImage: "",
+    },
+  },
+  // « Facettes »: the same family (Inter, orange) in angular planes.
+  facettes: {
+    label: "Facettes",
+    settings: {
+      layout: "facettes",
+      fontFamily: window.VerseObs.ONGLET_FONT,
+      textColor: "#f4f2ee",
+      bgColor: "#15171c",
+      bgOpacity: 0.96,
+      refBgColor: "#df721b",
+      refColor: "#ffffff",
+      highlightColor: "#8a4a17",
+      borderColor: "#3a3b44",
+      borderWidth: 0,
+      padding: 30,
+      fontSize: 42,
+      lineHeight: 1.3,
+      refFontSize: 30,
+      refPosition: "top-left",
+      textAlign: "left",
+      maxWidth: 86,
+      shadow: false,
       bgImage: "",
     },
   },
@@ -475,6 +537,50 @@ window.VerseObs.FREETEXT_STYLES = {
       padding: 30,
       maxWidth: 84,
       shadow: true,
+    },
+  },
+  ruban: {
+    label: "Ruban",
+    settings: {
+      layout: "ruban",
+      position: "lower-third",
+      textAlign: "center",
+      fontFamily: window.VerseObs.ONGLET_FONT,
+      fontSize: 44,
+      lineHeight: 1.3,
+      textColor: "#0e0e10",
+      bgColor: "#ffffff",
+      bgOpacity: 1,
+      refColor: "#ffffff",
+      refBgColor: "#df721b",
+      refFontSize: 31,
+      highlightColor: "#ffd9ad",
+      borderWidth: 0,
+      padding: 30,
+      maxWidth: 90,
+      shadow: false,
+    },
+  },
+  facettes: {
+    label: "Facettes",
+    settings: {
+      layout: "facettes",
+      position: "lower-third",
+      textAlign: "center",
+      fontFamily: window.VerseObs.ONGLET_FONT,
+      fontSize: 42,
+      lineHeight: 1.3,
+      textColor: "#f4f2ee",
+      bgColor: "#15171c",
+      bgOpacity: 0.96,
+      refColor: "#ffffff",
+      refBgColor: "#df721b",
+      refFontSize: 30,
+      highlightColor: "#8a4a17",
+      borderWidth: 0,
+      padding: 30,
+      maxWidth: 86,
+      shadow: false,
     },
   },
   chant: {

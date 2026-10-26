@@ -1316,6 +1316,40 @@ async function runRemoteChecks(cp, output, logged) {
   pick.dispatchEvent(new cp.w.Event("change", { bubbles: true }));
   click(cp, "#btn-hide");
   await until(() => !output.d.querySelector(".verse-card"), "onglet hidden");
+  // « Ruban » and « Facettes » (Math, 26/10, second reference): offered in
+  // the same menus, for the verses and the songs; chosen like any style.
+  check("The style picker, the express bases, the song styles, the templates and the layouts offer « Ruban » and « Facettes »", () => {
+    assert.deepEqual(["ruban", "facettes"].map((v) => !!pick.querySelector(`option[value="${v}"]`)), [true, true]);
+    assert.equal(cp.d.querySelectorAll('.quick-styles [data-preset="ruban"], .quick-styles [data-preset="facettes"]').length, 2);
+    assert.equal(cp.d.querySelectorAll('#freetext-presets [data-ft-preset="ruban"], #freetext-presets [data-ft-preset="facettes"]').length, 2);
+    for (const v of ["ruban", "facettes"]) {
+      assert.ok(cp.d.querySelector(`#settings-container [data-setting="layout"] option[value="${v}"]`), v + " layout offered");
+      assert.ok(cp.d.querySelector(`#settings-container [data-setting="template"] option[value="${v}"]`), v + " template offered");
+    }
+  });
+  pick.value = "ruban";
+  pick.dispatchEvent(new cp.w.Event("change", { bubbles: true }));
+  click(cp, "#btn-show");
+  await until(
+    () => output.d.querySelector("#verse-container").classList.contains("layout-ruban") && output.d.querySelector(".verse-card .vo-margin .vo-refblock"),
+    "ruban on air",
+  );
+  await until(
+    () => monitor.contentDocument && monitor.contentDocument.querySelector("#verse-container.layout-ruban .verse-card .vo-margin .vo-refblock"),
+    "ruban in the preview monitor",
+  );
+  check("« Ruban » chosen in the Studio: the output and the preview monitor draw the band, its tab and its medallion", () => {
+    assert.equal(cp.d.querySelector('.quick-styles [data-preset="ruban"]').getAttribute("aria-pressed"), "true");
+    const tab = output.d.querySelector(".vo-margin").textContent.replace(/\s+/g, " ").trim();
+    assert.match(tab, /\d+:\d+(-\d+)?\s*LSG$/, "reference, then the short version: " + tab);
+    assert.equal(monitor.contentDocument.querySelector(".vo-margin").textContent.replace(/\s+/g, " ").trim(), tab);
+    for (const doc of [output.d, monitor.contentDocument])
+      assert.ok(doc.querySelector(".verse-card .vo-plate .vo-medal") && doc.querySelector(".verse-card .vo-plate .vo-stries"), "medallion and stripes in the band");
+  });
+  pick.value = "antenne";
+  pick.dispatchEvent(new cp.w.Event("change", { bubbles: true }));
+  click(cp, "#btn-hide");
+  await until(() => !output.d.querySelector(".verse-card"), "ruban hidden");
   check("No script errors in the plan and remote workflows", () =>
     assert.equal(cp.errors.length + output.errors.length + phone.errors.length, 0),
   );
