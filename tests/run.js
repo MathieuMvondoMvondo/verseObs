@@ -991,6 +991,18 @@ var smallSizes = [];
 eq("no font size under 12 px left in the Studio stylesheet", smallSizes.join(" | "), "");
 
 // ===================================================================
+group("CSS file endings");
+require("./css-endings")((name, fn) => {
+  try {
+    fn();
+    ok(name, true);
+  } catch (error) {
+    ok(name, false);
+    console.error(error.message);
+  }
+});
+
+// ===================================================================
 group("control messaging fallback");
 
 var controlAppSource = fs.readFileSync(
