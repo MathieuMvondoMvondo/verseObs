@@ -50,6 +50,16 @@ function styleTab(store) {
       settings.update(key, value);
       return JSON.parse(JSON.stringify(sent));
     },
+    reset() {
+      sent = null;
+      settings.reset();
+      return JSON.parse(JSON.stringify(sent));
+    },
+    template(name) {
+      sent = null;
+      settings.applyTemplate(name);
+      return JSON.parse(JSON.stringify(sent));
+    },
   };
 }
 module.exports = function testStyle(check) {
@@ -111,5 +121,22 @@ module.exports = function testStyle(check) {
     const b = late.send(styleTab(store).change("fontSize", 30));
     receiver.hear(b), receiver.hear(a);
     check("Style: a second tab 180 s behind, opened after the first change, wins in LIFO too", () => assert.equal(receiver.settings.fontSize, 30));
+  }
+  {
+    // A whole-look action (Réinitialiser, a preset) puts the whole look on
+    // air, even a property another tab changed that this tab never saw.
+    const store = {}, receiver = output(store);
+    const tabA = styleTab(store), tabB = styleTab(store);
+    const A = page(store), B = page(store);
+    receiver.hear(B.send(tabB.change("fontSize", 60)));
+    receiver.hear(B.send(tabB.change("textColor", "#ff3b30")));
+    receiver.hear(A.send(tabA.reset()));
+    const afterReset = [receiver.settings.fontSize, receiver.settings.textColor];
+    receiver.hear(B.send(tabB.change("textColor", "#00ff00")));
+    receiver.hear(A.send(tabA.template("antenne")));
+    check("Style: Réinitialiser or a preset in one tab puts its whole look on air, over another tab's changes", () => {
+      assert.deepEqual(afterReset, [tabA.all().fontSize, tabA.all().textColor], "after Réinitialiser");
+      assert.equal(receiver.settings.textColor, tabA.all().textColor, "after a preset");
+    });
   }
 };

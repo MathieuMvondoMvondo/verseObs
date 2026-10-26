@@ -181,7 +181,7 @@
     } catch (e) {}
     this.save();
     this._updateUI();
-    this._notifyChange();
+    this._notifyWholeLook();
   };
 
   /**
@@ -201,6 +201,16 @@
     if (typeof this.onChange === "function") {
       this.onChange(this.getForMessage(), changes);
     }
+  };
+
+  /**
+   * Réinitialiser and a preset change the whole look: every property is
+   * sent, so the look on air is the one shown here, even over a property
+   * another tab changed that this tab never saw.
+   */
+  Settings.prototype._notifyWholeLook = function () {
+    this._sent = null;
+    this._notifyChange();
   };
 
   /**
@@ -293,7 +303,7 @@
     }
     this.save();
     this._updateUI();
-    this._notifyChange();
+    this._notifyWholeLook();
   };
 
   /**
