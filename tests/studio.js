@@ -446,6 +446,58 @@ async function run() {
     type: "update_style",
     settings: { layout: "antenne", bgImage: "" },
   });
+  // Review 3: a colour is only a colour. A value that could make the output
+  // load something (url(), image-set() …) is refused and the default colour
+  // kept: on the output itself, at import and at a style update.
+  const Vc = cp.w.VerseObs;
+  const cssVar = (n) => output.d.documentElement.style.getPropertyValue(n);
+  output.w.VerseObs.DisplayApp.handleMessage({
+    type: "update_style",
+    settings: {
+      layout: "antenne",
+      refBgColor: "url(https://evil.example/r.png)",
+      textColor: "image-set('https://evil.example/t.png' 1x)",
+      highlightColor: "#123456",
+    },
+  });
+  check("The output keeps the default for a colour that is not one", () => {
+    assert.equal(cssVar("--ref-bg-color"), Vc.DEFAULTS.refBgColor);
+    assert.equal(cssVar("--text-color"), Vc.DEFAULTS.textColor);
+    assert.equal(cssVar("--highlight-color"), "#123456");
+  });
+  output.w.VerseObs.DisplayApp.handleMessage({
+    type: "update_style",
+    settings: { layout: "antenne", highlightColor: Vc.DEFAULTS.highlightColor },
+  });
+  const importedColours = Vc.Backup.validate({
+    app: "verseobs",
+    version: 1,
+    data: {
+      verseobs_settings: JSON.stringify({ refBgColor: "url(https://evil.example/i.png)", textColor: "#123456" }),
+      verseobs_freetext_style: JSON.stringify({ bgColor: "image-set('https://evil.example/j.png' 1x)" }),
+    },
+  });
+  check("An imported backup keeps the default for a colour that is not one", () => {
+    assert.equal(JSON.parse(importedColours.verseobs_settings).refBgColor, Vc.DEFAULTS.refBgColor);
+    assert.equal(JSON.parse(importedColours.verseobs_settings).textColor, "#123456");
+    assert.equal(JSON.parse(importedColours.verseobs_freetext_style).bgColor, Vc.FREETEXT_DEFAULTS.bgColor);
+  });
+  cp.w.localStorage.setItem("verseobs_colour_probe", JSON.stringify({ refColor: "url(https://evil.example/s.png)" }));
+  const probeStyle = new Vc.Settings({ storageKey: "verseobs_colour_probe" });
+  probeStyle.load();
+  const loadedRef = probeStyle.getAll().refColor;
+  probeStyle.update("refBgColor", "url(https://evil.example/u.png)");
+  check("Stored or updated, a colour that is not one takes the default in the Studio", () => {
+    assert.equal(loadedRef, Vc.DEFAULTS.refColor);
+    assert.equal(probeStyle.getAll().refBgColor, Vc.DEFAULTS.refBgColor);
+  });
+  cp.w.localStorage.removeItem("verseobs_colour_probe");
+  check("Colours are hex, rgb/rgba, hsl/hsla or colour names only", () => {
+    for (const good of ["#f2b544", "#FFF", "#11223344", "rgb(242, 181, 68)", "rgba(0,0,0,.5)", "rgb(10% 20% 30% / 0.4)", "hsl(40 87% 61%)", "hsla(40, 87%, 61%, 0.8)", "tomato", "transparent", "RebeccaPurple"])
+      assert.equal(Vc.isColor(good), true, good);
+    for (const bad of ["url(http://evil.example/a.png)", "#f2b544 url(x)", "image-set('x.png' 1x)", "var(--x)", "rgb(1,2,3) url(x)", "red;background:url(x)", "linear-gradient(red, blue)", "rgb(1,2)", "#ggg", "", 42, null])
+      assert.equal(Vc.isColor(bad), false, String(bad));
+  });
   // Race regression: hide must win even during a long entrance transition.
   input(cp, "#settings-container [data-setting=animation]", "fade", "change");
   input(cp, "#settings-container [data-setting=animationDuration]", "1000");

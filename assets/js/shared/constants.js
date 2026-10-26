@@ -417,3 +417,65 @@ window.VerseObs.FREETEXT_STYLES = {
     },
   },
 };
+
+/**
+ * A style's colours (every « …Color » setting) are CSS colours only: #hex,
+ * rgb()/rgba(), hsl()/hsla() with plain numbers, or a colour name. Never a
+ * value that could make an output load something (url(), image-set(),
+ * var() …), whatever brings it: an imported backup, a stored or updated
+ * style, a page of the same origin. A refused colour takes the default.
+ */
+(function (V) {
+  var NAMES = (
+    "aliceblue antiquewhite aqua aquamarine azure beige bisque black " +
+    "blanchedalmond blue blueviolet brown burlywood cadetblue chartreuse " +
+    "chocolate coral cornflowerblue cornsilk crimson cyan darkblue darkcyan " +
+    "darkgoldenrod darkgray darkgreen darkgrey darkkhaki darkmagenta " +
+    "darkolivegreen darkorange darkorchid darkred darksalmon darkseagreen " +
+    "darkslateblue darkslategray darkslategrey darkturquoise darkviolet " +
+    "deeppink deepskyblue dimgray dimgrey dodgerblue firebrick floralwhite " +
+    "forestgreen fuchsia gainsboro ghostwhite gold goldenrod gray green " +
+    "greenyellow grey honeydew hotpink indianred indigo ivory khaki lavender " +
+    "lavenderblush lawngreen lemonchiffon lightblue lightcoral lightcyan " +
+    "lightgoldenrodyellow lightgray lightgreen lightgrey lightpink " +
+    "lightsalmon lightseagreen lightskyblue lightslategray lightslategrey " +
+    "lightsteelblue lightyellow lime limegreen linen magenta maroon " +
+    "mediumaquamarine mediumblue mediumorchid mediumpurple mediumseagreen " +
+    "mediumslateblue mediumspringgreen mediumturquoise mediumvioletred " +
+    "midnightblue mintcream mistyrose moccasin navajowhite navy oldlace olive " +
+    "olivedrab orange orangered orchid palegoldenrod palegreen paleturquoise " +
+    "palevioletred papayawhip peachpuff peru pink plum powderblue purple " +
+    "rebeccapurple red rosybrown royalblue saddlebrown salmon sandybrown " +
+    "seagreen seashell sienna silver skyblue slateblue slategray slategrey " +
+    "snow springgreen steelblue tan teal thistle tomato turquoise violet " +
+    "wheat white whitesmoke yellow yellowgreen transparent currentcolor"
+  ).split(" ");
+  var NUM = "[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:e[+-]?\\d+)?",
+    FIRST = NUM + "(?:deg|grad|rad|turn|%)?",
+    ARG = NUM + "%?",
+    FUNCTION = new RegExp(
+      "^(?:rgba?|hsla?)\\(\\s*" +
+        FIRST +
+        "(?:\\s*,\\s*" + ARG + "\\s*,\\s*" + ARG + "(?:\\s*,\\s*" + ARG + ")?" +
+        "|\\s+" + ARG + "\\s+" + ARG + "(?:\\s*\\/\\s*" + ARG + ")?)" +
+        "\\s*\\)$",
+    );
+  V.isColor = function (value) {
+    if (typeof value !== "string" || value.length > 64) return false;
+    var v = value.trim().toLowerCase();
+    return (
+      /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/.test(v) ||
+      FUNCTION.test(v) ||
+      NAMES.indexOf(v) !== -1
+    );
+  };
+  /** Every colour of `style` that is not one takes its default (or goes). */
+  V.cleanColors = function (style, defaults) {
+    Object.keys(style || {}).forEach(function (k) {
+      if (!/Color$/.test(k) || V.isColor(style[k])) return;
+      if (defaults && V.isColor(defaults[k])) style[k] = defaults[k];
+      else delete style[k];
+    });
+    return style;
+  };
+})(window.VerseObs);

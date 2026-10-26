@@ -120,6 +120,11 @@
             throw new Error("Réglage invalide : " + k);
           if (typeof value[k] === "string" && value[k].length > 1000)
             throw new Error("Réglage trop long.");
+          // A colour that is not one (url(), image-set() …) keeps the default.
+          if (/Color$/.test(k) && !V.isColor(value[k])) {
+            settings[k] = defaults[k];
+            return;
+          }
           settings[k] = value[k];
         });
         value = settings;

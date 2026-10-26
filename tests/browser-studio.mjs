@@ -764,6 +764,71 @@ try {
   });
   }
 
+  // ---- A colour is only a colour (review 3, security): a backup imported
+  // with `refBgColor: url(http://…)`, or a page of the same origin sending
+  // such a style, must never make the output load anything from elsewhere.
+  if (run("colors")) {
+  await check("A colour that is not one never makes the output load anything (imported backup, then a same-origin page): 0 external request", async () => {
+    const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    const requests = [];
+    ctx.on("request", (r) => {
+      if (!r.url().startsWith(BASE) && !r.url().startsWith("data:")) requests.push(r.url());
+    });
+    const errors = [];
+    const output = await ctx.newPage();
+    await output.setViewportSize({ width: 1280, height: 720 });
+    output.on("pageerror", (e) => errors.push("output: " + e.message));
+    await output.goto(`${BASE}/browser_source.html`);
+    const studio = await ctx.newPage();
+    studio.on("pageerror", (e) => errors.push("studio: " + e.message));
+    await studio.goto(`${BASE}/control_panel.html`);
+    await studio.waitForSelector(".chapter-verse");
+    const evil = (name) => "url(http://evil.invalid/" + name + ".png)";
+    const hostile = { refBgColor: evil("refbg"), textColor: evil("text"), bgColor: evil("bg"), refColor: evil("ref"), borderColor: evil("border"), highlightColor: evil("highlight") };
+    // 1. A backup whose colours are pictures from elsewhere, then Diffuser.
+    await studio.evaluate((hostile) => {
+      const V = window.VerseObs;
+      const style = Object.assign({}, V.DEFAULTS, hostile);
+      delete style.bgImage;
+      V.Backup.apply({ app: "verseobs", version: 1, data: { verseobs_settings: JSON.stringify(style) } }, localStorage);
+    }, hostile);
+    await studio.reload();
+    await studio.waitForSelector(".chapter-verse");
+    await studio.waitForFunction(() => document.querySelector("#connection-dot").classList.contains("connected"));
+    await prepare(studio, "Jean 3:16");
+    await studio.click("#btn-show");
+    await output.waitForFunction(SETTLED, null, { timeout: 10000 });
+    await output.waitForTimeout(800);
+    const colours = () =>
+      output.evaluate(() => {
+        const s = document.documentElement.style;
+        return { refBg: s.getPropertyValue("--ref-bg-color"), text: s.getPropertyValue("--text-color"), card: (document.querySelector(".verse-card:not(.vo-probe) .verse-text")?.textContent || "").slice(0, 24) };
+      });
+    const afterImport = { requests: requests.slice(), colours: await colours() };
+    // 2. A page of the same origin sends the style itself.
+    const attacker = await ctx.newPage();
+    await attacker.goto(`${BASE}/assets/js/shared/constants.js`);
+    await attacker.evaluate((hostile) => {
+      new BroadcastChannel("verseobs").postMessage({
+        type: "show_verse", sender: "evil", id: "evil:1", ts: Date.now(), command: "evil1",
+        text: "Un deux trois", reference: "Jean 3:16", version: "LSG",
+        settings: Object.assign({ layout: "antenne" }, hostile),
+      });
+    }, hostile);
+    await output.waitForFunction(() => /Un deux trois/.test(document.querySelector(".verse-card:not(.vo-probe) .verse-text")?.textContent || ""), null, { timeout: 10000 });
+    await output.waitForTimeout(1500);
+    const afterPage = { requests: requests.slice(), colours: await colours() };
+    console.log("    after the import: " + JSON.stringify(afterImport) + "; after a same-origin page: " + JSON.stringify(afterPage));
+    assert.deepEqual(requests, [], "the output loaded something from elsewhere");
+    for (const seen of [afterImport.colours, afterPage.colours]) {
+      assert.equal(seen.refBg, "#f2b544", "the default axis colour is kept");
+      assert.equal(seen.text, "#f3eee4", "the default text colour is kept");
+    }
+    assert.deepEqual(errors, []);
+    await ctx.close();
+  });
+  }
+
   // ---- The Antenne head's states (brief §4), in the phone's words: no
   // output (grey, hatched), nothing on air (grey), part of a passage on air
   // (red, an amber chip and the same « Découper » as under the preview).

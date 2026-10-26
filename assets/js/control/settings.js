@@ -107,6 +107,8 @@
     } catch (e) {
       this._settings = defaults;
     }
+    // A stored colour that is not one (url() …) takes the default.
+    window.VerseObs.cleanColors(this._settings, defaults);
     try {
       this._settings.bgImage =
         localStorage.getItem(this._imageKey) || this._settings.bgImage || "";
@@ -159,6 +161,9 @@
    * Update a single setting.
    */
   Settings.prototype.update = function (key, value) {
+    // A colour that is not one (url() …) takes the default.
+    if (/Color$/.test(key) && !window.VerseObs.isColor(value))
+      value = this._getDefaults()[key];
     this._settings[key] = value;
     this.save();
     this._notifyChange();
@@ -211,6 +216,8 @@
         var eventType = _getEventType(el);
         el.addEventListener(eventType, function () {
           var val = _getInputValue(el);
+          if (/Color$/.test(key) && !window.VerseObs.isColor(val))
+            val = self._getDefaults()[key];
           self._settings[key] = val;
           self._settings.template = "custom";
           if (self._templateSelect) self._templateSelect.value = "custom";

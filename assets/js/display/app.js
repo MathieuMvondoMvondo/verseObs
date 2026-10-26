@@ -87,12 +87,15 @@
   /**
    * A command without a layout comes from an older Studio: keep its card.
    * Stored settings follow the Studio's own migration (see migrateStyle).
+   * Colours are validated here too: a value that could make the output load
+   * something (url() …) takes the default colour, whoever sent it.
    */
-  function styleFor(style, stored) {
+  function styleFor(style, stored, defaults) {
     var result = Object.assign({}, style || {});
     if (style && style.layout === undefined)
       if (stored) V.migrateStyle(style, result, V.DEFAULTS, "studio");
       else V.migrateStyle(style, result);
+    V.cleanColors(result, defaults || V.DEFAULTS);
     if (result.bgImage === undefined) {
       try {
         result.bgImage = localStorage.getItem("verseobs_bgimage") || "";
@@ -157,7 +160,11 @@
     }
     clearTimer();
     var token = ++generation,
-      style = styleFor(msg.settings);
+      style = styleFor(
+        msg.settings,
+        false,
+        msg.type === MSG.SHOW_TEXT ? V.FREETEXT_DEFAULTS : V.DEFAULTS,
+      );
     var data = {
       text: msg.text || "",
       secondary: msg.secondary || null,
