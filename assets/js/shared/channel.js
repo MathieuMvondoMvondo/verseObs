@@ -98,6 +98,31 @@ window.VerseObs.Channel = function (opts) {
     record(msg, slot, from, n);
     return false;
   }
+  // Styles are patches, not program takes: a later font change must not
+  // discard an earlier colour change that arrives last. Order each property
+  // independently, including settings carried by a Diffuser. If that
+  // Diffuser arrives after a newer style, keep the newer values while still
+  // delivering its text. Nothing about the output's rendering changes.
+  var styleValues = Object.create(null);
+  function orderStyle(msg) {
+    var show = msg.type === V.MSG.SHOW_VERSE || msg.type === V.MSG.SHOW_TEXT;
+    if ((!show && msg.type !== V.MSG.UPDATE_STYLE) ||
+        !msg.settings || typeof msg.settings !== "object") return msg;
+    var from = String(msg.sender || ""), id = String(msg.id || ""),
+      n = from && id.indexOf(from + ":") === 0 ? Number(id.slice(from.length + 1)) : 0,
+      settings = Object.create(null);
+    Object.keys(msg.settings).forEach(function (k) {
+      var slot = "style " + k;
+      if (older(msg, slot, from, n)) {
+        if (show) settings[k] = styleValues[k];
+      } else {
+        settings[k] = styleValues[k] = msg.settings[k];
+        record(msg, slot, from, n);
+      }
+    });
+    if (!show && !Object.keys(settings).length) return null;
+    return Object.assign({}, msg, { settings: settings });
+  }
   function receive(msg) {
     if (
       stopped ||
@@ -113,6 +138,8 @@ window.VerseObs.Channel = function (opts) {
     if (seen.size > 600) seen.delete(seen.values().next().value);
     see(msg.at);
     if (superseded(msg)) return;
+    msg = orderStyle(msg);
+    if (!msg) return;
     if (msg.type === V.MSG.PING && opts.autoPong !== false)
       self.send({ type: V.MSG.PONG });
     listeners.slice().forEach(function (fn) {

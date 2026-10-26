@@ -620,6 +620,7 @@ async function run() {
   await testRemote(cp, output);
   await testDedup();
   require("./channel-clock")(check);
+  require("./channel-style")(check);
   console.log("\n✓ Studio integration: " + passed + " checks passed.");
 }
 async function testBilingual(cp, output) {
