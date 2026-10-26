@@ -68,8 +68,13 @@ window.VerseObs.Channel = function (opts) {
   // hide) replaces the previous one. In each slot, a command older than the
   // one already delivered is dropped: from the same sender, by its command
   // number; from any sender (another tab, a reloaded Studio), by its stamp.
-  // Two senders' commands stamped alike are both delivered, in
-  // arrival order. Every other command is delivered as is.
+  // Two senders' commands stamped alike (two tabs within one millisecond,
+  // before the shared clock reaches the other one; OBS's own browser and a
+  // Studio in Chrome before they first hear each other) are told apart by a
+  // key every output reads the same way: the stamp, then the sender, then
+  // the sender's command number. Whatever order the transports hand them
+  // over in, every output (OBS program, projector) ends on the same one.
+  // Every other command is delivered as is.
   var replaces = {},
     latest = {},
     top = {};
@@ -78,15 +83,21 @@ window.VerseObs.Channel = function (opts) {
     replaces[V.MSG.SHOW_TEXT] =
     replaces[V.MSG.HIDE] =
       "program";
+  function before(at, from, n, last) {
+    if (at !== last.at) return at < last.at;
+    if (from !== last.from) return from < last.from;
+    return n < last.n;
+  }
   function older(msg, slot, from, n) {
     var last = top[slot];
     if (n > 0 && latest[from + " " + slot] >= n) return true;
-    return !!last && valid(msg.at) && msg.at < last.at;
+    return !!last && valid(msg.at) && before(msg.at, from, n, last);
   }
   function record(msg, slot, from, n) {
     if (n > 0) latest[from + " " + slot] = n;
-    if (valid(msg.at) && !(top[slot] && top[slot].at >= msg.at))
-      top[slot] = { at: msg.at, from: from };
+    var last = top[slot];
+    if (valid(msg.at) && !(last && !before(last.at, last.from, last.n, { at: msg.at, from: from, n: n })))
+      top[slot] = { at: msg.at, from: from, n: n };
   }
   function superseded(msg) {
     var slot = replaces[msg.type],

@@ -621,6 +621,7 @@ async function run() {
   await testDedup();
   require("./channel-clock")(check);
   require("./channel-style")(check);
+  await require("./channel-tiebreak")(check);
   require("./color-normalization")(check);
   console.log("\n✓ Studio integration: " + passed + " checks passed.");
 }
@@ -1318,7 +1319,9 @@ async function testDedup() {
   // delivered late must never put back on air a text hidden since, whoever
   // sent the two commands: one Studio, two Studio tabs, a reloaded Studio
   // (a new sender). Two senders' commands stamped in the same millisecond
-  // are both legitimate: both are applied, in arrival order.
+  // are both legitimate: arriving in key order (stamp, sender, number), as
+  // here, both are applied; the reverse order, and two outputs that get
+  // them in opposite orders, are checked in channel-tiebreak.js.
   const program = [];
   const output = new ctx.VerseObs.Channel({ autoPong: false });
   const outputBC = listener;

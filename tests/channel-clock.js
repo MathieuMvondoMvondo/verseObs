@@ -23,7 +23,8 @@ function page(store, opts = {}) {
     Math,
     JSON,
     Object,
-    Date: { now: () => Date.now() + p.shift },
+    // `now`: a frozen clock reading, for commands stamped alike (tie tests).
+    Date: { now: () => (opts.now ? opts.now() : Date.now()) + p.shift },
     location: { hostname: "example.test" },
     localStorage: {
       getItem: (k) => (k in store ? store[k] : null),
