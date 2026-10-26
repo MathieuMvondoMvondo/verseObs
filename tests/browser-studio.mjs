@@ -909,6 +909,93 @@ try {
     assert.deepEqual(errors, []);
     await ctx.close();
   });
+
+  // ---- The conductor says what the head says (review 3): « À l’antenne »
+  // in red only for a passage confirmed whole; a passage shown in part is
+  // « Partiel » in amber, a command not yet confirmed is amber too. The
+  // selection card's badge follows. Read from the rendered chip (::after).
+  await check("Conductor tally: « À l’antenne » in red only when confirmed whole; « Partiel » and a command being sent in amber, as the head", async () => {
+    const LSGc = require(path.join(ROOT, "data/bibles/lsg.json")).books;
+    const verses = (name, chapter, from, to) =>
+      Object.values(LSGc).find((b) => b.name === name).chapters.find((c) => c.chapter === chapter).verses.filter((v) => v.verse >= from && v.verse <= to);
+    const item = (id, name, chapter, from, to) => {
+      const vs = verses(name, chapter, from, to);
+      return {
+        id, type: "verse", version: "Louis Segond 1910",
+        reference: name + " " + chapter + ":" + from + (to > from ? "-" + to : ""),
+        text: vs.map((v) => v.text).join(" "),
+        html: vs.map((v) => `<sup class="verse-num">${v.verse}</sup> ${v.text}`).join(" "),
+      };
+    };
+    const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    await ctx.addInitScript((q) => {
+      if (location.pathname.endsWith("control_panel.html") && !sessionStorage.getItem("__seeded")) {
+        localStorage.setItem("verseobs_queue", q);
+        sessionStorage.setItem("__seeded", "1");
+      }
+    }, JSON.stringify({ items: [item("tallyps23x", "Psaumes", 23, 1, 6), item("tallyjn316", "Jean", 3, 16, 16)], currentIndex: 0 }));
+    const errors = [];
+    const output = await ctx.newPage();
+    output.on("pageerror", (e) => errors.push("output: " + e.message));
+    await output.goto(`${BASE}/browser_source.html`);
+    const studio = await ctx.newPage();
+    studio.on("pageerror", (e) => errors.push("studio: " + e.message));
+    await studio.goto(`${BASE}/control_panel.html`);
+    await studio.waitForSelector(".chapter-verse");
+    await studio.waitForFunction(() => document.querySelector("#connection-dot").classList.contains("connected"));
+    await studio.evaluate(() => document.querySelector("#tab-btn-2").click());
+    const send = async (index) => {
+      await studio.evaluate((i) => document.querySelectorAll("#queue-container .cp-queue-item")[i].click(), index);
+      await studio.evaluate(() => document.querySelector("#btn-queue-show").click());
+    };
+    const tally = (index) =>
+      studio.evaluate((i) => {
+        const row = document.querySelectorAll("#queue-container .cp-queue-item")[i];
+        const chip = getComputedStyle(row.querySelector(".cp-queue-title"), "::after");
+        const rgb = (c) => (c.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
+        return {
+          head: document.querySelector("#onair-bar").dataset.state + (document.querySelector("#onair-bar").hasAttribute("data-partial") ? " partial" : ""),
+          chip: chip.content === "none" ? "" : chip.content.replace(/^"|"$/g, ""),
+          chipBg: rgb(chip.backgroundColor),
+          aria: row.getAttribute("aria-label"),
+          badge: document.querySelector("#queue-selection-badge").textContent,
+          badgeInk: rgb(getComputedStyle(document.querySelector("#queue-selection-badge")).color),
+        };
+      }, index);
+    const amber = ([r, g, b]) => r > 200 && g > 140 && g < 210 && b < 120;
+    const red = ([r, g, b]) => r > 180 && g < 90 && b < 90;
+    // Psaumes 23:1-6 is shown in part on a 1080 output.
+    await send(0);
+    await studio.waitForFunction(() => document.querySelector("#onair-bar").hasAttribute("data-partial"), null, { timeout: 10000 });
+    let t = await tally(0);
+    console.log("    partial: " + JSON.stringify(t));
+    assert.equal(t.chip.toLowerCase(), "partiel", "the conductor says « Partiel » like the head: " + JSON.stringify(t));
+    assert.ok(amber(t.chipBg), "amber chip: " + t.chipBg);
+    assert.match(t.aria, /partiel/i);
+    assert.equal(t.badge, "PARTIEL");
+    assert.ok(amber(t.badgeInk), "amber badge: " + t.badgeInk);
+    // Jean 3:16 shown whole: red « À l’antenne ».
+    await send(1);
+    await studio.waitForFunction(() => document.querySelector("#onair-bar").dataset.state === "live" && !document.querySelector("#onair-bar").hasAttribute("data-partial") && document.querySelector("#onair-ref").textContent === "Jean 3:16", null, { timeout: 10000 });
+    t = await tally(1);
+    console.log("    confirmed: " + JSON.stringify(t));
+    assert.equal(t.chip, "À l’antenne");
+    assert.ok(red(t.chipBg), "red chip: " + t.chipBg);
+    assert.equal(t.badge, "À L’ANTENNE");
+    // No output any more: the command waits, amber, never « À l’antenne ».
+    await output.close();
+    await send(0);
+    await studio.waitForFunction(() => document.querySelector("#onair-bar").dataset.state === "pending", null, { timeout: 10000 });
+    t = await tally(0);
+    console.log("    being sent: " + JSON.stringify(t));
+    assert.notEqual(t.chip, "À l’antenne");
+    assert.ok(t.chip && amber(t.chipBg), "amber chip: " + JSON.stringify(t));
+    assert.equal(t.badge, "ENVOI EN COURS");
+    assert.ok(amber(t.badgeInk), "amber badge: " + t.badgeInk);
+    await studio.screenshot({ path: path.join(ROOT, "artifacts", "regie-conductor-tally-pending.png") });
+    assert.deepEqual(errors, []);
+    await ctx.close();
+  });
   }
 
   // ---- Calm heads (Linear): flat surfaces; the colour code lives in the

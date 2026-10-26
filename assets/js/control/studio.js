@@ -7,7 +7,7 @@
     lastVerse = 0,
     undo = null,
     layoutRows = function () {},
-    output = { visible: false, confirmed: false, label: "", cue: "", version: "" };
+    output = { visible: false, confirmed: false, label: "", cue: "", version: "", shown: "" };
   var titles = [
     "Préparer un passage",
     "Textes & chants",
@@ -206,20 +206,30 @@
     return label === output.label && (version || "") === (output.version || "");
   }
   /**
-   * Program tally in the conductor: the item the output shows is marked
-   * « À l’antenne », whatever is selected.
+   * Program tally in the conductor: the item the output shows says what the
+   * Antenne head says, whatever is selected: « À l’antenne » (red) only when
+   * confirmed whole, « Partiel » (amber chip) when the output shows part of
+   * it, « Envoi en cours » (amber) until the output confirms.
    */
   function markLive() {
+    var partial = !!output.confirmed && !!output.shown;
     document.querySelectorAll("#queue-container .cp-queue-item").forEach(
       function (row) {
         var on = isLive(row.dataset.cue, row.dataset.label, row.dataset.version);
         row.classList.toggle("is-live", on && output.confirmed);
+        row.classList.toggle("is-partial", on && partial);
         row.classList.toggle("is-live-pending", on && !output.confirmed);
         row.setAttribute(
           "aria-label",
           "Sélectionner " +
             row.dataset.label +
-            (on ? (output.confirmed ? ", à l’antenne" : ", envoi en cours") : ""),
+            (on
+              ? output.confirmed
+                ? partial
+                  ? ", partiel à l’antenne"
+                  : ", à l’antenne"
+                : ", envoi en cours"
+              : ""),
         );
       },
     );
@@ -233,10 +243,14 @@
         selected.reference || selected.title || "Texte libre",
         selected.version,
       );
-    preview.classList.toggle("is-live", selectedLive);
+    preview.classList.toggle("is-live", selectedLive && !!output.confirmed && !partial);
+    preview.classList.toggle("is-partial", selectedLive && partial);
+    preview.classList.toggle("is-live-pending", selectedLive && !output.confirmed);
     el("queue-selection-badge").textContent = selectedLive
       ? output.confirmed
-        ? "À L’ANTENNE"
+        ? partial
+          ? "PARTIEL"
+          : "À L’ANTENNE"
         : "ENVOI EN COURS"
       : "PRÊT À DIFFUSER";
   }
@@ -956,6 +970,8 @@
         label: String(state.label || ""),
         cue: String(state.cue || ""),
         version: String(state.version || ""),
+        // The verses really on air when the output shows part of the item.
+        shown: String(state.shown || ""),
       };
       el("monitor-program").classList.toggle("is-live", output.visible);
       // Reduced motion is decided by the OBS computer's system setting.

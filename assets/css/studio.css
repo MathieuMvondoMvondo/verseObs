@@ -4042,6 +4042,22 @@ body[data-onair="pending"] .cp-btn-hide {
 .queue-selection-preview.is-live .editor-badge {
   color: var(--pgm-strong);
 }
+/* Part of the passage on air, or a command not yet confirmed: amber, as
+   the Antenne head's « Partiel » chip and its « Commande de diffusion ». */
+.queue-selection-preview.is-partial,
+.queue-selection-preview.is-live-pending {
+  border-color: var(--pending-border);
+  box-shadow: inset 4px 0 0 var(--pending);
+}
+.queue-selection-preview.is-partial .editor-badge,
+.queue-selection-preview.is-live-pending .editor-badge {
+  color: var(--pending);
+}
+.cp-queue-item.is-live.is-partial .cp-queue-title::after {
+  content: "Partiel";
+  background: var(--pending);
+  color: var(--pending-ink);
+}
 .queue-selection-preview .editor-badge {
   font: 700 12px/1 var(--tally-font);
   letter-spacing: 0.1em;
