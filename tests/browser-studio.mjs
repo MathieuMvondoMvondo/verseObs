@@ -1358,6 +1358,9 @@ try {
   // that window for a stress run only, to show the section never relies on
   // the window reopening in time.
   const realWindow = REMOTE_LIMITS.windowMs;
+  // The relay's limit is put back whatever happens, even if the cleanup
+  // below fails (review 8, B4).
+  try {
   if (process.env.STUDIO_PHONE_WINDOW_MS) REMOTE_LIMITS.windowMs = Number(process.env.STUDIO_PHONE_WINDOW_MS);
   const lan = createServer(LAN_PORT, { lan: { addresses: ["127.0.0.1"], port: 0 } });
   await new Promise((r) => lan.listen(LAN_PORT, "127.0.0.1", r));
@@ -1429,6 +1432,33 @@ try {
         } catch {}
       }),
     );
+    // STUDIO_PHONE_STATE_AFTER_ERROR=1 (stress runs only): right after each
+    // refusal the phone gets its last state again, in the next task. That
+    // state clears the banner (remote.js), the race of review 8 (B4).
+    if (process.env.STUDIO_PHONE_STATE_AFTER_ERROR === "1")
+      await phone.addInitScript(() => {
+        const Native = window.WebSocket;
+        window.WebSocket = class extends Native {
+          set onmessage(fn) {
+            let last = null;
+            super.onmessage = (event) => {
+              let m = null;
+              try {
+                m = JSON.parse(event.data);
+              } catch {}
+              if (m && m.type === "state") last = event.data;
+              fn.call(this, event);
+              if (m && m.type === "error" && m.reason === "rate_limited" && last) {
+                const data = last;
+                setTimeout(() => fn.call(this, new MessageEvent("message", { data })), 0);
+              }
+            };
+          }
+          get onmessage() {
+            return super.onmessage;
+          }
+        };
+      });
     await phone.goto(status.url);
     // The section sends 13 commands: each goes through command(), which keeps
     // the phone within the relay's budget. A sliding window 10 % longer than
@@ -1727,15 +1757,29 @@ try {
       const last = Math.max(0, ...sent);
       await phone.waitForTimeout(Math.max(0, last + REMOTE_LIMITS.windowMs * 1.1 - Date.now()));
       const before = refusals.length;
+      // Each state of the banner, text and visibility read together, recorded
+      // from before the burst: the next state message clears the banner
+      // (remote.js), so a read after the wait could miss it (review 8, B4).
+      await phone.evaluate(() => {
+        const el = document.querySelector("#banner");
+        window.__banner = [];
+        new MutationObserver(() => window.__banner.push({ text: el.textContent, hidden: el.hidden })).observe(el, {
+          attributes: true,
+          childList: true,
+          characterData: true,
+          subtree: true,
+        });
+      });
       await phone.evaluate((n) => {
         const b = document.querySelector("[data-command=hide]");
         for (let i = 0; i < n; i++) b.click();
       }, REMOTE_LIMITS.commands + 1);
-      await phone.waitForFunction(() => /Trop de commandes/.test(document.querySelector("#banner").textContent), null, { timeout: 10000 });
-      const banner = await phone.evaluate(() => ({ text: document.querySelector("#banner").textContent, hidden: document.querySelector("#banner").hidden }));
+      await phone.waitForFunction(() => window.__banner.some((s) => /Trop de commandes/.test(s.text)), null, { timeout: 10000 });
+      const banner = await phone.evaluate(() => window.__banner.find((s) => /Trop de commandes/.test(s.text)));
       await phone.waitForTimeout(500);
       const late = refusals.slice(before);
-      console.log("    burst of " + (REMOTE_LIMITS.commands + 1) + ": refusals " + JSON.stringify(late) + ", banner " + JSON.stringify(banner));
+      const states = await phone.evaluate(() => window.__banner.length);
+      console.log("    burst of " + (REMOTE_LIMITS.commands + 1) + ": refusals " + JSON.stringify(late) + ", banner " + JSON.stringify(banner) + ", banner states " + states);
       assert.equal(late.length, 1, "the first 10 pass, exactly one refusal: " + JSON.stringify(late));
       assert.match(late[0], /^rate_limited /, "the 11th is refused for its rate");
       assert.equal(banner.hidden, false);
@@ -1747,6 +1791,8 @@ try {
   } finally {
     await lan.remote.disable();
     lan.close();
+  }
+  } finally {
     REMOTE_LIMITS.windowMs = realWindow;
   }
   }
@@ -2637,6 +2683,11 @@ try {
   if (run("legacy")) {
     const { legacyOutput } = await import("./browser-onglet.mjs");
     await legacyOutput({ check, open, prepare, BASE });
+  }
+  // ---- Review 8 (B2): two translations shown in part, labels and range.
+  if (run("bilingual")) {
+    const { bilingualPartial } = await import("./browser-onglet.mjs");
+    await bilingualPartial({ check, open, prepare, BASE });
   }
 
   if (run("paired")) {

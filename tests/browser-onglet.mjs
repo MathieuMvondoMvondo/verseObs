@@ -237,9 +237,16 @@ export async function ongletStudio({ check, open, prepare, BASE }) {
  */
 export async function legacyOutput({ check, open, prepare, BASE }) {
   const { ctx, studio, output, errors } = await open(1920, 1080);
+  // As 8834e21 and earlier: no « caps », a style patch taken for an older
+  // Studio's whole style (no `patch` flag: Antenne → Carte), and no
+  // « style_patch » (an unknown type is ignored). Review 8 (B3).
   const strip = async (route) => {
     const r = await route.fetch();
-    const body = (await r.text()).replace(/\n\s*caps: \[[^\]]*\],/, "");
+    const body = (await r.text())
+      .replace(/\n\s*caps: \[[^\]]*\],/, "")
+      .replace(/msg\.type === MSG\.STYLE_PATCH \|\| msg\.patch === true/, "false")
+      .replace(/msg\.patch === true/, "false")
+      .replace(/msg\.type === MSG\.UPDATE_STYLE \|\| msg\.type === MSG\.STYLE_PATCH/, "msg.type === MSG.UPDATE_STYLE");
     await route.fulfill({ response: r, body });
   };
   await output.route("**/assets/js/display/app.js*", strip);
@@ -248,13 +255,14 @@ export async function legacyOutput({ check, open, prepare, BASE }) {
     output.evaluate((name) => {
       window.__styles = [];
       new BroadcastChannel(name).onmessage = (e) => {
-        const text = JSON.stringify(e.data);
-        if (/update_style/i.test(text)) window.__styles.push(/"patch":true/.test(text) ? "patch" : "whole");
+        const t = e.data && e.data.type;
+        if (t === "style_patch") window.__styles.push(t);
+        else if (t === "update_style") window.__styles.push(e.data.patch ? "patch" : "whole");
       };
     }, await output.evaluate(() => window.VerseObs.CHANNEL_NAME || "verseobs"));
   await spy();
   // The emulated older output really runs without « caps ».
-  assert.equal(await output.evaluate(() => fetch("assets/js/display/app.js").then((r) => r.text()).then((t) => /caps:/.test(t))), false);
+  assert.equal(await output.evaluate(() => fetch("assets/js/display/app.js").then((r) => r.text()).then((t) => /caps:|MSG\.STYLE_PATCH|patch === true/.test(t))), false);
   const head = () =>
     studio.evaluate(() => ({
       state: document.querySelector("#onair-bar").dataset.state,
@@ -267,7 +275,14 @@ export async function legacyOutput({ check, open, prepare, BASE }) {
       el.value = String(v);
       el.dispatchEvent(new Event("input", { bubbles: true }));
     }, v);
-  await check("An OBS source left on an older version: the régie asks to refresh it, sends it no style patch and never confirms its look", async () => {
+  const outOf = (p) =>
+    p.evaluate(() => ({
+      cls: document.querySelector("#verse-container").className,
+      font: getComputedStyle(document.documentElement).getPropertyValue("--font-size").trim(),
+    }));
+  // Nothing an older output would misread: « style_patch » is ignored there.
+  const misread = (sent) => sent.filter((s) => s !== "style_patch");
+  await check("An OBS source left on an older version: the régie asks to refresh it, sends it nothing it would misread and never confirms its look", async () => {
     await prepare(studio, "Jean 3:16");
     await studio.click("#btn-show");
     await output.waitForFunction(() => document.querySelector(".verse-card:not(.vo-probe)"), null, { timeout: 10000 });
@@ -283,7 +298,58 @@ export async function legacyOutput({ check, open, prepare, BASE }) {
     console.log("    older output: " + JSON.stringify({ head: h, styles: sent }));
     assert.match(h.note, /actualisez/i, "the régie asks to refresh the source");
     assert.notEqual(h.label, "Sortie confirmée", "no confirmation of a look the older output cannot draw");
-    assert.deepEqual(sent, [], "no style patch for an output that would take it for an older Studio's whole style");
+    assert.deepEqual(misread(sent), [], "no update_style for an output that would take a patch for an older Studio's whole style");
+    assert.match((await outOf(output)).cls, /layout-antenne/);
+  });
+  // Review 8 (B3): silence proves nothing. A second, up-to-date output answers
+  // while the older one is frozen (main thread busy), as in the review.
+  const fresh = await ctx.newPage();
+  fresh.on("pageerror", (e) => errors.push("fresh: " + e.message));
+  await fresh.goto(`${BASE}/browser_source.html`);
+  const freeze = (ms) => output.evaluate((ms) => { const end = performance.now() + ms; while (performance.now() < end); }, ms).catch(() => {});
+  const freshAt = (px) => fresh.waitForFunction((px) => getComputedStyle(document.documentElement).getPropertyValue("--font-size").trim() === px, px, { timeout: 5000 });
+  await check("The older output frozen 10 s, a size change at 8 s: never « Sortie confirmée », nothing it would misread, the up-to-date output takes it live", async () => {
+    await studio.click("#btn-show");
+    await fresh.waitForFunction(() => document.querySelector(".verse-card:not(.vo-probe)"), null, { timeout: 10000 });
+    await studio.waitForTimeout(3500);
+    const before = await outOf(output);
+    const frozen = freeze(10000);
+    await studio.waitForTimeout(8000);
+    const at8 = await head();
+    await fontSize(52);
+    await freshAt("52px");
+    await frozen;
+    await output.waitForTimeout(2000);
+    const after = await outOf(output),
+      sent = await output.evaluate(() => window.__styles.slice());
+    console.log("    frozen 10 s: " + JSON.stringify({ at8, before, after, sent, end: await head() }));
+    assert.notEqual(at8.label, "Sortie confirmée", "silence is no proof the older output was refreshed");
+    assert.match(at8.note, /actualisez/i);
+    assert.match(after.cls, /layout-antenne/, "the older output keeps its look");
+    assert.equal(after.font, before.font, "it takes the size at the next Diffuser");
+    assert.deepEqual(misread(sent), [], "nothing it would misread");
+  });
+  await check("A Studio reloaded while the older output is frozen: its first patch, before that output answers, is nothing it would misread; the warning comes back when it answers", async () => {
+    const frozen = freeze(10000);
+    await studio.waitForTimeout(300);
+    await studio.reload();
+    await studio.waitForSelector(".chapter-verse");
+    await prepare(studio, "Jean 3:16");
+    await studio.click("#btn-show");
+    await fontSize(48);
+    const early = await head();
+    await freshAt("48px");
+    await frozen;
+    await studio.waitForFunction(() => !document.querySelector("#program-note").hidden && /actualise/i.test(document.querySelector("#program-note").textContent), null, { timeout: 8000 });
+    await output.waitForTimeout(1500);
+    const after = await outOf(output),
+      late = await head(),
+      sent = await output.evaluate(() => window.__styles.slice());
+    console.log("    reloaded Studio: " + JSON.stringify({ early, after, late, sent }));
+    assert.match(after.cls, /layout-antenne/, "the older output keeps its look");
+    assert.equal(after.font, "52px", "the Diffuser's whole style, not the patch");
+    assert.deepEqual(misread(sent), [], "nothing it would misread");
+    assert.notEqual(late.label, "Sortie confirmée");
   });
   await check("Once the source is refreshed: the note goes, « Sortie confirmée » and live style patches come back", async () => {
     await output.unroute("**/assets/js/display/app.js*", strip);
@@ -296,7 +362,190 @@ export async function legacyOutput({ check, open, prepare, BASE }) {
     await output.waitForFunction(() => window.__styles.length > 0, null, { timeout: 5000 });
     const sent = await output.evaluate(() => window.__styles.slice());
     console.log("    refreshed output: " + JSON.stringify({ head: await head(), styles: sent }));
-    assert.deepEqual([...new Set(sent)], ["patch"], "the size change goes as a patch");
+    assert.deepEqual([...new Set(sent)], ["style_patch"], "the size change goes as a patch");
+  });
+  assert.deepEqual(errors, []);
+  await ctx.close();
+}
+
+/**
+ * Review 8 (B2): two translations shown in part. The column labels name the
+ * versions; only a label that also names the passage (Antenne, Carte:
+ * « King James Version · Romans 8:28-29 ») narrows to the verses shown. In
+ * « Onglet » the label is the version alone and the tab names the passage:
+ * it never becomes « KJV:28 ».
+ */
+export async function bilingualPartial({ check, open, prepare, BASE }) {
+  const { readFileSync } = await import("node:fs");
+  const bible = (file) => JSON.parse(readFileSync(new URL("../data/bibles/" + file, import.meta.url), "utf8")).books;
+  const LSG = bible("lsg.json"),
+    KJV = bible("kjv.json");
+  const verses = (books, name, ch, a, b) =>
+    Object.values(books).find((x) => x.name === name).chapters.find((c) => c.chapter === ch).verses.filter((v) => v.verse >= a && v.verse <= b);
+  const marked = (list) => list.map((v) => `<sup class="verse-num">${v.verse}</sup> ${v.text}`).join(" ");
+  const { ctx, studio, output, errors } = await open(1920, 1080);
+  /** Labels, verses really shown (primary and second column), the reference on air. */
+  const LABELS = () => {
+    const card = document.querySelector(".verse-card:not(.vo-probe)");
+    if (!card || !card.querySelector(".verse-secondary")) return null;
+    const nums = (sel) => Array.from(card.querySelectorAll(sel)).map((s) => Number(s.textContent));
+    const roll = card.querySelector(".vo-nums .vo-roll:not(.is-leaving)");
+    const second = card.querySelector(".verse-secondary .verse-translation-label").getBoundingClientRect(),
+      plate = card.getBoundingClientRect();
+    return {
+      layout: (document.querySelector("#verse-container").className.match(/layout-(\w+)/) || [])[1],
+      labels: Array.from(card.querySelectorAll(".verse-translation-label")).map((l) => l.textContent),
+      shown: nums(".vo-copy .verse-text:not(.verse-secondary-text) sup.verse-num"),
+      theirs: nums(".verse-secondary-text sup.verse-num"),
+      roll: roll ? roll.textContent : "",
+      partial: card.dataset.partial || "",
+      inside: second.left >= plate.left - 0.5 && second.right <= plate.right + 0.5,
+    };
+  };
+  const judge = (g, where, version, reference) => {
+    assert.ok(g, where + ": two translations on air");
+    const first = Math.min(...g.shown),
+      last = Math.max(...g.shown),
+      range = first === last ? String(first) : first + "-" + last,
+      // Integration (26/10): « Ruban » and « Facettes » carry the reference in
+      // their tab or shoulder, like « Onglet ».
+      tab = ["onglet", "ruban", "facettes"].includes(g.layout),
+      abbr = { "Louis Segond 1910": "LSG", "King James Version": "KJV" };
+    assert.equal(g.labels[0], tab ? "LSG" : "Louis Segond 1910", where + ": first column names its version");
+    const narrowed = g.partial ? reference.replace(/:\d+(-\d+)?$/, ":" + range) : reference;
+    assert.equal(g.labels[1], tab ? abbr[version] || version : version + " · " + narrowed, where + ": second column " + JSON.stringify(g));
+    assert.ok(g.roll.endsWith(":" + range), where + ": the reference on air names the verses shown " + JSON.stringify(g));
+    assert.ok(g.theirs.every((n) => n >= first && n <= last), where + ": second column within the verses shown");
+    assert.ok(g.inside, where + ": the label inside the card");
+  };
+  await check("Two translations in part through the Studio (Onglet sombre, Romains 8:28-30 + KJV, 720p): the labels name the versions", async () => {
+    await output.setViewportSize({ width: 1280, height: 720 });
+    await studio.evaluate(() => document.querySelector('.quick-styles [data-preset="onglet-sombre"]').click());
+    await prepare(studio, "Romains 8:28-30");
+    await studio.check("#bilingual-toggle");
+    await studio.selectOption("#secondary-version", "kjv");
+    await studio.waitForTimeout(700);
+    await studio.click("#btn-show");
+    await output.waitForFunction(LABELS, null, { timeout: 15000 });
+    await output.waitForFunction(SETTLED, null, { timeout: 15000 });
+    const g = await output.evaluate(LABELS);
+    console.log("    studio 720p: " + JSON.stringify(g));
+    assert.equal(g.layout, "onglet");
+    assert.ok(g.partial, "this case is shown in part at 720p (review 8)");
+    judge(g, "studio 720p", "King James Version", "Romans 8:28-30");
+    await studio.click("#btn-hide");
+    await output.waitForFunction(() => !document.querySelector(".verse-card:not(.vo-probe)"), null, { timeout: 10000 });
+    await studio.uncheck("#bilingual-toggle");
+  });
+  await check("Two translations, whole or in part, 1080p and 720p, long version name: labels are versions, the range is the verses shown; Antenne and Carte unchanged", async () => {
+    const seen = [];
+    for (const viewport of [{ width: 1920, height: 1080 }, { width: 1280, height: 720 }]) {
+      await output.setViewportSize(viewport);
+      for (const preset of ["onglet-sombre", "onglet", "antenne", "studio"])
+        for (const [fr, en, ch, a, b, version] of [
+          ["Jean", "John", 11, 35, 36, "King James Version"],
+          ["Jean", "John", 11, 35, 36, "New Revised Standard Version Updated Edition"],
+          ["Romains", "Romans", 8, 28, 30, "King James Version"],
+          ["Romains", "Romans", 8, 28, 39, "New Revised Standard Version Updated Edition"],
+        ]) {
+          const reference = en + " " + ch + ":" + a + "-" + b;
+          const msg = {
+            type: "show_verse",
+            text: verses(LSG, fr, ch, a, b).map((v) => v.text).join(" "),
+            html: marked(verses(LSG, fr, ch, a, b)),
+            reference: fr + " " + ch + ":" + a + "-" + b,
+            version: "Louis Segond 1910",
+            secondary: { text: verses(KJV, en, ch, a, b).map((v) => v.text).join(" "), html: marked(verses(KJV, en, ch, a, b)), reference, version, lang: "en" },
+          };
+          await output.evaluate(() => window.VerseObs.DisplayApp.handleMessage({ type: "hide" }));
+          await output.waitForFunction(() => !document.querySelector(".verse-card:not(.vo-probe)"), null, { timeout: 10000 });
+          await output.evaluate(
+            ({ msg, preset }) => {
+              const V = window.VerseObs;
+              const settings = Object.assign({}, V.DEFAULTS, V.TEMPLATES[preset].settings, { animation: "none", animationDuration: 0, bgImage: "" });
+              V.DisplayApp.handleMessage(Object.assign({}, msg, { settings }));
+            },
+            { msg, preset },
+          );
+          await output.waitForFunction(LABELS, null, { timeout: 15000 });
+          await output.waitForFunction(SETTLED, null, { timeout: 15000 });
+          const g = await output.evaluate(LABELS);
+          const where = viewport.height + "p " + preset + " " + reference + " " + version;
+          seen.push(where + " " + (g.partial ? "partial" : "whole") + " " + JSON.stringify(g.labels) + " " + g.roll);
+          judge(g, where, version, reference);
+        }
+    }
+    console.log("    " + seen.join("\n    "));
+    assert.ok(seen.some((s) => / onglet.* partial /.test(s)) && seen.some((s) => / antenne .* partial /.test(s)) && seen.some((s) => / studio .* partial /.test(s)), "partial cases reached in every layout");
+    assert.ok(seen.some((s) => / whole /.test(s)), "a whole case too");
+  });
+  // Integration (26/10): « Ruban » and « Facettes » (other branch) take the
+  // review 8 (B2) rule as they are: the column labels stay LSG / KJV, only
+  // the reference in their tab or shoulder narrows to the verses shown.
+  await check("Two translations, whole or in part, Ruban and Facettes (Studio at 720p, then 1080p and 720p, long version name): labels are versions, the tab names the verses shown", async () => {
+    const seen = [];
+    await output.setViewportSize({ width: 1280, height: 720 });
+    for (const preset of ["ruban", "facettes"]) {
+      await studio.evaluate((k) => document.querySelector(`.quick-styles [data-preset="${k}"]`).click(), preset);
+      await prepare(studio, "Romains 8:28-30");
+      await studio.check("#bilingual-toggle");
+      await studio.selectOption("#secondary-version", "kjv");
+      await studio.waitForTimeout(700);
+      await studio.click("#btn-show");
+      await output.waitForFunction((k) => document.querySelector("#verse-container.layout-" + k) && document.querySelector(".verse-card:not(.vo-probe) .verse-secondary"), preset, { timeout: 15000 });
+      await output.waitForFunction(SETTLED, null, { timeout: 15000 });
+      const g = await output.evaluate(LABELS);
+      seen.push("studio 720p " + preset + " " + (g.partial ? "partial" : "whole") + " " + JSON.stringify(g.labels) + " " + g.roll);
+      assert.equal(g.layout, preset);
+      judge(g, "studio 720p " + preset, "King James Version", "Romans 8:28-30");
+      await studio.click("#btn-hide");
+      await output.waitForFunction(() => !document.querySelector(".verse-card:not(.vo-probe)"), null, { timeout: 10000 });
+      await studio.uncheck("#bilingual-toggle");
+    }
+    for (const viewport of [{ width: 1920, height: 1080 }, { width: 1280, height: 720 }]) {
+      await output.setViewportSize(viewport);
+      for (const preset of ["ruban", "facettes"])
+        for (const [fr, en, ch, a, b, version] of [
+          ["Jean", "John", 11, 35, 36, "King James Version"],
+          ["Romains", "Romans", 8, 28, 30, "King James Version"],
+          ["Romains", "Romans", 8, 28, 39, "New Revised Standard Version Updated Edition"],
+        ]) {
+          const reference = en + " " + ch + ":" + a + "-" + b;
+          const msg = {
+            type: "show_verse",
+            text: verses(LSG, fr, ch, a, b).map((v) => v.text).join(" "),
+            html: marked(verses(LSG, fr, ch, a, b)),
+            reference: fr + " " + ch + ":" + a + "-" + b,
+            version: "Louis Segond 1910",
+            secondary: { text: verses(KJV, en, ch, a, b).map((v) => v.text).join(" "), html: marked(verses(KJV, en, ch, a, b)), reference, version, lang: "en" },
+          };
+          await output.evaluate(() => window.VerseObs.DisplayApp.handleMessage({ type: "hide" }));
+          await output.waitForFunction(() => !document.querySelector(".verse-card:not(.vo-probe)"), null, { timeout: 10000 });
+          await output.evaluate(
+            ({ msg, preset }) => {
+              const V = window.VerseObs;
+              const settings = Object.assign({}, V.DEFAULTS, V.TEMPLATES[preset].settings, { animation: "none", animationDuration: 0, bgImage: "" });
+              V.DisplayApp.handleMessage(Object.assign({}, msg, { settings }));
+            },
+            { msg, preset },
+          );
+          await output.waitForFunction(LABELS, null, { timeout: 15000 });
+          await output.waitForFunction(SETTLED, null, { timeout: 15000 });
+          const g = await output.evaluate(LABELS);
+          const where = viewport.height + "p " + preset + " " + reference + " " + version;
+          seen.push(where + " " + (g.partial ? "partial" : "whole") + " " + JSON.stringify(g.labels) + " " + g.roll);
+          assert.equal(g.layout, preset, where);
+          judge(g, where, version, reference);
+          // The tab names the passage with the verses shown, never a number
+          // that is not on air.
+          assert.ok(g.shown.every((n) => n >= a && n <= b), where + ": verses shown within the passage");
+        }
+    }
+    console.log("    " + seen.join("\n    "));
+    for (const preset of ["ruban", "facettes"]) {
+      assert.ok(seen.some((s) => new RegExp(" " + preset + " .* partial ").test(s)), preset + ": a partial case reached");
+      assert.ok(seen.some((s) => new RegExp(" " + preset + " .* whole ").test(s)), preset + ": a whole case too");
+    }
   });
   assert.deepEqual(errors, []);
   await ctx.close();

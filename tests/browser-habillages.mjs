@@ -536,6 +536,41 @@ export async function olderOutputHabillage({ check, open, prepare }) {
     assert.match(seen.onglet.note, /actualisez/i);
     await studio.click("#btn-hide");
   });
+  // Integration (26/10) with review 8 (B3): an output that takes live changes
+  // (style_patch) but draws neither Ruban nor Facettes (26798b6) is older too;
+  // refreshed to this version (all four caps), it replaces it: confirmed.
+  await check("An output with style_patch but without Ruban and Facettes is « à actualiser »; refreshed with the four caps it is « Sortie confirmée »", async () => {
+    await output.unroute("**/assets/js/display/app.js*");
+    await output.route("**/assets/js/display/app.js*", async (route) => {
+      const r = await route.fetch();
+      const body = (await r.text()).replace(/caps: \[[^\]]*\],/, 'caps: [MSG.STYLE_PATCH, "onglet"],');
+      await route.fulfill({ response: r, body });
+    });
+    await output.reload();
+    assert.equal(await output.evaluate(() => fetch("assets/js/display/app.js").then((r) => r.text()).then((t) => /caps: \[MSG\.STYLE_PATCH, "onglet"\],/.test(t))), true);
+    await studio.selectOption("#style-select", "ruban");
+    await prepare(studio, "Éphésiens 6:15");
+    await studio.click("#btn-show");
+    await output.waitForFunction(() => document.querySelector("#verse-container.layout-ruban .verse-card:not(.vo-probe)"), null, { timeout: 10000 });
+    // Past LEGACY_QUIET (7 s) since the 2060f1e page above last answered:
+    // only this page's own caps can keep the warning now (a Studio that took
+    // style_patch + onglet for « à jour » would confirm it here).
+    await studio.waitForTimeout(10500);
+    const partial = await head();
+    await output.unroute("**/assets/js/display/app.js*");
+    await output.reload();
+    assert.equal(await output.evaluate(() => fetch("assets/js/display/app.js").then((r) => r.text()).then((t) => /caps: \[MSG\.STYLE_PATCH, "onglet", "ruban", "facettes"\],/.test(t))), true);
+    await studio.click("#btn-show");
+    // The older page is replaced once it has been quiet for 7 s.
+    await studio.waitForFunction(() => document.querySelector("#onair-bar .cp-onair-label").textContent === "Sortie confirmée", null, { timeout: 20000 });
+    const whole = await head();
+    console.log("    style_patch without Ruban/Facettes: " + JSON.stringify(partial) + ", refreshed: " + JSON.stringify(whole));
+    assert.equal(partial.label, "Sortie à actualiser");
+    assert.match(partial.note, /actualisez/i);
+    assert.equal(whole.label, "Sortie confirmée");
+    assert.equal(whole.note, "");
+    await studio.click("#btn-hide");
+  });
   assert.deepEqual(errors, []);
   await ctx.close();
 }

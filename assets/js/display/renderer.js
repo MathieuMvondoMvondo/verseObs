@@ -381,14 +381,16 @@
     if (secondary) {
       var second = node("section", "verse-secondary");
       if (secondary.lang) second.lang = secondary.lang;
-      second.appendChild(
-        node(
-          "div",
-          "verse-translation-label",
-          // The tab already names the passage: the column only needs its version.
-          tab ? name(secondary.version) : secondary.version + " · " + secondary.reference,
-        ),
+      var secondLabel = node(
+        "div",
+        "verse-translation-label",
+        // The tab already names the passage: the column only needs its version.
+        tab ? name(secondary.version) : secondary.version + " · " + secondary.reference,
       );
+      // Only a label that names the passage narrows to the verses shown
+      // (_trim); a version's name never takes a range (review 8, B2).
+      if (!tab) secondLabel.setAttribute("data-passage", "");
+      second.appendChild(secondLabel);
       var secondText = node("div", "verse-text verse-secondary-text");
       var secondLead = tab && !secondary.html && secondary.reference
         ? /:(\d+)/.exec(secondary.reference)
@@ -616,7 +618,8 @@
       stage.dataset.partial = roll.textContent;
       roll.textContent = P.range(roll.textContent, first, last);
     } else stage.dataset.partial = "1";
-    if (label) label.textContent = P.range(label.textContent, first, last);
+    if (label && label.hasAttribute("data-passage"))
+      label.textContent = P.range(label.textContent, first, last);
     if (inline) inline.textContent = P.range(inline.textContent, first, last);
     return true;
   };

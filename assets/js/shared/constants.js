@@ -6,6 +6,11 @@ window.VerseObs.MSG = {
   SHOW_TEXT: "show_text",
   HIDE: "hide",
   UPDATE_STYLE: "update_style",
+  // A live style change: only the properties changed (review 8, B3). A type
+  // of its own, so an output from before it (which would take a patch for
+  // an older Studio's whole style) ignores it, however late it wakes up,
+  // and takes the change with the next Diffuser's whole style.
+  STYLE_PATCH: "style_patch",
   PING: "ping",
   PONG: "pong",
   // Preview-only: rendered by the in-dock preview iframe, ignored by the real overlay.
@@ -44,6 +49,15 @@ window.VerseObs.LAYOUTS = {
   // a dark plane with a bevelled corner.
   FACETTES: "facettes",
 };
+/**
+ * Layouts whose presets bring a look of their own (typeface, line height,
+ * width, colours the older bases never set). Leaving one for another base
+ * puts the defaults back for what only its presets set, whatever was
+ * retouched since (Settings.applyTemplate, review 8): a new layout of this
+ * kind lists itself here. Between the older layouts a base still writes its
+ * own keys only. « Ruban » and « Facettes » (26/10) are of this kind.
+ */
+window.VerseObs.OWN_LOOK_LAYOUTS = ["onglet", "ruban", "facettes"];
 window.VerseObs.ANTENNE_FONT = "'VerseObs Lecture', Lora, Georgia, serif";
 /** Inter (SIL OFL), bundled: a clean sans for the « Onglet » cards. */
 window.VerseObs.ONGLET_FONT = "'VerseObs Onglet', Inter, 'Segoe UI', Arial, sans-serif";

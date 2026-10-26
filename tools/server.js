@@ -21,6 +21,7 @@ const TYPES = new Set([
   "show_text",
   "hide",
   "update_style",
+  "style_patch",
   "preview",
   "preview_hide",
   "ping",

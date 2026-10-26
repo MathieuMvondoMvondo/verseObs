@@ -45,13 +45,13 @@
         shown: visible && renderer && renderer.partial ? renderer.shown : "",
         // The OBS machine's own setting: the Studio tells the operator.
         reduced: !!(V.Motion && V.Motion.reduced()),
-        // What this output understands (review 7, N7): a style patch
-        // (UPDATE_STYLE with patch: true) and the « Onglet » layout. An
-        // output from before this field sends none: the Studio sends it no
-        // patch and asks the operator to refresh it.
+        // What this output understands (review 7, N7; review 8, B3): live
+        // changes as STYLE_PATCH and the « Onglet » layout. Without them the
+        // Studio asks the operator to refresh it; that older page ignores
+        // STYLE_PATCH and takes a change with the next Diffuser.
         // « Ruban » and « Facettes » (26/10): an output from 2060f1e announces
         // neither and would draw another look for them.
-        caps: ["style-patch", "onglet", "ruban", "facettes"],
+        caps: [MSG.STYLE_PATCH, "onglet", "ruban", "facettes"],
       });
   }
   /**
@@ -147,9 +147,9 @@
       report();
       return;
     }
-    if (msg.type === MSG.UPDATE_STYLE) {
+    if (msg.type === MSG.UPDATE_STYLE || msg.type === MSG.STYLE_PATCH) {
       cancelMeasure();
-      renderer.updateStyle(styleFor(msg.settings, false, undefined, msg.patch === true));
+      renderer.updateStyle(styleFor(msg.settings, false, undefined, msg.type === MSG.STYLE_PATCH || msg.patch === true));
       // The new style may fit the text on air differently (whole or in
       // part): the Studio and the phone learn it now, not at the next ping.
       report();
