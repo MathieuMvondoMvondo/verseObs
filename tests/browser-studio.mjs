@@ -1230,6 +1230,9 @@ try {
             gap: Math.round(document.querySelector("[data-command=prev]").getBoundingClientRect().top - next.bottom),
             nextLines: text.getClientRects().length && getComputedStyle(text).display !== "none" ? Math.round(text.getBoundingClientRect().height / lh) : 0,
             prevTop: Math.round(document.querySelector("[data-command=prev]").getBoundingClientRect().top),
+            // Calm like the régie's heads: a flat band, figures set as text.
+            bandImage: getComputedStyle(document.querySelector("#output")).backgroundImage,
+            figures: getComputedStyle(ref).fontVariantNumeric,
           };
         });
       // On air: the selection (plan 1/2) is confirmed; Ensuite is plan 2/2.
@@ -1244,6 +1247,8 @@ try {
       // it now shows the next text (all of it here: 4 verses, 6 lines).
       assert.ok(g.gap <= 145, g.gap + " px left empty above the thumb zone");
       assert.ok(g.prevTop >= 844 - 260, "thumb zone unchanged");
+      assert.equal(g.bandImage, "none", "a flat band, as the régie's heads");
+      assert.doesNotMatch(g.figures, /tabular/, "proportional figures: « 119:5-8 » without gaps");
       // Being sent: the output is gone, the command waits for it (amber).
       await output.close();
       await phone.click("[data-command=next]");

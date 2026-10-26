@@ -898,3 +898,19 @@ body[data-output="pending"] .control-hide {
     display: none;
   }
 }
+/* Calm band, as the régie's heads: a flat surface, a hairline in the
+   state's colour, the colour itself in the ANTENNE tag. The reference is
+   set with proportional figures (« 119:5-8 » without gaps). */
+.output[data-state="confirmed"],
+.output[data-state="partial"] {
+  background: #1c1516;
+  border-color: rgba(217, 45, 39, 0.55);
+}
+.output[data-state="pending"] {
+  background: #1b1813;
+  border-color: rgba(242, 181, 68, 0.42);
+}
+.output-ref,
+.output[data-state="confirmed"] .output-ref {
+  font-variant-numeric: normal;
+}
