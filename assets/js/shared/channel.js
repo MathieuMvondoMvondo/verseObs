@@ -30,13 +30,21 @@ window.VerseObs.Channel = function (opts) {
   // machine's clock does (NTP correction, time changed by hand, a page whose
   // clock is behind): it then counts on from its last stamp until the
   // machine's clock catches up. Every stamp heard is followed, however far
-  // ahead: a stamp an hour ahead is what every page sends for an hour after
-  // the clock went back an hour. A new page (a reloaded Studio) starts after
-  // the last message left in localStorage, and follows the output's answer
-  // to its first ping.
-  var clock = 0;
+  // ahead within the horizon below: a stamp an hour ahead is what every
+  // page sends for an hour after the clock went back an hour. A new page (a
+  // reloaded Studio) starts after the last message left in localStorage,
+  // and follows the output's answer to its first ping.
+  // A stamp is a plausible date: a positive number of milliseconds, at most
+  // ten years ahead of this machine's clock. A clock set back by hand, or
+  // another page an hour, a day or a year ahead, stays well within it. A
+  // mark beyond (corrupted storage, a broken sender, the edge of the Date
+  // range in year 275760) is neither followed nor kept, and orders nothing:
+  // no page counts on from it past the range, and no output waits behind it
+  // for ever (review 6, N1).
+  var clock = 0,
+    HORIZON = 10 * 365.25 * 864e5;
   function valid(at) {
-    return typeof at === "number" && at > 0 && at <= 8.64e15;
+    return typeof at === "number" && at > 0 && at <= Date.now() + HORIZON;
   }
   function see(at) {
     if (valid(at) && at > clock) clock = at;
@@ -45,14 +53,20 @@ window.VerseObs.Channel = function (opts) {
     // another tab's message event before sending after it. Storage may be
     // unavailable in an isolated OBS context: its channel still follows
     // every received stamp and the output's answer to the first ping.
+    // A stored mark that is not a plausible date is ignored, then
+    // overwritten by this page's own.
     try {
       var saved = Number(localStorage.getItem(key + "_clock"));
       if (valid(saved) && saved > clock) clock = saved;
-      if (clock > 0) localStorage.setItem(key + "_clock", String(clock));
+      if (valid(clock)) localStorage.setItem(key + "_clock", String(clock));
     } catch (e) {}
   }
   function stamp() {
     see();
+    // Only a machine clock set back more than ten years leaves the mark
+    // beyond the horizon: start again from the clock rather than send
+    // stamps no output would order.
+    if (!valid(clock + 1)) clock = 0;
     clock = Math.max(Date.now(), clock + 1);
     see(clock);
     return clock;
@@ -91,12 +105,13 @@ window.VerseObs.Channel = function (opts) {
   function older(msg, slot, from, n) {
     var last = top[slot];
     if (n > 0 && latest[from + " " + slot] >= n) return true;
-    return !!last && valid(msg.at) && before(msg.at, from, n, last);
+    // A recorded mark the clock has fallen ten years behind orders nothing.
+    return !!last && valid(last.at) && valid(msg.at) && before(msg.at, from, n, last);
   }
   function record(msg, slot, from, n) {
     if (n > 0) latest[from + " " + slot] = n;
     var last = top[slot];
-    if (valid(msg.at) && !(last && !before(last.at, last.from, last.n, { at: msg.at, from: from, n: n })))
+    if (valid(msg.at) && !(last && valid(last.at) && !before(last.at, last.from, last.n, { at: msg.at, from: from, n: n })))
       top[slot] = { at: msg.at, from: from, n: n };
   }
   function superseded(msg) {

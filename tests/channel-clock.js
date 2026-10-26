@@ -227,6 +227,118 @@ module.exports = function testClock(check) {
       assert.equal(output.onAir, "B");
     });
   }
+  // Review 6 (N1): a mark at the edge of the Date range (8.64e15, year
+  // 275760) or beyond reasonable comes only from corrupted storage or a
+  // broken sender. It must never be followed: stamps then left the range,
+  // a late Diffuser came back after a Masquer, and a reloaded Studio was
+  // ignored for good. Every stamp sent stays a plausible date.
+  const plausible = (at) => typeof at === "number" && at > 0 && at <= Date.now() + 11 * 365.25 * 864e5;
+  // U3 (reviewer's probe): a corrupted durable mark, a new page.
+  for (const bad of ["abc", "-5", "1e300", "Infinity", "", "{}", "NaN", "0x1A2B3C4D5E6", "1e15", "8640000000000000", "8639999999999990"]) {
+    const store = { verseobs_msg_clock: bad };
+    const studio = page(store),
+      output = page({}, { output: true });
+    const a = studio.send({ type: "show_verse", text: "A" });
+    const tab = page(store);
+    const h = tab.send({ type: "hide" });
+    output.hear(h), output.hear(a);
+    check(`Durable mark « ${bad} »: a Diffuser, then another tab's Masquer delivered first: hidden, stamps plausible`, () => {
+      assert.equal(output.onAir, "", "the late Diffuser put the text back");
+      assert.ok(plausible(a.at) && plausible(h.at), "stamps " + a.at + ", " + h.at);
+      assert.ok(h.at > a.at, "Masquer after the Diffuser: " + a.at + ", " + h.at);
+    });
+  }
+  // K8 (reviewer's probe): the durable mark at the edge of the range, the
+  // OBS output in the Studio's profile, a projector in its own; pings go
+  // on for a while, then the Studio is reloaded.
+  {
+    const store = { verseobs_msg_clock: String(8.64e15 - 3) };
+    const obs = page(store, { output: true }),
+      projector = page({}, { output: true }),
+      studio = page(store);
+    const both = (m) => (obs.hear(m), projector.hear(m));
+    const stamps = [];
+    const send = (p, m) => {
+      const sent = p.send(m);
+      stamps.push(sent.at);
+      both(sent);
+      return sent;
+    };
+    send(studio, { type: "show_verse", text: "A" });
+    const shown = [obs.onAir, projector.onAir];
+    for (let i = 0; i < 3; i++) ping(studio, obs, projector);
+    send(studio, { type: "hide" });
+    const hidden = [obs.onAir, projector.onAir];
+    const reloaded = page(store);
+    send(reloaded, { type: "show_verse", text: "B" });
+    const afterReload = [obs.onAir, projector.onAir];
+    ping(reloaded, obs, projector);
+    send(reloaded, { type: "hide" });
+    send(reloaded, { type: "show_verse", text: "C" });
+    check("Durable mark at the edge of the Date range: Diffuser, Masquer, a reloaded Studio's commands all apply on both outputs", () => {
+      assert.deepEqual(shown, ["A", "A"], "Diffuser");
+      assert.deepEqual(hidden, ["", ""], "Masquer");
+      assert.deepEqual(afterReload, ["B", "B"], "reloaded Studio's Diffuser ignored");
+      assert.deepEqual([obs.onAir, projector.onAir], ["C", "C"], "later Diffuser ignored");
+      assert.ok(stamps.every(plausible), "stamps " + stamps.join(", "));
+      assert.ok(plausible(Number(store.verseobs_msg_clock)), "durable mark left at " + store.verseobs_msg_clock);
+    });
+  }
+  // U2 (reviewer's probe): a message stamped 8.64e15 - 1 reaches a Studio
+  // and both outputs. It is neither followed nor allowed to order the
+  // commands after it: another tab's Diffuser and Masquer, delivered in
+  // order to OBS and last-in-first-out to the projector, end hidden.
+  {
+    const store = {};
+    const obs = page(store, { output: true }),
+      projector = page({}, { output: true }),
+      studio = page(store);
+    ping(studio, obs, projector);
+    const rogue = { type: "show_verse", text: "R", sender: "rogue", id: "rogue:1", at: 8.64e15 - 1, ts: Date.now() };
+    for (const p of [studio, obs, projector]) p.hear(rogue);
+    const got = [];
+    obs.channel.onMessage((m) => /^(show_verse|hide)$/.test(m.type) && got.push(m.type + (m.text ? " " + m.text : "")));
+    const tab = page(store);
+    const msgs = [studio.send({ type: "show_verse", text: "A" }), studio.send({ type: "hide" }), tab.send({ type: "show_verse", text: "B" }), tab.send({ type: "hide" })];
+    msgs.forEach((m) => obs.hear(m));
+    msgs.slice().reverse().forEach((m) => projector.hear(m));
+    const reloaded = page(store);
+    const c = reloaded.send({ type: "show_verse", text: "C" });
+    obs.hear(c), projector.hear(c);
+    check("A message stamped at the edge of the Date range is not followed: later commands keep their order, a reloaded Studio applies", () => {
+      assert.deepEqual(got.slice(0, 4), ["show_verse A", "hide", "show_verse B", "hide"]);
+      assert.ok(msgs.concat(c).every((m) => plausible(m.at)), "stamps " + msgs.concat(c).map((m) => m.at).join(", "));
+      assert.deepEqual([obs.onAir, projector.onAir], ["C", "C"]);
+    });
+  }
+  // The machine's clock set back eleven years (a dead battery, a date typed
+  // by hand) while a Studio and the output run: every mark already sent is
+  // now beyond the horizon. Nothing freezes and the order holds: another
+  // tab's Masquer, sent after the Studio's Diffuser and delivered first,
+  // keeps the text hidden.
+  {
+    const store = {};
+    const output = page(store, { output: true }),
+      studio = page(store);
+    output.hear(studio.send({ type: "show_verse", text: "A" }));
+    ping(studio, output);
+    for (const p of [output, studio]) p.shift -= 11 * 365.25 * 864e5;
+    const b = studio.send({ type: "show_verse", text: "B" });
+    const tab = page(store, { shift: studio.shift });
+    const h = tab.send({ type: "hide" });
+    output.hear(h);
+    const hidden = output.onAir;
+    output.hear(b);
+    const afterLate = output.onAir;
+    const c = studio.send({ type: "show_verse", text: "C" });
+    output.hear(c);
+    check("The machine's clock set back eleven years: another tab's Masquer applies, the Diffuser sent before it stays dropped, the next one applies", () => {
+      assert.equal(hidden, "", "Masquer ignored");
+      assert.equal(afterLate, "", "the late Diffuser put the text back");
+      assert.equal(output.onAir, "C", "Diffuser ignored");
+      assert.ok(h.at > b.at && c.at > h.at, "stamps " + [b.at, h.at, c.at].join(", "));
+    });
+  }
   // Expiration of the Studio's in-flight-command guard uses elapsed time,
   // not wall time. Run the real functions, not a mirrored implementation.
   {
