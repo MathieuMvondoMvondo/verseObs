@@ -5553,3 +5553,50 @@ body:not([data-tab="2"]) #tab-queue .cp-queue-part {
 .cp-onair[data-state="pending"] .cp-onair-ref {
   color: #f6ecd8;
 }
+/* ==========================================================================
+   Review 3: no dead margins in the régie.
+   - The monitors' feet (fit hint, « Découper », the OBS machine's note)
+     take room only when they say something, and the preparation starts
+     16 px under the bay (it was 40 + 24 px of empty foot and margin).
+   - In the 390 px dock the six sections are whole: six equal columns, the
+     icon above its label, as in the narrow sidebar (« Historique » was cut).
+   - The dock's fixed Diffuser is the width minus 2 × 52 px (brief): the
+     columns of Préc./Suiv. (44 px) and their 8 px gaps, nothing else.
+   ========================================================================== */
+.monitor-foot:not(:has(> :not([hidden]))),
+.program-foot:not(:has(> :not([hidden]))) {
+  display: none;
+}
+.monitor-bay {
+  margin-bottom: 16px;
+}
+@media (max-width: 620px) {
+  .studio-sidebar .cp-tabs {
+    gap: 2px;
+    overflow: visible;
+  }
+  .studio-sidebar .cp-tab {
+    flex: 1 1 0;
+    min-width: 0;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    padding: 6px 1px;
+    font: 500 12px/14px var(--tally-font);
+    letter-spacing: 0;
+    text-align: center;
+    white-space: normal;
+  }
+  .studio-sidebar .cp-tab > span {
+    max-width: 100%;
+  }
+  .studio-sidebar .cp-tab .icon {
+    width: 16px;
+    height: 16px;
+  }
+  .take {
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+

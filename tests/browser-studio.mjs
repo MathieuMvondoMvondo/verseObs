@@ -2177,6 +2177,105 @@ try {
   // ---- Review 2, brief §7: « Préparer à gauche → Prendre au centre →
   // Antenne à droite ». One take per view, between the monitors, measured
   // with a filled conductor and a plan on air.
+  // ---- Review 3, régie margins: no dead band under the monitor bay (its
+  // foot is empty most of the time), every tab whole in the 390 px dock,
+  // and the dock's fixed Diffuser as wide as the brief says (the width
+  // minus 2 × 52 px for Préc./Suiv.).
+  if (run("margins")) {
+  await check("Régie (review 3): ≤ 24 px between the monitor bay and the preparation at 1920, 1280 and 390 px; the six tabs whole at 390 px; fixed Diffuser 286 px wide", async () => {
+    const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    const errors = [];
+    const output = await ctx.newPage();
+    output.on("pageerror", (e) => errors.push("output: " + e.message));
+    await output.goto(`${BASE}/browser_source.html`);
+    const studio = await ctx.newPage();
+    studio.on("pageerror", (e) => errors.push("studio: " + e.message));
+    await studio.goto(`${BASE}/control_panel.html`);
+    await studio.waitForSelector(".chapter-verse");
+    await studio.waitForFunction(() => document.querySelector("#connection-dot").classList.contains("connected"));
+    const geometry = () =>
+      studio.evaluate(() => {
+        const seen = (e) => {
+          if (!e || !e.getClientRects().length) return false;
+          const s = getComputedStyle(e);
+          const r = e.getBoundingClientRect();
+          return s.visibility === "visible" && s.position !== "fixed" && r.width > 1 && r.height > 1;
+        };
+        const bay = document.querySelector("#monitor-bay");
+        // The bay's last painted thing (the dock's fixed bars excepted).
+        let bayBottom = 0;
+        for (const e of bay.querySelectorAll("*")) {
+          if (!seen(e) || e.closest(".take, #onair-bar")) continue;
+          const own = Array.from(e.childNodes).some((n) => n.nodeType === 3 && n.data.trim()) || getComputedStyle(e).backgroundColor !== "rgba(0, 0, 0, 0)" || getComputedStyle(e).borderTopWidth !== "0px" || e.tagName === "IFRAME";
+          if (own) bayBottom = Math.max(bayBottom, e.getBoundingClientRect().bottom);
+        }
+        // The preparation's first painted thing below it.
+        let panelTop = Infinity,
+          panelFirst = "";
+        for (const e of document.querySelectorAll(".cp-panel *")) {
+          if (!seen(e)) continue;
+          const own = Array.from(e.childNodes).some((n) => n.nodeType === 3 && n.data.trim()) || getComputedStyle(e).backgroundColor !== "rgba(0, 0, 0, 0)" || getComputedStyle(e).borderTopWidth !== "0px";
+          // (what a scroll list has moved up out of view does not count)
+          let top = e.getBoundingClientRect().top;
+          const bottom = e.getBoundingClientRect().bottom;
+          for (let a = e.parentElement; a && !a.classList.contains("cp-panel"); a = a.parentElement)
+            if (getComputedStyle(a).overflowY !== "visible") top = Math.max(top, a.getBoundingClientRect().top);
+          if (top >= bottom) continue;
+          if (own && top >= bayBottom - 1 && top < panelTop) {
+            panelTop = top;
+            panelFirst = (e.id || e.className || e.tagName) + "";
+          }
+        }
+        const bar = document.querySelector(".cp-tabs");
+        const b = bar.getBoundingClientRect();
+        const tabs = Array.from(bar.querySelectorAll(".cp-tab")).filter((t) => t.getClientRects().length);
+        const show = document.querySelector("#btn-show").getBoundingClientRect();
+        return {
+          band: Math.round(panelTop - bayBottom),
+          first: panelFirst.slice(0, 40),
+          bayBottom: Math.round(bayBottom),
+          panelTop: Math.round(panelTop),
+          tabs: tabs.map((t) => {
+            const r = t.getBoundingClientRect();
+            const label = t.querySelector("span");
+            return { text: t.textContent.trim(), whole: r.left >= b.left - 0.5 && r.right <= b.right + 0.5 && (!label || label.scrollWidth <= label.clientWidth + 1), size: parseFloat(getComputedStyle(label || t).fontSize) };
+          }),
+          scroll: bar.scrollWidth - bar.clientWidth,
+          show: Math.round(show.width),
+          fixedTake: getComputedStyle(document.querySelector("#take")).position === "fixed",
+        };
+      });
+    const seenAt = {};
+    for (const [w, h] of [[1920, 1080], [1280, 800], [390, 844]]) {
+      await studio.setViewportSize({ width: w, height: h });
+      await prepare(studio, "Jean 3:16");
+      await studio.evaluate(() => scrollTo(0, 0));
+      await studio.waitForTimeout(500);
+      const g = await geometry();
+      seenAt[w] = g;
+      console.log("    " + w + " px: " + JSON.stringify({ band: g.band, first: g.first, bayBottom: g.bayBottom, panelTop: g.panelTop, tabs: g.tabs.filter((t) => !t.whole).map((t) => t.text), scroll: g.scroll, show: g.show }));
+      await studio.screenshot({ path: path.join(ROOT, "artifacts", "regie-margins-" + w + ".png") });
+    }
+    for (const w of [1920, 1280, 390]) assert.ok(seenAt[w].band >= 8 && seenAt[w].band <= 24, w + " px: " + seenAt[w].band + " px between the bay and the preparation");
+    const dock = seenAt[390];
+    assert.equal(dock.tabs.length, 6);
+    assert.ok(dock.tabs.every((t) => t.whole && t.size >= 12), "every tab whole at 390 px: " + JSON.stringify(dock.tabs));
+    assert.ok(dock.scroll <= 1, "no hidden tab: " + dock.scroll);
+    assert.ok(dock.fixedTake && Math.abs(dock.show - 286) <= 1, "fixed Diffuser " + dock.show + " px");
+    // When the preview has something to say, it is shown, above the preparation.
+    await prepare(studio, "Psaumes 23:1-6");
+    await studio.waitForFunction(() => !document.querySelector("#fit-hint").hidden, null, { timeout: 15000 });
+    const hint = await studio.evaluate(() => {
+      const h = document.querySelector("#fit-hint").getBoundingClientRect();
+      const p = document.querySelector(".cp-panel").getBoundingClientRect();
+      return { bottom: Math.round(h.bottom), panel: Math.round(p.top), height: Math.round(h.height) };
+    });
+    assert.ok(hint.height > 0 && hint.bottom <= hint.panel, "the hint above the preparation: " + JSON.stringify(hint));
+    assert.deepEqual(errors, []);
+    await ctx.close();
+  });
+  }
+
   if (run("take")) {
   const views = [[0, "Bible"], [1, "Textes"], [2, "Conducteur"]];
   for (const [w, h] of [[1920, 1080], [1280, 800]]) {
@@ -2282,7 +2381,9 @@ try {
         const t = g.takes[0],
           m = g.hides[0];
         assert.ok(t.fixed && t.bottom <= g.vh && t.top >= g.vh - 96, where + "take in the fixed bottom bar " + JSON.stringify(t));
-        assert.ok(Math.abs(t.width - (g.clientWidth - 32 - 2 * 52)) <= 2, where + "take width " + t.width + " (width − 2×52 px)");
+        // The brief: the width minus 2 × 52 px (review 3: the side padding
+        // had been taken off as well, 254 px instead of 286 px at 390).
+        assert.ok(Math.abs(t.width - (g.clientWidth - 2 * 52)) <= 2, where + "take width " + t.width + " (width − 2×52 px)");
         assert.ok(band.position === "fixed" && band.top === 0 && band.height <= 56, where + "Antenne band " + JSON.stringify(band));
         assert.ok(m.top >= 0 && m.bottom <= 56 && m.width >= 44 && m.height >= 44, where + "Masquer in the band " + JSON.stringify(m));
         // Préc. | Suiv. flank the take in the Conducteur view only.
