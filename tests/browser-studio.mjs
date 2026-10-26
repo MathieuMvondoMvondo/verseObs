@@ -759,6 +759,62 @@ try {
   });
   }
 
+  // ---- Calm heads (Linear): flat surfaces; the colour code lives in the
+  // tally chip and a hairline border — green Aperçu, amber envoi, red Antenne.
+  if (run("heads")) {
+  await check("Monitor heads are calm: no gradient, the state's colour in the tally chip and the border (green Aperçu, amber envoi, red Antenne)", async () => {
+    const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    const errors = [];
+    const studio = await ctx.newPage();
+    studio.on("pageerror", (e) => errors.push("studio: " + e.message));
+    await studio.goto(`${BASE}/control_panel.html`);
+    await studio.waitForSelector(".chapter-verse");
+    const look = (sel, chip) =>
+      studio.evaluate(
+        ([sel, chip]) => {
+          const head = document.querySelector(sel);
+          const tag = head.querySelector(chip);
+          const rgb = (c) => (c.match(/[\d.]+/g) || []).map(Number);
+          const cs = getComputedStyle(head);
+          // On air, the chip's red is its fill (the 180 ms confirmation).
+          let chipColour = rgb(getComputedStyle(tag).backgroundColor);
+          const fill = tag.querySelector(".cp-onair-fill");
+          if (chipColour[3] === 0 && fill && getComputedStyle(fill).opacity === "1") chipColour = rgb(getComputedStyle(fill).backgroundColor);
+          return { image: cs.backgroundImage, surface: rgb(cs.backgroundColor), border: rgb(cs.borderTopColor), chip: chipColour, state: head.dataset.state || "" };
+        },
+        [sel, chip],
+      );
+    const hue = ([r, g, b]) => (g > r + 40 && g > b + 20 ? "green" : r > 150 && g > 120 && b < 120 && r - b > 90 ? "amber" : r > 150 && g < 90 && b < 90 ? "red" : "other");
+    const calm = (h, colour, where) => {
+      assert.equal(h.image, "none", where + ": flat surface, no gradient (" + h.image.slice(0, 60) + ")");
+      assert.equal(hue(h.chip), colour, where + ": tally chip " + h.chip);
+      assert.equal(hue(h.border.slice(0, 3)), colour, where + ": hairline border " + h.border);
+      const [r, g, b] = h.surface;
+      assert.ok(Math.max(r, g, b) <= 40, where + ": a dark, quiet surface " + h.surface);
+    };
+    // Preview: something prepared.
+    await prepare(studio, "Jean 3:16");
+    calm(await look(".monitor-head-preview", ".monitor-tag"), "green", "Aperçu");
+    // Being sent: no output answers yet, the command waits (amber).
+    await studio.click("#btn-show");
+    await studio.waitForFunction(() => document.querySelector("#onair-bar").dataset.state === "pending");
+    await studio.waitForTimeout(300);
+    calm(await look("#onair-bar", ".cp-onair-tally"), "amber", "Antenne, envoi");
+    // On air: the output answers and confirms (red).
+    const output = await ctx.newPage();
+    await output.setViewportSize({ width: 1920, height: 1080 });
+    output.on("pageerror", (e) => errors.push("output: " + e.message));
+    await output.goto(`${BASE}/browser_source.html`);
+    await studio.waitForFunction(() => document.querySelector("#connection-dot").classList.contains("connected"), null, { timeout: 10000 });
+    await studio.click("#btn-show");
+    await studio.waitForFunction(() => document.querySelector("#onair-bar").dataset.state === "live", null, { timeout: 10000 });
+    await studio.waitForTimeout(300);
+    calm(await look("#onair-bar", ".cp-onair-tally"), "red", "Antenne, à l'antenne");
+    assert.deepEqual(errors, []);
+    await ctx.close();
+  });
+  }
+
   // ---- The OBS source may be 720p, 1080p or 4K: the output composes one
   // logical 1080-line frame, so every size shows what the monitors show.
   if (run("output")) {

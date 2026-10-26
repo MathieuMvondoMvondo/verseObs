@@ -5509,3 +5509,29 @@ body:not([data-tab="2"]) #tab-queue .cp-queue-part {
   letter-spacing: 0;
   font-weight: 500;
 }
+
+/* ---- Calm heads (Linear): a flat dark surface with a faint cast of the
+   state, a hairline border in its colour, and the colour itself only in the
+   tally chip — green Aperçu, amber envoi, red Antenne. The monitors' frames
+   already carry the colour; the heads no longer shout it twice. ---- */
+.monitor-head-preview {
+  border-color: rgba(61, 214, 140, 0.3);
+  background: #141816;
+}
+.cp-onair[data-state="live"] {
+  border-color: rgba(217, 45, 39, 0.55);
+  background: #1c1516;
+}
+.cp-onair[data-state="pending"] {
+  border-color: rgba(242, 181, 68, 0.42);
+  background: #1b1813;
+}
+.monitor-head-preview .monitor-caption {
+  color: #eef0ee;
+}
+.cp-onair[data-state="live"] .cp-onair-ref {
+  color: #fbeeec;
+}
+.cp-onair[data-state="pending"] .cp-onair-ref {
+  color: #f6ecd8;
+}
