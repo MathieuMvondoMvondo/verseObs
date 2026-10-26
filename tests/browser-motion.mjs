@@ -476,6 +476,13 @@ try {
       roll: card.querySelector(".vo-nums .vo-roll:not(.is-leaving)") ? card.querySelector(".vo-nums .vo-roll:not(.is-leaving)").textContent : "",
       body: parseFloat(getComputedStyle(card.querySelector(".vo-copy .verse-text")).fontSize),
       painted,
+      // The silhouette, in frame px (the 1080-line frame is scaled).
+      radii: (() => {
+        const cs = getComputedStyle(card.querySelector(".vo-plate"));
+        return { tl: parseFloat(cs.borderTopLeftRadius), tr: parseFloat(cs.borderTopRightRadius), br: parseFloat(cs.borderBottomRightRadius), bl: parseFloat(cs.borderBottomLeftRadius) };
+      })(),
+      tabRadii: box(tab) ? { tl: parseFloat(getComputedStyle(tab).borderTopLeftRadius), tr: parseFloat(getComputedStyle(tab).borderTopRightRadius) } : null,
+      tabWeight: box(tab) ? Number(getComputedStyle(tab).fontWeight) : 0,
     };
   };
   /** Whole text, inside the frame, the reference whole in its tab, no accent bar. */
@@ -507,6 +514,19 @@ try {
     assert.deepEqual(g.painted, [], what + ": no accent bar, rule or side stroke");
     // computed sizes are in frame units (the 1080-line frame is scaled)
     assert.ok(g.body >= 31.5, what + ": body " + g.body + " px");
+    // The ICC silhouette Math asked for (references/icc-onglet-reference.jpg,
+    // measured and brought to 1080 lines): left corners almost a capsule
+    // (76-78 px for a two-line card), the bottom right a little tighter
+    // (about 63 px), the tab square on the card, its top corners 30-44 px,
+    // a bold reference. Not the small 30 px corners of a generic card.
+    const r = g.radii;
+    assert.ok(r.tl >= 70 && r.bl >= 70 && r.tl === r.bl, what + ": left corners almost a capsule " + JSON.stringify(r));
+    assert.ok(r.br >= 0.7 * r.bl && r.br < r.bl, what + ": bottom right a little tighter than the left " + JSON.stringify(r));
+    if (tab) {
+      assert.equal(r.tr, 0, what + ": the tab joins the card square at its top right");
+      assert.ok(g.tabRadii.tl >= 26 && g.tabRadii.tr >= g.tabRadii.tl, what + ": tab corners " + JSON.stringify(g.tabRadii));
+      assert.ok(g.tabWeight >= 700, what + ": bold reference in the tab (" + g.tabWeight + ")");
+    } else assert.ok(r.tr >= 0.7 * r.bl, what + ": without a tab, a rounded top right " + JSON.stringify(r));
   }
 
   for (const viewport of [{ width: 1920, height: 1080 }, { width: 1280, height: 720 }]) {

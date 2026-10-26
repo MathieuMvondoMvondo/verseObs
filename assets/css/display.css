@@ -42,6 +42,13 @@
   font-style: normal;
   font-display: block;
 }
+@font-face {
+  font-family: "VerseObs Onglet";
+  src: url("../fonts/Inter-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
+}
 
 :root {
   color-scheme: dark;
@@ -594,10 +601,18 @@ body {
    A card on the right of the lower third, leaving the left of the frame to
    the church's own branding; the reference sits in a coloured tab on the
    card's top right corner. No rule, no side stroke, no glow: the tab, the
-   white space and two weights of one sans (Inter) make the hierarchy. */
+   white space and two weights of one sans (Inter) make the hierarchy.
+   Silhouette measured on the reference Math sent (ICC, 26/10), brought to
+   1080 lines: left corners almost a capsule (radius ≈ 0.42 of a two-line
+   card's height, 76 px for the presets), the bottom right a little tighter
+   (≈ 0.83 of it), the card square under the tab, the tab's top corners
+   ≈ 0.42 (left) and 0.58 (right) of it. The setting « Rayon bordure »
+   scales the whole silhouette. */
 .layout-onglet {
   --onglet-font: "VerseObs Onglet", Inter, "Segoe UI", Arial, sans-serif;
-  --tab-radius: calc(var(--border-radius) * 0.8);
+  --onglet-r-tight: calc(var(--border-radius) * 0.83);
+  --tab-radius-left: calc(var(--border-radius) * 0.42);
+  --tab-radius-right: calc(var(--border-radius) * 0.58);
 }
 .layout-onglet.lower-third,
 .layout-onglet.upper-third {
@@ -626,15 +641,15 @@ body {
   align-self: flex-end;
   max-width: 100%;
   margin-bottom: -1px;
-  padding: 0.62em 2.2em 0.56em;
+  padding: 0.56em 2em 0.5em;
   overflow: hidden;
   white-space: nowrap;
   background: var(--ref-bg-color);
   color: var(--ref-ink, var(--ref-color));
-  border-radius: var(--tab-radius) var(--tab-radius) 0 0;
+  border-radius: var(--tab-radius-left) var(--tab-radius-right) 0 0;
   font-family: var(--onglet-font);
   font-size: calc(var(--ref-font-size) * var(--tab-fit, 1));
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.2;
   letter-spacing: 0.005em;
   font-variant-numeric: lining-nums proportional-nums;
@@ -666,7 +681,8 @@ body {
   background-size: 100% 100%;
   background-position: center;
   background-repeat: no-repeat;
-  border-radius: var(--border-radius);
+  border-radius: var(--border-radius) var(--onglet-r-tight) var(--onglet-r-tight)
+    var(--border-radius);
   border: var(--border-width) solid var(--border-color);
   box-shadow: var(--card-shadow, none);
 }

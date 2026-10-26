@@ -126,6 +126,7 @@
         fonts.load('600 40px "VerseObs Titrage"'),
         fonts.load('400 40px "VerseObs Onglet"'),
         fonts.load('600 40px "VerseObs Onglet"'),
+        fonts.load('700 40px "VerseObs Onglet"'),
       ]).catch(function () {});
     }
     return Promise.race([

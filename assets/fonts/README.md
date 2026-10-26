@@ -5,8 +5,9 @@ publiées par Google Fonts, sous licence SIL Open Font License 1.1 (textes joint
 
 - `Lora-wght.woff2`, `Lora-Italic-wght.woff2` — Lora (lecture), graisses 400 à 700.
 - `ArchivoNarrow-wght.woff2` — Archivo Narrow (références, chiffres, étiquettes), 400 à 700.
-- `Inter-Regular.woff2`, `Inter-SemiBold.woff2` — Inter 4.0 (style « Onglet » : texte, onglet,
-  étiquettes), graisses 400 et 600, licence dans `OFL-Inter.txt`. Choisie pour l'onglet parce
+- `Inter-Regular.woff2`, `Inter-SemiBold.woff2`, `Inter-Bold.woff2` — Inter 4.0 (style « Onglet » :
+  texte, étiquettes, référence de l'onglet en 700 comme sur la référence ICC), graisses 400, 600
+  et 700, licence dans `OFL-Inter.txt`. Choisie pour l'onglet parce
   qu'aucune des deux polices déjà fournies n'est une sans-sérif de lecture : Lora est une
   sérif, Archivo Narrow est condensée et fatigue sur quatre lignes. Inter a un grand œil
   (hauteur d'x 0,55) et des formes ouvertes qui restent nettes dans un flux compressé.
