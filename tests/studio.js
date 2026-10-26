@@ -162,14 +162,19 @@ async function run() {
     assert.equal(cp.d.querySelector("#onair-ref").textContent, "Jean 3:16-18");
     assert(cp.d.querySelector("#monitor-program").classList.contains("is-live"));
   });
-  check("The output composes margin reference, axis and reading column", () => {
+  check("The output composes margin reference and reading column, no axis drawn between them", () => {
     const container = output.d.querySelector("#verse-container");
     assert(container.classList.contains("layout-antenne"));
     assert(output.d.querySelector(".verse-card").classList.contains("has-ref"));
     assert.equal(output.d.querySelector(".vo-book").textContent, "Jean");
     assert.equal(output.d.querySelector(".vo-nums").textContent, "3:16-18");
     assert(output.d.querySelector(".vo-version").textContent.length > 2);
-    assert.equal(output.d.querySelectorAll(".vo-axis").length, 1);
+    // Math, 26/10: no coloured stroke beside the text; the output's
+    // stylesheet never draws the axis (the gutter and the type separate).
+    const outputCss = fs
+      .readFileSync(path.join(__dirname, "../assets/css/display.css"), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "");
+    assert.ok(!/\.vo-axis[^{}]*\{[^}]*display:(?!\s*none)/.test(outputCss), "the axis is never drawn");
     assert.equal(output.d.querySelectorAll(".vo-copy").length, 1);
   });
   // Review 6 (N2): what the Studio really sends for a style change on air,

@@ -2754,7 +2754,8 @@ body {
 }
 .bilingual-status {
   padding: 10px 12px;
-  border-left: 2px solid var(--cp-accent);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.04);
   color: var(--cp-text-secondary);
   font-size: 12px;
   margin-bottom: 12px;
@@ -3150,9 +3151,8 @@ body {
 }
 .plan-issue {
   padding: 9px 12px;
-  border-left: 2px solid #8a6a3a;
   background: #1e1c19;
-  border-radius: 0 7px 7px 0;
+  border-radius: 7px;
 }
 .plan-issue + .plan-issue {
   margin-top: 6px;
@@ -3560,9 +3560,7 @@ body {
 .monitor-head-preview {
   grid-area: phead;
   border-color: #24402f;
-  background:
-    linear-gradient(90deg, rgba(61, 214, 140, 0.13), rgba(61, 214, 140, 0) 62%),
-    #141a17;
+  background: #141a17;
 }
 .monitor-tag,
 .cp-onair-tally {
@@ -3673,9 +3671,7 @@ body {
 }
 .cp-onair[data-state="live"] {
   border-color: var(--pgm-border);
-  background:
-    linear-gradient(90deg, rgba(217, 45, 39, 0.2), rgba(217, 45, 39, 0) 62%),
-    var(--pgm-surface);
+  background: var(--pgm-surface);
   color: #f3d6d3;
 }
 .cp-onair[data-state="live"] .cp-onair-tally {
@@ -3684,9 +3680,7 @@ body {
 }
 .cp-onair[data-state="pending"] {
   border-color: var(--pending-border);
-  background:
-    linear-gradient(90deg, rgba(242, 181, 68, 0.16), rgba(242, 181, 68, 0) 62%),
-    #1f1b14;
+  background: #1f1b14;
   color: #f2dcae;
 }
 .cp-onair[data-state="pending"] .cp-onair-tally {
@@ -3993,12 +3987,11 @@ body[data-onair="pending"] .cp-btn-hide {
 }
 
 /* ---- Conductor tally -------------------------------------------------------- */
+/* The state is told by the « À l'antenne » badge and a thin full contour in
+   the state's colour: no band on the left, no glow (Math, 26/10). */
 .cp-queue-item.is-live {
   border-color: var(--pgm-border);
-  background:
-    linear-gradient(90deg, rgba(217, 45, 39, 0.16), rgba(217, 45, 39, 0) 70%),
-    #1c1718;
-  box-shadow: inset 4px 0 0 var(--pgm);
+  background: #1c1718;
 }
 .cp-queue-item.is-live .cp-queue-num {
   background: var(--pgm);
@@ -4020,7 +4013,6 @@ body[data-onair="pending"] .cp-btn-hide {
 }
 .cp-queue-item.is-live-pending {
   border-color: var(--pending-border);
-  box-shadow: inset 4px 0 0 var(--pending);
   background: #1f1b14;
 }
 .cp-queue-item.is-live-pending .cp-queue-num {
@@ -4039,7 +4031,6 @@ body[data-onair="pending"] .cp-btn-hide {
 }
 .queue-selection-preview.is-live {
   border-color: var(--pgm-border);
-  box-shadow: inset 4px 0 0 var(--pgm);
 }
 .queue-selection-preview.is-live .editor-badge {
   color: var(--pgm-strong);
@@ -4049,7 +4040,6 @@ body[data-onair="pending"] .cp-btn-hide {
 .queue-selection-preview.is-partial,
 .queue-selection-preview.is-live-pending {
   border-color: var(--pending-border);
-  box-shadow: inset 4px 0 0 var(--pending);
 }
 .queue-selection-preview.is-partial .editor-badge,
 .queue-selection-preview.is-live-pending .editor-badge {
@@ -4065,10 +4055,8 @@ body[data-onair="pending"] .cp-btn-hide {
   letter-spacing: 0.1em;
 }
 
-/* Plans of a split passage read as one group in the conductor. */
-.cp-queue-item.is-part {
-  border-left: 3px solid #4b5468;
-}
+/* Plans of a split passage read as one group in the conductor: tight
+   spacing, the group header and each row's « plan n/N » (no side stroke). */
 .cp-queue-item.is-part:not(.is-part-last) {
   margin-bottom: 2px;
 }
@@ -4113,7 +4101,6 @@ body[data-onair="pending"] .cp-btn-hide {
 .antenne-style > span {
   background: #0f1217;
   color: #f3eee4;
-  box-shadow: inset 3px 0 0 #f2b544;
   font-family: "VerseObs Titrage", "Archivo Narrow", sans-serif;
   font-weight: 600;
 }

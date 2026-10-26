@@ -93,6 +93,10 @@ const SAMPLER = () => {
       top: card ? card.getBoundingClientRect().top : null,
       // what the audience sees of the axis and the reference margin (screen px)
       axisH: q(".vo-axis") ? q(".vo-axis").getBoundingClientRect().height : 0,
+      // Math, 26/10: no axis drawn beside the text; the band's top edge
+      // (screen px) is what moves when the length changes.
+      axisShown: !!q(".vo-axis") && q(".vo-axis").getClientRects().length > 0 && q(".vo-axis").getBoundingClientRect().width > 0,
+      bandTop: q(".vo-scrim") ? q(".vo-scrim").getBoundingClientRect().top : 0,
       marginTop: q(".vo-margin") ? q(".vo-margin").getBoundingClientRect().top : 0,
     });
     requestAnimationFrame(sample);
@@ -154,7 +158,7 @@ try {
     C = verse("Romains", 8, 28),
     D = verse("Psaumes", 23, 1, 6);
 
-  await check("Entrance: band, axis, reference and text arrive without a jump", async () => {
+  await check("Entrance: band, reference and text arrive without a jump, no axis beside the text", async () => {
     await frames(page);
     await send(page, { ...A, settings: settings() });
     await settle(page);
@@ -162,6 +166,7 @@ try {
     finalOk(f[f.length - 1], "Jean 3:16");
     assert.ok(f.some((x) => x.revealing), "text revealed progressively");
     assert.ok(maxJump(f, "scrim") < 0.34, "band fades in over several frames");
+    assert.ok(f.every((x) => !x.axisShown), "no coloured axis beside the text (Math, 26/10)");
     const st = await states(page);
     assert.ok(st.some((s) => s.visible && s.label === "Jean 3:16"), "output confirmed");
     const first = st.find((s) => s.visible);
@@ -331,7 +336,7 @@ try {
   // A 720p OBS source scales the 1080-line frame: the band, the axis and the
   // reference still morph from what is on screen, without a jump.
   const small = await open("no-preference", { width: 1280, height: 720 });
-  await check("720p source: changes of length morph the axis and the reference without a jump", async () => {
+  await check("720p source: changes of length morph the band and the reference without a jump", async () => {
     const p = small.page;
     const E = verse("Psaumes", 23, 1);
     await send(p, { ...A, settings: settings() });
@@ -343,11 +348,13 @@ try {
       await settle(p);
       const f = await frames(p);
       assert.ok(Math.min(...f.map((x) => x.scrim)) > 0.999, "band stays on air");
-      // 720 px frame: a scale error would jump by a third of the axis at once.
-      const axis = maxJump(f.filter((x) => x.axisH > 0), "axisH"),
+      // 720 px frame: a scale error would jump by a third of the band at once.
+      // (The axis is no longer drawn: the band's edge replaces it.)
+      const band = maxJump(f, "bandTop"),
         margin = kept ? maxJump(f, "marginTop") : 0;
-      console.log("    720p " + msg.reference + ": largest step per frame — axis " + axis.toFixed(1) + " px" + (kept ? ", reference " + margin.toFixed(1) + " px" : ""));
-      assert.ok(axis < 15, "axis jumped " + axis.toFixed(1) + " px in one frame");
+      console.log("    720p " + msg.reference + ": largest step per frame — band edge " + band.toFixed(1) + " px" + (kept ? ", reference " + margin.toFixed(1) + " px" : ""));
+      assert.ok(band < 15, "band edge jumped " + band.toFixed(1) + " px in one frame");
+      assert.ok(f.every((x) => !x.axisShown), "no axis drawn");
       assert.ok(margin < 15, "reference jumped " + margin.toFixed(1) + " px in one frame");
       finalOk(f[f.length - 1], ref);
     }

@@ -1078,6 +1078,35 @@ ok(
 );
 
 // ===================================================================
+group("no side band (Math, 26/10)");
+
+// Math rejects the coloured bands stuck to the left of an element (red or
+// amber, « AI slop »): no inset side shadow, no coloured left border, no
+// horizontal colour wash, in the régie, the phone and the output. A state
+// is told by its text badge and, when needed, a thin full contour.
+["studio.css", "control.css", "remote.css", "display.css"].forEach(function (file) {
+  var css = fs
+    .readFileSync(path.join(ROOT, "assets/css", file), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "");
+  var bands = css.match(/box-shadow:\s*inset\s+-?\d+(\.\d+)?px\s+0(px)?\s+0(px)?\s+[^;]*;/g) || [];
+  eq(file + ": no inset side band", bands.join(" | "), "");
+  var lefts = (css.match(/border-(left|right|inline-start|inline-end)\s*:[^;]*;/g) || []).filter(function (d) {
+    // a neutral 1 px divider inside a split chip is not an accent band
+    return !/:\s*(none|0)\s*;|1px solid var\(--cp-border\)/.test(d);
+  });
+  eq(file + ": no coloured side border", lefts.join(" | "), "");
+  var washes = css.match(/linear-gradient\(\s*90deg[^;]*/g) || [];
+  eq(file + ": no horizontal colour wash", washes.join(" | "), "");
+});
+var outputCss = fs
+  .readFileSync(path.join(ROOT, "assets/css/display.css"), "utf8")
+  .replace(/\/\*[\s\S]*?\*\//g, "");
+ok(
+  "the Antenne output draws no axis between the reference and the text",
+  !/\.vo-axis[^{}]*\{[^}]*display:(?!\s*none)/.test(outputCss),
+);
+
+// ===================================================================
 console.log(
   "\n" +
     (failed === 0 ? "✓ ALL PASSED" : "✗ FAILURES") +

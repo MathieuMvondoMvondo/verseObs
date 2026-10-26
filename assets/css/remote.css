@@ -461,9 +461,7 @@ body[data-link="reconnecting"] .output {
 
 /* ---- Tally (program / pending / selection) ----------------------------- */
 .output[data-state="confirmed"] {
-  background:
-    linear-gradient(90deg, rgba(217, 45, 39, 0.22), rgba(217, 45, 39, 0) 70%),
-    var(--pgm-surface);
+  background: var(--pgm-surface);
   border-color: var(--pgm-border);
 }
 .output[data-state="confirmed"] .output-dot {
@@ -488,17 +486,16 @@ body[data-output="pending"] .slot-live {
   background: #f2b544;
   color: #1d1606;
 }
+/* The live selection: a flat neutral card, a thin full contour in the
+   state's colour and the « À l'antenne » badge (Math, 26/10: no band, no
+   gradient). */
 .slot-current.is-live {
   border-color: var(--pgm-border);
-  background:
-    linear-gradient(90deg, rgba(217, 45, 39, 0.16), rgba(217, 45, 39, 0) 72%),
-    #1f1a1c;
-  box-shadow: inset 4px 0 0 var(--pgm);
+  background: var(--surface);
 }
 body[data-output="pending"] .slot-current.is-live {
   border-color: #6a5222;
-  box-shadow: inset 4px 0 0 #f2b544;
-  background: #1f1b14;
+  background: var(--surface);
 }
 .slot-current.is-live h2 {
   color: #f3d6d3;
@@ -556,8 +553,7 @@ body[data-output="partial"] .slot-live {
 }
 body[data-output="partial"] .slot-current.is-live {
   border-color: #6a5222;
-  box-shadow: inset 4px 0 0 #f2b544;
-  background: #1f1b14;
+  background: var(--surface);
 }
 body[data-output="confirmed"] .control-hide,
 body[data-output="partial"] .control-hide,
@@ -638,9 +634,7 @@ body[data-output="pending"] .control-hide {
 }
 .output[data-state="confirmed"],
 .output[data-state="partial"] {
-  background:
-    linear-gradient(90deg, rgba(217, 45, 39, 0.22), rgba(217, 45, 39, 0) 70%),
-    var(--pgm-surface);
+  background: var(--pgm-surface);
   border-color: var(--pgm-border);
 }
 .output[data-state="confirmed"] .output-tag,

@@ -1152,10 +1152,6 @@ input[type="color"]::-webkit-color-swatch {
   background: var(--cp-bg-hover);
 }
 
-.cp-search-result-item.active {
-  box-shadow: inset 2px 0 0 var(--cp-accent);
-}
-
 .cp-search-result-ref {
   font-size: 12px;
   font-weight: 600;

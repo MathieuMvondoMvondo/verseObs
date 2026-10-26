@@ -298,27 +298,9 @@ body {
   background: rgba(var(--bg-color), var(--bg-opacity));
   transform-origin: 50% 50%;
 }
-.layout-antenne .vo-axis {
-  display: block;
-  position: absolute;
-  top: 0.16em;
-  bottom: 0.12em;
-  left: calc(var(--margin-w) + var(--gutter) / 2 - max(1.5px, 0.04em));
-  width: max(3px, 0.08em);
-  background: var(--ref-bg-color);
-  transform-origin: 50% 100%;
-  transform: scaleY(0);
-}
-.layout-antenne .has-ref > .vo-axis {
-  transform: none;
-}
-.upper-third.layout-antenne .vo-axis {
-  transform-origin: 50% 0;
-}
-.center.layout-antenne .vo-axis,
-.fullscreen.layout-antenne .vo-axis {
-  transform-origin: 50% 50%;
-}
+/* No axis between the reference and the text (Math, 26/10: no coloured
+   band beside a text). The gutter and the type carry the separation; the
+   element stays in the DOM, never drawn (.vo-axis is display: none). */
 .layout-antenne .vo-margin {
   grid-column: 1;
   grid-row: 1;
