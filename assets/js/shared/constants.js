@@ -460,9 +460,15 @@ window.VerseObs.FREETEXT_STYLES = {
         "|\\s+" + ARG + "\\s+" + ARG + "(?:\\s*\\/\\s*" + ARG + ")?)" +
         "\\s*\\)$",
     );
+  // Keep exactly what was validated: Unicode spaces are not CSS spaces,
+  // and Unicode case folding (e.g. Kelvin sign → k) may change a name.
+  function canonicalColor(value) {
+    return typeof value === "string" && value.length <= 64
+      ? value.replace(/\s+/g, " ").trim().toLowerCase()
+      : "";
+  }
   V.isColor = function (value) {
-    if (typeof value !== "string" || value.length > 64) return false;
-    var v = value.trim().toLowerCase();
+    var v = canonicalColor(value);
     return (
       /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/.test(v) ||
       FUNCTION.test(v) ||
@@ -472,9 +478,14 @@ window.VerseObs.FREETEXT_STYLES = {
   /** Every colour of `style` that is not one takes its default (or goes). */
   V.cleanColors = function (style, defaults) {
     Object.keys(style || {}).forEach(function (k) {
-      if (!/Color$/.test(k) || V.isColor(style[k])) return;
-      if (defaults && V.isColor(defaults[k])) style[k] = defaults[k];
-      else delete style[k];
+      if (!/Color$/.test(k)) return;
+      var color = canonicalColor(style[k]);
+      if (V.isColor(color)) style[k] = color;
+      else {
+        var fallback = canonicalColor(defaults && defaults[k]);
+        if (V.isColor(fallback)) style[k] = fallback;
+        else delete style[k];
+      }
     });
     return style;
   };

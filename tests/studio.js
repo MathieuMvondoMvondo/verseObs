@@ -621,6 +621,7 @@ async function run() {
   await testDedup();
   require("./channel-clock")(check);
   require("./channel-style")(check);
+  require("./color-normalization")(check);
   console.log("\n✓ Studio integration: " + passed + " checks passed.");
 }
 async function testBilingual(cp, output) {
