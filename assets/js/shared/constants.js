@@ -230,7 +230,8 @@ window.VerseObs.TEMPLATES = {
     },
   },
   // « Ruban » (Math, 26/10, second reference): an opaque white band across
-  // the safe area, black text, the tab orange (white bold reaches 3.2:1 on
+  // the safe area, black text at the reference's size (48 px: two lines
+  // fill the cut's circle), the tab orange (white bold reaches 3.2:1 on
   // it, so the output keeps the reference's white letters).
   ruban: {
     label: "Ruban",
@@ -246,7 +247,7 @@ window.VerseObs.TEMPLATES = {
       borderColor: "#d9d6e3",
       borderWidth: 0,
       padding: 30,
-      fontSize: 44,
+      fontSize: 48,
       lineHeight: 1.3,
       refFontSize: 31,
       refPosition: "top-right",

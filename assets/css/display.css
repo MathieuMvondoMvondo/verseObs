@@ -805,10 +805,10 @@ body {
    thickness. Opaque on purpose: the parts overlap by 1 px, never a seam. */
 .layout-ruban {
   --rb-font: "VerseObs Onglet", Inter, "Segoe UI", Arial, sans-serif;
-  --rb-cut: 66px;
-  --rb-disc: 58px;
+  --rb-cut: 70px;
+  --rb-disc: 62px;
   --rb-ret: 22px;
-  --rb-tail: 70px;
+  --rb-tail: 74px;
   --rb-low: 30px;
   --rb-stries: 112px;
   --rb-c: rgb(var(--bg-color));
