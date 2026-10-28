@@ -239,6 +239,8 @@
     dom.btnNext = document.getElementById("btn-next");
     dom.btnPrevChapter = document.getElementById("btn-prev-chapter");
     dom.btnNextChapter = document.getElementById("btn-next-chapter");
+    dom.btnTakePrevVerse = document.getElementById("btn-take-prev-verse");
+    dom.btnTakeNextVerse = document.getElementById("btn-take-next-verse");
     dom.btnAddQueue = document.getElementById("btn-add-queue");
 
     // Format toolbar
@@ -565,6 +567,16 @@
     if (dom.btnNext) {
       dom.btnNext.addEventListener("click", function () {
         navigation.goToNext();
+      });
+    }
+    if (dom.btnTakePrevVerse) {
+      dom.btnTakePrevVerse.addEventListener("click", function () {
+        _stepVerse(-1);
+      });
+    }
+    if (dom.btnTakeNextVerse) {
+      dom.btnTakeNextVerse.addEventListener("click", function () {
+        _stepVerse(1);
       });
     }
     if (dom.btnPrevChapter) {
@@ -1453,6 +1465,36 @@
     history.renderList(dom.historyContainer);
   }
 
+  // Verset précédent / suivant « enchaîné » (Math, 28/10, en direct) : si un
+  // verset de la Bible est à l'antenne, le voisin y passe directement en un
+  // clic ; sinon il est seulement préparé dans l'aperçu.
+  var _chainTimer = null;
+  function _stepVerse(dir) {
+    var chain = !!(_onAirItem && _onAirItem.type === "verse");
+    if (dir < 0) navigation.goToPrevious();
+    else navigation.goToNext();
+    if (!chain) return;
+    var target = navigation.getSelection();
+    var tries = 0;
+    if (_chainTimer) clearTimeout(_chainTimer);
+    (function attempt() {
+      _chainTimer = null;
+      var now = navigation.getSelection();
+      if (
+        now.bookId !== target.bookId ||
+        now.chapter !== target.chapter ||
+        now.verse !== target.verse ||
+        !(_onAirItem && _onAirItem.type === "verse")
+      )
+        return;
+      if (_activeDisplay() && bilingual.ready()) {
+        _showCurrentVerse();
+        return;
+      }
+      if (++tries < 20) _chainTimer = setTimeout(attempt, 100);
+    })();
+  }
+
   function _hideVerse() {
     _sendMessage(MSG.HIDE, {});
     _notify("Overlay masqué", "info");
@@ -2259,7 +2301,7 @@
         if (activeTabNav && activeTabNav.id === "tab-queue") {
           queue.selectNext();
         } else {
-          navigation.goToNext();
+          _stepVerse(1);
         }
         return;
       }
@@ -2270,7 +2312,7 @@
         if (activeTabNav2 && activeTabNav2.id === "tab-queue") {
           queue.selectPrevious();
         } else {
-          navigation.goToPrevious();
+          _stepVerse(-1);
         }
         return;
       }

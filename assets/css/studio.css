@@ -4402,6 +4402,14 @@ body[data-onair="pending"] .take .take-hide {
 body[data-tab="2"] .take-step {
   display: grid;
 }
+.take-vstep {
+  display: none;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+body[data-tab="0"] .take-vstep {
+  display: grid;
+}
 .take-nav {
   min-height: 44px;
   padding: 0 6px;
@@ -4549,6 +4557,22 @@ body[data-tab="2"] .take-step {
     grid-row: 1;
   }
   #btn-queue-next {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  body[data-tab="0"] .take-vstep {
+    display: contents;
+  }
+  body[data-tab="0"] .take-vstep .take-nav {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #btn-take-prev-verse {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  #btn-take-next-verse {
     grid-column: 3;
     grid-row: 1;
   }

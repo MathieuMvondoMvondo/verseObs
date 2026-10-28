@@ -10,7 +10,7 @@
     />
     <title>VerseObs — Studio</title>
     <link rel="stylesheet" href="assets/css/control.css?v=2.3" />
-    <link rel="stylesheet" href="assets/css/studio.css?v=2.3" />
+    <link rel="stylesheet" href="assets/css/studio.css?v=2.4" />
   </head>
   <body data-tab="0">
     <a class="skip-link" href="#search-input">Aller à la recherche</a>
@@ -331,6 +331,26 @@
               type="button"
               title="Élément suivant du conducteur"
               aria-label="Élément suivant"
+            >
+              <span class="take-nav-label">Suiv.</span> <span aria-hidden="true">&rsaquo;</span>
+            </button>
+          </div>
+          <div class="take-vstep" role="group" aria-label="Verset précédent ou suivant">
+            <button
+              class="take-nav"
+              id="btn-take-prev-verse"
+              type="button"
+              title="Verset précédent : passe directement à l'antenne si un verset est affiché (Ctrl ←)"
+              aria-label="Verset précédent"
+            >
+              <span aria-hidden="true">&lsaquo;</span> <span class="take-nav-label">Préc.</span>
+            </button>
+            <button
+              class="take-nav"
+              id="btn-take-next-verse"
+              type="button"
+              title="Verset suivant : passe directement à l'antenne si un verset est affiché (Ctrl →)"
+              aria-label="Verset suivant"
             >
               <span class="take-nav-label">Suiv.</span> <span aria-hidden="true">&rsaquo;</span>
             </button>
@@ -2038,6 +2058,6 @@
     <script src="assets/js/control/studio.js?v=2.3"></script>
     <script src="assets/js/control/bilingual.js?v=2.3"></script>
     <script src="assets/js/control/remote-link.js?v=2.3"></script>
-    <script src="assets/js/control/app.js?v=2.3"></script>
+    <script src="assets/js/control/app.js?v=2.4"></script>
   </body>
 </html>
