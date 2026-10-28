@@ -588,8 +588,8 @@
         } catch (e) {}
       });
     }
-    // Below 1371 px the explorer is one column with the preparation: a
-    // block at its top, opened in one click (28/10).
+    // In the narrow dock (≤ 620 px) the explorer is a block at the top of
+    // the Bible view, opened in one click (28/10).
     if (dom.exploreToggle) {
       dom.exploreToggle.addEventListener("click", function () {
         var panel = dom.exploreToggle.closest(".scripture-panel");

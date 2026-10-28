@@ -5944,7 +5944,7 @@ body:not([data-tab="2"]) #tab-queue .cp-queue-part {
 }
 /* Bible (28/10, Math in the live): ◀ Diffuser ▶ Masquer, « Enchaîner à
    l'antenne » and « Ajouter au conducteur » in the action bar; the
-   explorer a block opened in one click below 1371 px. */
+   explorer a block opened in one click in the narrow dock (≤ 620 px). */
 .take-extra {
   display: none;
 }
@@ -6048,7 +6048,9 @@ body[data-tab="0"] .take-extra {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
-@media (max-width: 1370px) {
+/* Narrow dock only (≤ 620 px): from 621 px the explorer keeps its place and
+   stays open (the parent's checks click its verses at 820 px). */
+@media (max-width: 620px) {
   .scripture-panel {
     order: 0;
   }
