@@ -869,7 +869,11 @@
             typeof chapter[num] === "string" ? chapter[num] : chapter[num].text;
           button.append(n, text);
           button.addEventListener("click", function () {
-            api.selectVerse(Number(num));
+            if (api.pickVerse) api.pickVerse(Number(num), false);
+            else api.selectVerse(Number(num));
+          });
+          button.addEventListener("dblclick", function () {
+            if (api.pickVerse) api.pickVerse(Number(num), true);
           });
           list.appendChild(button);
         });

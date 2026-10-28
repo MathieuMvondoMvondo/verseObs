@@ -146,6 +146,9 @@
         var sel = navigation.getSelection();
         navigation.setSelection(sel.bookId, sel.chapter, verse);
       },
+      pickVerse: function (verse, immediate) {
+        _pickVerse(verse, immediate);
+      },
       getBible: function () {
         return currentBibleData;
       },
@@ -1469,11 +1472,18 @@
   // verset de la Bible est à l'antenne, le voisin y passe directement en un
   // clic ; sinon il est seulement préparé dans l'aperçu.
   var _chainTimer = null;
-  function _stepVerse(dir) {
-    var chain = !!(_onAirItem && _onAirItem.type === "verse");
-    if (dir < 0) navigation.goToPrevious();
-    else navigation.goToNext();
-    if (!chain) return;
+  function _isOnAir(sel) {
+    return !!(
+      _onAirItem &&
+      _onAirItem.type === "verse" &&
+      _onAirItem.bookId === sel.bookId &&
+      _onAirItem.chapter === sel.chapter &&
+      _onAirItem.verse === sel.verse
+    );
+  }
+  // Diffuse la sélection courante dès qu'elle est prête (deuxième version
+  // comprise), tant qu'elle n'a pas changé entre-temps.
+  function _airWhenReady() {
     var target = navigation.getSelection();
     var tries = 0;
     if (_chainTimer) clearTimeout(_chainTimer);
@@ -1484,7 +1494,7 @@
         now.bookId !== target.bookId ||
         now.chapter !== target.chapter ||
         now.verse !== target.verse ||
-        !(_onAirItem && _onAirItem.type === "verse")
+        _isOnAir(now)
       )
         return;
       if (_activeDisplay() && bilingual.ready()) {
@@ -1493,6 +1503,21 @@
       }
       if (++tries < 20) _chainTimer = setTimeout(attempt, 100);
     })();
+  }
+  function _stepVerse(dir) {
+    var chain = !!(_onAirItem && _onAirItem.type === "verse");
+    if (dir < 0) navigation.goToPrevious();
+    else navigation.goToNext();
+    if (chain) _airWhenReady();
+  }
+  // Clic dans « Explorer la Bible » : un verset de la Bible à l'antenne =>
+  // le verset cliqué y passe directement ; sinon il est préparé.
+  // Double-clic (immediate) : diffusé tout de suite dans tous les cas.
+  function _pickVerse(verse, immediate) {
+    var chain = !!(_onAirItem && _onAirItem.type === "verse");
+    var sel = navigation.getSelection();
+    navigation.setSelection(sel.bookId, sel.chapter, verse);
+    if (immediate || chain) _airWhenReady();
   }
 
   function _hideVerse() {
