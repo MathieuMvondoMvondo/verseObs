@@ -345,7 +345,7 @@
         if (data.verses && data.verses.length > 0) {
           var parts = [];
           for (var i = 0; i < data.verses.length; i++) {
-            parts.push(data.verses[i].text);
+            parts.push(_clean(data.verses[i].text));
           }
           text = parts.join(" ").trim();
         } else if (data.text) {
@@ -382,6 +382,22 @@
    * Input:  { meta: {...}, books: [ { id: 1, name: "Genèse", chapters: [ { chapter: 1, verses: [ { verse: 1, text: "..." } ] } ] } ] }
    * Output: { books: { "1": { name: "Genèse", id: "1", chapters: { "1": { "1": "text..." } } } } }
    */
+  /**
+   * Whitespace only (28/10): LSG Jean 3:15 holds a thin space next to a
+   * normal one (« croit en lui  ait »), read as a double space. A run of
+   * spaces becomes one (a no-break space in it is kept); words never change.
+   */
+  function _clean(text) {
+    return typeof text === "string"
+      ? text
+          .replace(/\s{2,}/g, function (run) {
+            var nb = run.match(/[\u00a0\u202f]/);
+            return nb ? nb[0] : " ";
+          })
+          .trim()
+      : text;
+  }
+
   function _normalize(data) {
     if (!data) return data;
 
@@ -415,7 +431,7 @@
               for (var v = 0; v < ch.verses.length; v++) {
                 var vs = ch.verses[v];
                 indexed.books[bookId].chapters[chNum][String(vs.verse)] =
-                  vs.text;
+                  _clean(vs.text);
               }
             }
           }
@@ -427,5 +443,6 @@
     return data;
   }
 
+  BibleLoader.cleanText = _clean;
   window.VerseObs.BibleLoader = BibleLoader;
 })();

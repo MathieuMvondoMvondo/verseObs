@@ -30,7 +30,33 @@
     clearTimeout(timer);
     timer = null;
   }
+  // A Studio announcing a newer release (28/10): OBS kept this page in its
+  // cache. Reload once for that release, and only when nothing is on air
+  // (after a Masquer, once the text has left).
+  var reloadFor = 0,
+    reloadTimer = 0;
+  function wantReload(build) {
+    if (preview || monitor || typeof build !== "number" || !(build > V.BUILD)) return;
+    var tried = 0;
+    try {
+      tried = Number(sessionStorage.getItem("verseobs_reloaded_for")) || 0;
+    } catch (e) {}
+    if (tried >= build) return; // already reloaded for it: never loop
+    reloadFor = build;
+  }
+  function reloadWhenFree() {
+    if (!reloadFor || visible || reloadTimer) return;
+    reloadTimer = setTimeout(function () {
+      reloadTimer = 0;
+      if (visible) return;
+      try {
+        sessionStorage.setItem("verseobs_reloaded_for", String(reloadFor));
+      } catch (e) {}
+      location.reload();
+    }, 2500);
+  }
   function report() {
+    reloadWhenFree();
     if (!preview && !monitor && channel)
       channel.send({
         type: MSG.OUTPUT_STATE,
@@ -52,6 +78,7 @@
         // « Ruban » and « Facettes » (26/10): an output from 2060f1e announces
         // neither and would draw another look for them.
         caps: [MSG.STYLE_PATCH, "onglet", "ruban", "facettes"],
+        build: V.BUILD,
       });
   }
   /**
@@ -144,6 +171,7 @@
   function handleMessage(msg) {
     if (!msg || !msg.type || !renderer) return;
     if (msg.type === MSG.PING) {
+      wantReload(msg.build);
       report();
       return;
     }

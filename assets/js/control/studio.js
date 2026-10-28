@@ -991,7 +991,7 @@
       if (note) {
         note.hidden = !state.reduced && !state.legacy;
         note.textContent = state.legacy
-          ? "Une source OBS ou un projecteur utilise une version précédente : actualisez-la (clic droit sur la source › Actualiser). D’ici là, les réglages ne passent qu’au prochain Diffuser et les styles récents (Onglet, Ruban, Facettes) peuvent ne pas y être dessinés."
+          ? "Sortie d’une version précédente : dans OBS, clic droit sur la source › Actualiser."
           : state.reduced
             ? "Sortie : animations réduites par le système de l’ordinateur OBS (fondus courts)."
             : "";

@@ -1,5 +1,13 @@
 window.VerseObs = window.VerseObs || {};
 
+/**
+ * This release, the « ?v= » of every file URL of the pages carries it (?v=…,
+ * checked by tests/run.js): OBS keeps a source's files in its cache, and a
+ * new number makes it fetch the new ones. The Studio announces it with its
+ * ping; an older OBS output reloads itself once, never on air (display/app.js).
+ */
+window.VerseObs.BUILD = 2.8;
+
 window.VerseObs.MSG = {
   OUTPUT_STATE: "output_state",
   SHOW_VERSE: "show_verse",
@@ -107,11 +115,9 @@ window.VerseObs.OPERATOR_KEYS = [
 
 /**
  * Settings saved before the "antenne" layout existed:
- *  - Bible verses still on the former default base ("studio"): only the look
- *    (colours, typefaces, sizes, layout) follows the new default. A saved
- *    template does not prove the operator never changed anything, since a
- *    preset only writes its own keys: the operator's keys are always kept;
- *  - any other base, and every song style, keeps its framed card.
+ *  - every base, the former default ("studio") included, and every song
+ *    style keeps its framed card: an update never changes the look on air
+ *    (28/10); a new look comes only from a preset the operator picks.
  * The former typewriter effect (which dropped verse numbers) becomes the reveal.
  * @param {object} saved - stored settings (as read)
  * @param {object} result - settings being built (modified in place)
@@ -120,18 +126,12 @@ window.VerseObs.OPERATOR_KEYS = [
  */
 window.VerseObs.migrateStyle = function (saved, result, defaults, formerDefault) {
   if (!saved || typeof saved !== "object") return result;
-  if (["antenne", "carte", "onglet", "ruban", "facettes"].indexOf(saved.layout) === -1) {
-    if (defaults && formerDefault && saved.template === formerDefault) {
-      var keep = window.VerseObs.OPERATOR_KEYS;
-      for (var key in defaults)
-        if (
-          Object.prototype.hasOwnProperty.call(defaults, key) &&
-          key !== "bgImage" &&
-          !(keep.indexOf(key) !== -1 && saved[key] !== undefined)
-        )
-          result[key] = defaults[key];
-    } else result.layout = saved.template === "antenne" ? "antenne" : "carte";
-  }
+  if (["antenne", "carte", "onglet", "ruban", "facettes"].indexOf(saved.layout) === -1)
+    // 28/10 (Math: a new style applies only if the operator picks it): an
+    // update never changes the look on air. Settings saved before layouts
+    // existed keep the card they were drawn with, the former default base
+    // (formerDefault, « studio ») included.
+    result.layout = saved.template === "antenne" ? "antenne" : "carte";
   if (result.animation === "typewriter") result.animation = "reveal";
   return result;
 };

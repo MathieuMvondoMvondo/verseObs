@@ -9,8 +9,8 @@
       content="Votre studio de diffusion biblique. Préparez, organisez et diffusez vos passages dans OBS."
     />
     <title>VerseObs — Studio</title>
-    <link rel="stylesheet" href="assets/css/control.css?v=2.3" />
-    <link rel="stylesheet" href="assets/css/studio.css?v=2.4" />
+    <link rel="stylesheet" href="assets/css/control.css?v=2.8" />
+    <link rel="stylesheet" href="assets/css/studio.css?v=2.8" />
   </head>
   <body data-tab="0">
     <a class="skip-link" href="#search-input">Aller à la recherche</a>
@@ -279,7 +279,7 @@
           <iframe
             class="cp-preview-frame"
             id="preview-frame"
-            src="browser_source.html?preview=1&v=2.3"
+            src="browser_source.html?preview=1&v=2.8"
             title="Aperçu du passage préparé"
             tabindex="-1"
           ></iframe>
@@ -355,12 +355,19 @@
               <span class="take-nav-label">Suiv.</span> <span aria-hidden="true">&rsaquo;</span>
             </button>
           </div>
+          <!-- 28/10: « Enchaîner à l'antenne » (on by default: ‹ › put the
+               neighbouring verse on air while a verse is on air) and
+               « Ajouter au conducteur », beside Diffuser, never covered. -->
+          <div class="take-extra">
+            <label class="take-chain"><input type="checkbox" id="chain-toggle" checked /><span>Enchaîner à l’antenne</span></label>
+            <button class="cp-btn-queue-add" id="btn-add-queue" type="button">+ Ajouter au conducteur</button>
+          </div>
         </div>
         <div class="cp-preview-stage is-program" id="program-stage">
           <iframe
             class="cp-preview-frame"
             id="program-frame"
-            src="browser_source.html?monitor=1&v=2.3"
+            src="browser_source.html?monitor=1&v=2.8"
             title="Retour des commandes de diffusion"
             tabindex="-1"
           ></iframe>
@@ -395,7 +402,7 @@
                   type="search"
                   class="cp-search-input"
                   id="search-input"
-                  placeholder="Une référence, un mot, une inspiration…"
+                  placeholder="Référence ou mot-clé"
                   autocomplete="off"
                   spellcheck="false"
                   aria-label="Rechercher une référence ou des mots-clés"
@@ -447,7 +454,7 @@
           <div class="bible-workspace">
             <section class="scripture-panel">
               <div class="section-heading">
-                <h2>Explorer la Bible</h2>
+                <h2><button type="button" class="explore-toggle" id="explore-toggle" aria-expanded="false">Explorer la Bible</button></h2>
                 <span id="chapter-count" class="muted"></span>
               </div>
               <div class="cp-nav-row">
@@ -658,11 +665,6 @@
                     ></textarea>
                   </section>
                 </div>
-              </div>
-              <div class="prepare-actions">
-                <button class="cp-btn-queue-add" id="btn-add-queue">
-                  + Ajouter au conducteur
-                </button>
               </div>
               <div class="quick-styles">
                 <div class="section-heading">
@@ -1216,7 +1218,7 @@
               <iframe
                 class="cp-preview-frame"
                 id="settings-preview-frame"
-                src="browser_source.html?preview=1&v=2.3"
+                src="browser_source.html?preview=1&v=2.8"
                 title="Aperçu en direct de l'overlay"
                 tabindex="-1"
                 aria-hidden="true"
@@ -1491,6 +1493,16 @@
                     data-setting="refBgColor"
                     value="#2d1a3e"
                   />
+                </div>
+              </div>
+
+              <div class="cp-setting-row">
+                <span class="cp-setting-label">Une seule couleur (référence assortie au bandeau)</span>
+                <div class="cp-setting-control">
+                  <label class="cp-toggle">
+                    <input type="checkbox" data-setting="matchColors" aria-label="Une seule couleur : la référence prend la couleur du bandeau" />
+                    <span class="cp-toggle-slider"></span>
+                  </label>
                 </div>
               </div>
 
@@ -2038,26 +2050,26 @@
     ></div>
 
     <!-- Scripts: shared first, then control modules, then app -->
-    <script src="assets/js/shared/constants.js?v=2.3"></script>
-    <script src="assets/js/shared/books.js?v=2.3"></script>
-    <script src="assets/js/shared/html.js?v=2.3"></script>
-    <script src="assets/js/shared/secondary.js?v=2.3"></script>
-    <script src="assets/js/shared/passage.js?v=2.3"></script>
-    <script src="assets/js/shared/channel.js?v=2.3"></script>
-    <script src="assets/js/shared/qrcode.js?v=2.3"></script>
-    <script src="assets/js/control/bible-loader.js?v=2.3"></script>
-    <script src="assets/js/control/search.js?v=2.3"></script>
-    <script src="assets/js/control/plan.js?v=2.3"></script>
-    <script src="assets/js/control/navigation.js?v=2.3"></script>
-    <script src="assets/js/control/settings.js?v=2.3"></script>
-    <script src="assets/js/control/history.js?v=2.3"></script>
-    <script src="assets/js/control/favorites.js?v=2.3"></script>
-    <script src="assets/js/control/freetext.js?v=2.3"></script>
-    <script src="assets/js/control/queue.js?v=2.3"></script>
-    <script src="assets/js/control/backup.js?v=2.3"></script>
-    <script src="assets/js/control/studio.js?v=2.7"></script>
-    <script src="assets/js/control/bilingual.js?v=2.3"></script>
-    <script src="assets/js/control/remote-link.js?v=2.3"></script>
-    <script src="assets/js/control/app.js?v=2.7"></script>
+    <script src="assets/js/shared/constants.js?v=2.8"></script>
+    <script src="assets/js/shared/books.js?v=2.8"></script>
+    <script src="assets/js/shared/html.js?v=2.8"></script>
+    <script src="assets/js/shared/secondary.js?v=2.8"></script>
+    <script src="assets/js/shared/passage.js?v=2.8"></script>
+    <script src="assets/js/shared/channel.js?v=2.8"></script>
+    <script src="assets/js/shared/qrcode.js?v=2.8"></script>
+    <script src="assets/js/control/bible-loader.js?v=2.8"></script>
+    <script src="assets/js/control/search.js?v=2.8"></script>
+    <script src="assets/js/control/plan.js?v=2.8"></script>
+    <script src="assets/js/control/navigation.js?v=2.8"></script>
+    <script src="assets/js/control/settings.js?v=2.8"></script>
+    <script src="assets/js/control/history.js?v=2.8"></script>
+    <script src="assets/js/control/favorites.js?v=2.8"></script>
+    <script src="assets/js/control/freetext.js?v=2.8"></script>
+    <script src="assets/js/control/queue.js?v=2.8"></script>
+    <script src="assets/js/control/backup.js?v=2.8"></script>
+    <script src="assets/js/control/studio.js?v=2.8"></script>
+    <script src="assets/js/control/bilingual.js?v=2.8"></script>
+    <script src="assets/js/control/remote-link.js?v=2.8"></script>
+    <script src="assets/js/control/app.js?v=2.8"></script>
   </body>
 </html>

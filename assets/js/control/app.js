@@ -248,6 +248,8 @@
     dom.btnTakePrevVerse = document.getElementById("btn-take-prev-verse");
     dom.btnTakeNextVerse = document.getElementById("btn-take-next-verse");
     dom.btnAddQueue = document.getElementById("btn-add-queue");
+    dom.chainToggle = document.getElementById("chain-toggle");
+    dom.exploreToggle = document.getElementById("explore-toggle");
 
     // Format toolbar
     dom.formatToolbar = document.getElementById("format-toolbar");
@@ -565,16 +567,43 @@
     if (dom.btnHide) {
       dom.btnHide.addEventListener("click", _hideVerse);
     }
+    // The explorer's arrows follow the same rule as ‹ › (28/10).
     if (dom.btnPrev) {
       dom.btnPrev.addEventListener("click", function () {
-        navigation.goToPrevious();
+        _stepVerse(-1);
       });
     }
     if (dom.btnNext) {
       dom.btnNext.addEventListener("click", function () {
-        navigation.goToNext();
+        _stepVerse(1);
       });
     }
+    if (dom.chainToggle) {
+      try {
+        dom.chainToggle.checked = localStorage.getItem("verseobs_chain") !== "0";
+      } catch (e) {}
+      dom.chainToggle.addEventListener("change", function () {
+        try {
+          localStorage.setItem("verseobs_chain", dom.chainToggle.checked ? "1" : "0");
+        } catch (e) {}
+      });
+    }
+    // Below 1371 px the explorer is one column with the preparation: a
+    // block at its top, opened in one click (28/10).
+    if (dom.exploreToggle) {
+      dom.exploreToggle.addEventListener("click", function () {
+        var panel = dom.exploreToggle.closest(".scripture-panel");
+        var open = !panel.classList.contains("is-open");
+        panel.classList.toggle("is-open", open);
+        dom.exploreToggle.setAttribute("aria-expanded", open ? "true" : "false");
+      });
+    }
+    // The action bar's height: the room left under the content (28/10).
+    var takeBar = document.getElementById("take");
+    if (takeBar && window.ResizeObserver)
+      new ResizeObserver(function () {
+        document.documentElement.style.setProperty("--take-h", takeBar.offsetHeight + "px");
+      }).observe(takeBar);
     if (dom.btnTakePrevVerse) {
       dom.btnTakePrevVerse.addEventListener("click", function () {
         _stepVerse(-1);
@@ -1514,6 +1543,9 @@
       if (++tries < 20) _chainTimer = setTimeout(attempt, 100);
     })();
   }
+  // « Enchaîner à l'antenne » (28/10, on by default): unticked, ‹ › and a
+  // click in the explorer only prepare; a double-click still puts the verse
+  // on air.
   // Enchaîner si un verset de la Bible est à l'antenne. Après un rechargement
   // de la régie (dock OBS), seule la sortie sait ce qui est affiché : on
   // enchaîne aussi quand elle annonce un affichage dont la régie ignore la
@@ -1522,8 +1554,11 @@
     if (_onAirItem) return _onAirItem.type === "verse";
     return !!_output.visible;
   }
+  function _chainOn() {
+    return !(dom.chainToggle && !dom.chainToggle.checked);
+  }
   function _stepVerse(dir) {
-    var chain = _chainActive();
+    var chain = _chainActive() && _chainOn();
     if (dir < 0) navigation.goToPrevious();
     else navigation.goToNext();
     if (chain) _airWhenReady();
@@ -1532,7 +1567,7 @@
   // le verset cliqué y passe directement ; sinon il est préparé.
   // Double-clic (immediate) : diffusé tout de suite dans tous les cas.
   function _pickVerse(verse, immediate) {
-    var chain = _chainActive();
+    var chain = _chainActive() && _chainOn();
     var sel = navigation.getSelection();
     navigation.setSelection(sel.bookId, sel.chapter, verse);
     _onNavigationChange(navigation.getSelection());
@@ -1572,9 +1607,9 @@
       },
     });
     channel.onMessage(_handleMessage);
-    _sendMessage(MSG.PING, {});
+    _sendMessage(MSG.PING, { build: window.VerseObs.BUILD });
     setInterval(function () {
-      _sendMessage(MSG.PING, {});
+      _sendMessage(MSG.PING, { build: window.VerseObs.BUILD });
     }, 3000);
   }
   function _handleMessage(msg) {
@@ -2281,6 +2316,17 @@
   // ---- Keyboard shortcuts ----
 
   function _initKeyboard() {
+    // Dock OBS (28/10): the régie never stays shifted sideways. In OBS a
+    // dock showed its lower half cut on the left; nothing in the régie is
+    // meant to scroll horizontally (text fields excepted).
+    document.addEventListener(
+      "scroll",
+      function (e) {
+        var t = e.target === document ? document.scrollingElement : e.target;
+        if (t && t.scrollLeft && !/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) t.scrollLeft = 0;
+      },
+      true,
+    );
     document.addEventListener("keydown", function (e) {
       // The plan dialog owns the keyboard: Escape closes it, never the output.
       if (planImport && planImport.isOpen()) return;

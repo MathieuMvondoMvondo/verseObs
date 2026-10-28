@@ -5331,7 +5331,7 @@ body:not([data-tab="2"]) #tab-queue .cp-queue-title {
   white-space: nowrap;
 }
 /* ---- Antenne head states (brief §4), in the phone's words ----
-   offline: grey, hatched tally, « Sortie non connectée » ;
+   offline: grey, flat tally, « Sortie non connectée » (28/10: no hatching) ;
    off: grey, « Rien à l’antenne » (both in the reference's place) ;
    partial: still red (text is on air), an amber chip and « Découper ». */
 .cp-onair-split,
@@ -5348,8 +5348,8 @@ body:not([data-tab="2"]) #tab-queue .cp-queue-title {
   color: #9a9ea8;
 }
 .cp-onair[data-state="offline"] .cp-onair-tally {
-  background: repeating-linear-gradient(135deg, #24262b 0 6px, #2c2e33 6px 12px);
-  color: #8b8f99;
+  background: #2a2c31;
+  color: #a3a7b0;
 }
 .cp-onair[data-state="offline"] .cp-onair-dot {
   background: transparent;
@@ -5657,5 +5657,421 @@ body:not([data-tab="2"]) #tab-queue .cp-queue-part {
   .take {
     padding-left: 0;
     padding-right: 0;
+  }
+}
+/* ==========================================================================
+   Dock OBS (28/10). The régie as OBS shows it in a dock (300 to 620 px) and
+   at 1280 px; Math: « des trucs élémentaires c'est pas ça ».
+   - One status line, the Antenne band: the header no longer repeats it.
+   - The offline tally is flat and neutral (hatched, it read as disabled).
+   - Every tab label whole: three tabs per row below 440 px.
+   - One version control, full width when the row wraps; a regular rhythm.
+   - The passage's title with its star, then Style and Mise en forme.
+   - A full-width action bar: Diffuser and Masquer side by side, always
+     visible, and room under the content so nothing stays beneath it.
+   - Diffuser in the dark theme: the cream card clashed in OBS.
+   - Monitors on a neutral checkerboard: the band's colours read as on air.
+   - Nothing pushes the page sideways (no horizontal scroll, ever).
+   ========================================================================== */
+.cp-connection {
+  display: none;
+}
+:root {
+  --take: #2f5bd3;
+  --take-hover: #3b68e0;
+  --take-ink: #ffffff;
+}
+.take-go .take-cue,
+.take-go .take-reason {
+  color: rgba(255, 255, 255, 0.86);
+}
+.take-go kbd {
+  border-color: rgba(255, 255, 255, 0.45);
+  color: #ffffff;
+}
+.studio-shell {
+  overflow-x: clip;
+}
+.cp-preview-stage,
+.monitor-bay .cp-preview-stage,
+.settings-showcase .cp-preview-stage,
+.preparation-panel .cp-preview-stage {
+  background: repeating-conic-gradient(#1c1c1c 0% 25%, #242424 0% 50%) 0 0 / 24px 24px;
+}
+.format-toggle {
+  min-height: 32px;
+}
+.bilingual-switch {
+  min-height: 32px;
+}
+.cp-version-row {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+.cp-version-select {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--cp-border);
+  border-radius: 7px;
+  background: #1c1d1f;
+}
+@media (max-width: 620px) {
+  .header-right {
+    justify-content: flex-end;
+  }
+  .bible-search-row {
+    row-gap: 12px;
+    margin-bottom: 16px;
+  }
+  .bible-search-row > .cp-version-row {
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
+    height: auto;
+  }
+  .bible-search-row .cp-version-select {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    height: 44px;
+    font-size: 14px;
+  }
+  .cp-version-indicator {
+    display: none;
+  }
+  .bible-search-row > .bilingual-controls {
+    flex: 1 1 100%;
+  }
+  .cp-search-input {
+    font-size: 14px;
+  }
+  .passage-editor .section-heading {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "title fav"
+      "style format";
+    align-items: center;
+    gap: 8px;
+  }
+  .passage-editor .section-heading h2 {
+    grid-area: title;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
+  }
+  .passage-editor .section-heading .style-pick {
+    grid-area: style;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    margin: 0;
+  }
+  .passage-editor .section-heading .style-pick .cp-select {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+  }
+  .passage-editor .section-heading .format-toggle {
+    grid-area: format;
+    min-height: 44px;
+  }
+  .passage-editor .section-heading .cp-btn-fav {
+    grid-area: fav;
+    width: 44px;
+    height: 44px;
+  }
+  /* « + Ajouter au conducteur » back in the flow: fixed, it sat under the bar. */
+  .preparation-panel .cp-actions {
+    position: static;
+    margin: 12px 0 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+  }
+  #onair-hide {
+    display: none;
+  }
+  .monitor-bay > .cp-onair {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: "tally ref";
+    padding-right: 12px;
+  }
+  .monitor-bay > .cp-onair[data-partial] {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "tally ref label";
+  }
+  .take {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    gap: 8px;
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+  }
+  .take-go {
+    grid-column: 1;
+    grid-row: 1;
+    min-height: 56px;
+  }
+  .take .take-hide {
+    display: flex;
+    grid-column: 2;
+    grid-row: 1;
+    width: 100%;
+    min-width: 0;
+    min-height: 56px;
+    padding: 0 8px;
+    font: 600 15px/20px var(--cp-font);
+  }
+  .take .take-hide kbd {
+    display: none;
+  }
+  body[data-tab="2"] .take {
+    grid-template-columns: 44px minmax(0, 3fr) minmax(0, 2fr) 44px;
+  }
+  body[data-tab="2"] .take-go {
+    grid-column: 2;
+  }
+  body[data-tab="2"] .take .take-hide {
+    grid-column: 3;
+  }
+  #btn-queue-next {
+    grid-column: 4;
+  }
+  /* Views 3 to 5 hid the whole take (height 0): Masquer stays, full width. */
+  body:is([data-tab="3"], [data-tab="4"], [data-tab="5"]) .monitor-bay > .take {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+    min-height: 0;
+    margin: 0;
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+    border: 0;
+    border-top: 1px solid #2a2c31;
+    overflow: visible;
+    visibility: visible;
+    aspect-ratio: auto;
+  }
+  body:is([data-tab="3"], [data-tab="4"], [data-tab="5"]) .take .take-hide {
+    grid-column: 1 / -1;
+  }
+  .studio-shell {
+    padding-bottom: calc(var(--take-h, 104px) + 24px + env(safe-area-inset-bottom, 0px));
+  }
+}
+.style-choices {
+  flex-wrap: wrap;
+}
+@media (min-width: 621px) and (max-width: 860px) {
+  .header-right {
+    min-width: 0;
+  }
+  .header-right .save-status {
+    display: none;
+  }
+}
+@media (min-width: 621px) and (max-width: 1000px) {
+  body:is([data-tab="3"], [data-tab="4"], [data-tab="5"]) .monitor-bay > .cp-onair {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "tally ref split hide"
+      "tally label split hide";
+    row-gap: 0;
+  }
+  body:is([data-tab="3"], [data-tab="4"], [data-tab="5"]) .monitor-bay > .cp-onair .cp-onair-label {
+    justify-self: start;
+    text-align: left;
+  }
+  body:is([data-tab="3"], [data-tab="4"], [data-tab="5"])
+    .monitor-bay
+    > .cp-onair:is([data-state="off"], [data-state="offline"])
+    .cp-onair-label {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+  }
+}
+@media (max-width: 620px) {
+  .take {
+    align-items: stretch;
+  }
+}
+@media (max-width: 400px) {
+  body[data-tab="2"] .take {
+    grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 44px;
+  }
+}
+@media (max-width: 340px) {
+  .take {
+    gap: 6px;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  body[data-tab="2"] .take {
+    grid-template-columns: 40px minmax(0, 1fr) minmax(0, 1fr) 40px;
+  }
+  .take-go {
+    padding: 6px 8px;
+  }
+  .take .take-hide {
+    padding: 0 6px;
+  }
+}
+@media (max-width: 439px) {
+  .studio-sidebar .cp-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+  }
+  .studio-sidebar .cp-tab {
+    flex-direction: row;
+    justify-content: center;
+    gap: 6px;
+    min-height: 40px;
+    padding: 4px 6px;
+    text-align: left;
+  }
+}
+@media (max-width: 339px) {
+  .studio-sidebar .cp-tab .icon {
+    display: none;
+  }
+  .studio-sidebar .cp-tab {
+    text-align: center;
+  }
+}
+/* Bible (28/10, Math in the live): ◀ Diffuser ▶ Masquer, « Enchaîner à
+   l'antenne » and « Ajouter au conducteur » in the action bar; the
+   explorer a block opened in one click below 1371 px. */
+.take-extra {
+  display: none;
+}
+body[data-tab="0"] .take-extra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 10px;
+}
+.take-chain {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  font: 500 13px/16px var(--cp-font);
+  color: var(--cp-text-secondary);
+  cursor: pointer;
+}
+.take-chain input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--take);
+}
+.take-extra .cp-btn-queue-add {
+  min-height: 36px;
+  margin: 0;
+  white-space: normal;
+}
+@media (min-width: 621px) {
+  body[data-tab="0"] .take-extra {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+@media (max-width: 620px) {
+  body[data-tab="0"] .take {
+    grid-template-columns: 44px minmax(0, 3fr) 44px minmax(0, 2fr);
+    row-gap: 6px;
+  }
+  body[data-tab="0"] .take-vstep {
+    display: contents;
+  }
+  body[data-tab="0"] :is(#btn-take-prev-verse, #btn-take-next-verse) {
+    min-width: 0;
+    width: 100%;
+    padding: 0;
+    font-size: 20px;
+  }
+  body[data-tab="0"] :is(#btn-take-prev-verse, #btn-take-next-verse) .take-nav-label {
+    display: none;
+  }
+  body[data-tab="0"] #btn-take-prev-verse {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  body[data-tab="0"] .take-go {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  body[data-tab="0"] #btn-take-next-verse {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  body[data-tab="0"] .take .take-hide {
+    grid-column: 4;
+    grid-row: 1;
+  }
+  body[data-tab="0"] .take-extra {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+@media (max-width: 400px) {
+  body[data-tab="0"] .take {
+    grid-template-columns: 40px minmax(0, 1fr) 40px minmax(0, 1fr);
+  }
+}
+@media (max-width: 340px) {
+  body[data-tab="0"] .take {
+    grid-template-columns: 36px minmax(0, 1fr) 36px minmax(0, 1fr);
+  }
+  body[data-tab="0"] .take-go {
+    padding: 6px;
+  }
+  body[data-tab="0"] .take-go .take-label {
+    font-size: 15px;
+  }
+  body[data-tab="0"] .take-go .take-cue {
+    display: none;
+  }
+}
+.explore-toggle {
+  all: unset;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.explore-toggle:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+@media (max-width: 1370px) {
+  .scripture-panel {
+    order: 0;
+  }
+  .scripture-panel > .section-heading h2 {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: visible;
+  }
+  .explore-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    white-space: nowrap;
+  }
+  .explore-toggle::after {
+    content: "▾";
+    font-size: 14px;
+  }
+  .scripture-panel:not(.is-open) .explore-toggle::after {
+    content: "▸";
+  }
+  .scripture-panel:not(.is-open) > :not(.section-heading) {
+    display: none;
   }
 }

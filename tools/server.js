@@ -37,9 +37,11 @@ const REMOTE_FILES =
   /^\/(remote\.html|assets\/css\/remote\.css|assets\/js\/remote\/remote\.js|assets\/icons\/[a-z0-9-]+\.svg)$/;
 const REMOTE_LIMITS = {
   windowMs: 5000,
-  commands: 10, // per remote and per window
-  allCommands: 20, // all remotes together, per window
-  messages: 30, // anything received, per remote and per window
+  // A flood guard no hand reaches (28/10: the former 10 per window refused
+  // an operator stepping through plans); « hide » is never limited.
+  commands: 40, // per remote and per window
+  allCommands: 80, // all remotes together, per window
+  messages: 120, // anything received, per remote and per window
   maxRemotes: 8,
   authWindowMs: 60000,
   authFailures: 10, // per address before a temporary block
@@ -409,9 +411,12 @@ function createRemote(port, options, studios) {
         !REMOTE_COMMANDS.has(msg.command)
       )
         return answer("error", { reason: "forbidden" });
+      // Taking a text off air must always work (28/10): « Masquer » is
+      // never refused for its rate.
       if (
-        !allow(counter, "commands", REMOTE_LIMITS.commands) ||
-        !allow(globalWindow, "count", REMOTE_LIMITS.allCommands)
+        msg.command !== "hide" &&
+        (!allow(counter, "commands", REMOTE_LIMITS.commands) ||
+          !allow(globalWindow, "count", REMOTE_LIMITS.allCommands))
       )
         return answer("error", { reason: "rate_limited" });
       if (!controller || controller.readyState !== WebSocket.OPEN)
