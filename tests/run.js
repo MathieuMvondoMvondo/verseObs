@@ -361,9 +361,11 @@ eq("typewriter becomes the reading reveal", legacy.getAll().animation, "reveal")
 _store[VerseObs.SETTINGS_KEY] = JSON.stringify({ template: "studio", fontSize: 40 });
 legacy = new VerseObs.Settings();
 legacy.load();
-eq("former default base follows the new default", legacy.getAll().layout, "antenne");
-eq("…with the antenne template", legacy.getAll().template, "antenne");
-eq("…and its typography", legacy.getAll().fontSize, VerseObs.DEFAULTS.fontSize);
+// 28/10 (Math): an update never changes the look on air, the former default
+// base included; a new look comes only from a preset the operator picks.
+eq("former default base keeps its card", legacy.getAll().layout, "carte");
+eq("…and its template", legacy.getAll().template, "studio");
+eq("…and its typography", legacy.getAll().fontSize, 40);
 _store[VerseObs.SETTINGS_KEY] = JSON.stringify({ template: "cinema" });
 legacy = new VerseObs.Settings();
 legacy.load();
@@ -383,7 +385,7 @@ _store[VerseObs.SETTINGS_KEY] = JSON.stringify({
 });
 legacy = new VerseObs.Settings();
 legacy.load();
-eq("studio base: the look follows the new default", legacy.getAll().layout, "antenne");
+eq("studio base: the look is kept (28/10)", legacy.getAll().layout, "carte");
 eq("studio base: the operator's position is kept", legacy.getAll().position, "upper-third");
 eq("studio base: the operator's auto-hide is kept", legacy.getAll().autoHide, 15000);
 eq("studio base: the operator's animation is kept", legacy.getAll().animation, "slide");
@@ -1288,6 +1290,59 @@ ok(
   "the Antenne output draws no axis between the reference and the text",
   !/\.vo-axis[^{}]*\{[^}]*display:(?!\s*none)/.test(outputCss),
 );
+
+// ===================================================================
+group("dock OBS 28/10: file versions, Bible spaces, one colour");
+(function () {
+  var fsx = require("fs"),
+    px = require("path"),
+    rootx = px.join(__dirname, ".."),
+    seen = [];
+  ["control_panel.html", "browser_source.html", "remote.html"].forEach(function (p) {
+    var html = fsx.readFileSync(px.join(rootx, p), "utf8");
+    (html.match(/[?&]v=[^"'&\s>]+/g) || []).forEach(function (m) {
+      seen.push(p + " " + m.slice(3));
+    });
+  });
+  var stale = seen.filter(function (s) {
+    return s.split(" ")[1] !== String(VerseObs.BUILD);
+  });
+  eq("every file URL of the pages carries this release (" + VerseObs.BUILD + ")", JSON.stringify(stale), "[]");
+  eq("…for every script and style (38 URLs)", seen.length >= 38, true);
+  var clean = null;
+  try {
+    var box = { window: { VerseObs: { getBookName: function () { return ""; } } } };
+    require("vm").runInNewContext(fsx.readFileSync(px.join(rootx, "assets/js/control/bible-loader.js"), "utf8"), box);
+    clean = box.window.VerseObs.BibleLoader.cleanText;
+  } catch (e) {
+    clean = null;
+  }
+  eq("bible-loader exposes its space cleaning", typeof clean, "function");
+  if (typeof clean === "function") {
+    var lsg = JSON.parse(fsx.readFileSync(px.join(rootx, "data/bibles/lsg.json"), "utf8"));
+    var john = lsg.books.filter(function (b) { return Number(b.id) === 43; })[0];
+    var ch3 = john.chapters.filter(function (c) { return Number(c.chapter) === 3; })[0];
+    var raw = ch3.verses.filter(function (v) { return Number(v.verse) === 15; })[0].text;
+    eq("LSG Jean 3:15 holds a thin space next to a space (source)", /\u2009 /.test(raw), true);
+    eq("LSG Jean 3:15 reads with single spaces", clean(raw), "afin que quiconque croit en lui ait la vie éternelle.");
+    eq("…same words", clean(raw).split(/\s+/).join(" "), raw.trim().split(/\s+/).join(" "));
+    eq("a no-break space before « : » is kept", clean("vie éternelle\u00a0:  ce sont"), "vie éternelle\u00a0: ce sont");
+  }
+  _store[VerseObs.SETTINGS_KEY] = JSON.stringify({ layout: "facettes", template: "facettes", bgColor: "#15171c", refBgColor: "#df721b" });
+  var one = new VerseObs.Settings();
+  one.load();
+  eq("one colour: off by default", one.getAll().matchColors, false);
+  eq("…the preset's two colours", one.getAll().refBgColor, "#df721b");
+  one.update("matchColors", true);
+  eq("one colour: the reference takes the band's colour", one.getAll().refBgColor, "#15171c");
+  one.update("bgColor", "#203040");
+  eq("…and follows it", one.getAll().refBgColor, "#203040");
+  one.update("refBgColor", "#402010");
+  eq("…both ways", one.getAll().bgColor, "#402010");
+  one.update("matchColors", false);
+  one.update("bgColor", "#101010");
+  eq("unticked: the reference keeps its colour", one.getAll().refBgColor, "#402010");
+})();
 
 // ===================================================================
 console.log(

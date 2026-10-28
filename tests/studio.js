@@ -2,11 +2,19 @@
 const assert = require("node:assert/strict");
 const { JSDOM, VirtualConsole } = require("jsdom");
 const { WebSocket } = require("ws");
-const { createServer } = require("../tools/server");
+const { createServer, REMOTE_LIMITS } = require("../tools/server");
 const fs = require("node:fs"),
   path = require("node:path"),
   vm = require("node:vm");
-const PORT = 18484,
+// A free port chosen at run time (28/10: 18484 collided with other runs).
+const PORT =
+    Number(process.env.STUDIO_TEST_PORT) ||
+    Number(
+      require("child_process")
+        .execFileSync(process.execPath, ["-e", "const s=require('net').createServer().listen(0,'127.0.0.1',()=>{console.log(s.address().port);s.close()})"])
+        .toString()
+        .trim(),
+    ),
   origin = "http://127.0.0.1:" + PORT;
 let passed = 0;
 const windows = [];
@@ -1203,19 +1211,28 @@ async function runRemoteChecks(cp, output, logged) {
     () => burst.messages.filter((m) => m.ref && m.ref.startsWith("b")).length === 14,
     "burst replies",
   );
-  const limited = burst.messages.filter((m) => m.reason === "rate_limited").length;
-  // A fresh socket opens its window: the first 10 commands pass, the 11th
-  // and later ones are refused (REMOTE_LIMITS.commands, review 7 N8).
+  // 28/10: « Masquer » is never refused for its rate (14 in a row pass).
+  const hidesRefused = burst.messages.filter((m) => m.reason === "rate_limited").length;
+  // The other commands keep a flood guard no hand reaches: within one
+  // window the first REMOTE_LIMITS.commands pass, the next ones are refused.
+  const many = REMOTE_LIMITS.commands + 3;
+  for (let i = 0; i < many; i++)
+    burst.socket.send(JSON.stringify({ type: "command", command: "prev", ref: "p" + i }));
+  await until(
+    () => burst.messages.filter((m) => m.ref && m.ref.startsWith("p")).length === many,
+    "prev burst replies",
+  );
   const refusedAt = [];
-  for (let i = 0; i < 14; i++)
-    if (burst.messages.find((m) => m.ref === "b" + i).reason === "rate_limited") refusedAt.push(i);
+  for (let i = 0; i < many; i++)
+    if (burst.messages.find((m) => m.ref === "p" + i).reason === "rate_limited") refusedAt.push(i);
   const flood = await remoteSocket(wsBase + "?code=" + code, lan);
   const closed = new Promise((resolve) => flood.socket.on("close", (c) => resolve(c)));
-  for (let i = 0; i < 40; i++) flood.socket.send("{}");
+  for (let i = 0; i < REMOTE_LIMITS.messages + 10; i++) flood.socket.send("{}");
   const floodCode = await closed;
-  check("Commands are rate limited and a flood closes the connection", () => {
-    assert(limited >= 4, "rate limited replies: " + limited);
-    assert.deepEqual(refusedAt, [10, 11, 12, 13], "the 11th command onwards is refused");
+  check("Masquer is never rate limited; other commands keep a flood guard; a flood closes the connection", () => {
+    assert.equal(hidesRefused, 0, "hides refused: " + hidesRefused);
+    const c = REMOTE_LIMITS.commands;
+    assert.deepEqual(refusedAt, [c, c + 1, c + 2], "only commands beyond the guard are refused");
     assert.equal(floodCode, 4429);
   });
 
