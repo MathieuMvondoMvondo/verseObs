@@ -869,10 +869,15 @@
             typeof chapter[num] === "string" ? chapter[num] : chapter[num].text;
           button.append(n, text);
           button.addEventListener("click", function () {
+            // Le verset cliqué est déjà visible : ne pas faire défiler la
+            // liste sous la souris (sinon le 2e clic d'un double-clic tombe
+            // sur un autre verset).
+            lastVerse = Number(num);
             if (api.pickVerse) api.pickVerse(Number(num), false);
             else api.selectVerse(Number(num));
           });
           button.addEventListener("dblclick", function () {
+            lastVerse = Number(num);
             if (api.pickVerse) api.pickVerse(Number(num), true);
           });
           list.appendChild(button);

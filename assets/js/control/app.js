@@ -145,6 +145,9 @@
       selectVerse: function (verse) {
         var sel = navigation.getSelection();
         navigation.setSelection(sel.bookId, sel.chapter, verse);
+        // setSelection ne prévient personne : sans cet appel, l'aperçu et
+        // son texte restaient sur l'ancien verset (clic dans l'Explorer).
+        _onNavigationChange(navigation.getSelection());
       },
       pickVerse: function (verse, immediate) {
         _pickVerse(verse, immediate);
@@ -1425,6 +1428,13 @@
   function _showCurrentVerse() {
     var disp = _activeDisplay();
     if (!disp || !bilingual.ready()) return;
+    // Garantie : le texte envoyé correspond toujours à la référence envoyée.
+    // Si l'aperçu est resté sur un autre passage, on le remet à jour avant.
+    if (dom.previewRef && dom.previewRef.textContent !== disp.reference) {
+      _updatePreview();
+      disp = _activeDisplay();
+      if (!disp || !bilingual.ready()) return;
+    }
 
     var sel = navigation.getSelection();
     var versionName = disp.version;
@@ -1525,6 +1535,7 @@
     var chain = _chainActive();
     var sel = navigation.getSelection();
     navigation.setSelection(sel.bookId, sel.chapter, verse);
+    _onNavigationChange(navigation.getSelection());
     if (immediate || chain) _airWhenReady();
   }
 
