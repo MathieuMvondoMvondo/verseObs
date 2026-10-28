@@ -1504,8 +1504,16 @@
       if (++tries < 20) _chainTimer = setTimeout(attempt, 100);
     })();
   }
+  // Enchaîner si un verset de la Bible est à l'antenne. Après un rechargement
+  // de la régie (dock OBS), seule la sortie sait ce qui est affiché : on
+  // enchaîne aussi quand elle annonce un affichage dont la régie ignore la
+  // nature (jamais par-dessus un texte libre ou un élément du conducteur).
+  function _chainActive() {
+    if (_onAirItem) return _onAirItem.type === "verse";
+    return !!_output.visible;
+  }
   function _stepVerse(dir) {
-    var chain = !!(_onAirItem && _onAirItem.type === "verse");
+    var chain = _chainActive();
     if (dir < 0) navigation.goToPrevious();
     else navigation.goToNext();
     if (chain) _airWhenReady();
@@ -1514,7 +1522,7 @@
   // le verset cliqué y passe directement ; sinon il est préparé.
   // Double-clic (immediate) : diffusé tout de suite dans tous les cas.
   function _pickVerse(verse, immediate) {
-    var chain = !!(_onAirItem && _onAirItem.type === "verse");
+    var chain = _chainActive();
     var sel = navigation.getSelection();
     navigation.setSelection(sel.bookId, sel.chapter, verse);
     if (immediate || chain) _airWhenReady();
