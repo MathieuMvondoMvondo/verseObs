@@ -6077,3 +6077,23 @@ body[data-tab="0"] .take-extra {
     display: none;
   }
 }
+/* From 621 px the take column holds Diffuser, Masquer, ‹ › and these two:
+   kept compact so the column never grows taller than the monitors (the bay
+   and the preparation stay 8 to 24 px apart). */
+@media (min-width: 621px) {
+  body[data-tab="0"] .take {
+    gap: 8px;
+  }
+  body[data-tab="0"] .take-extra {
+    gap: 4px;
+  }
+  body[data-tab="0"] .take-chain {
+    font-size: 12px;
+  }
+  body[data-tab="0"] .take-extra .cp-btn-queue-add {
+    min-height: 32px;
+    padding: 4px 8px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+}
