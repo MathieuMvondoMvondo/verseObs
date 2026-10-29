@@ -589,13 +589,30 @@
       });
     }
     // In the narrow dock (≤ 620 px) the explorer is a block at the top of
-    // the Bible view, opened in one click (28/10).
+    // the Bible view, opened in one click (28/10). It stays as the operator
+    // left it, after a reload of the dock too (29/10). From 621 px it is
+    // always open at its place.
     if (dom.exploreToggle) {
+      var explorePanel = dom.exploreToggle.closest(".scripture-panel");
+      var exploreNarrow = window.matchMedia ? window.matchMedia("(max-width: 620px)") : null;
+      var exploreOpen = false;
+      try {
+        exploreOpen = localStorage.getItem("verseobs_explore") === "1";
+      } catch (e) {}
+      var paintExplore = function () {
+        var narrow = !!(exploreNarrow && exploreNarrow.matches);
+        explorePanel.classList.toggle("is-open", exploreOpen);
+        dom.exploreToggle.setAttribute("aria-expanded", exploreOpen || !narrow ? "true" : "false");
+      };
+      paintExplore();
+      if (exploreNarrow && exploreNarrow.addEventListener) exploreNarrow.addEventListener("change", paintExplore);
       dom.exploreToggle.addEventListener("click", function () {
-        var panel = dom.exploreToggle.closest(".scripture-panel");
-        var open = !panel.classList.contains("is-open");
-        panel.classList.toggle("is-open", open);
-        dom.exploreToggle.setAttribute("aria-expanded", open ? "true" : "false");
+        if (!(exploreNarrow && exploreNarrow.matches)) return;
+        exploreOpen = !exploreOpen;
+        try {
+          localStorage.setItem("verseobs_explore", exploreOpen ? "1" : "0");
+        } catch (e) {}
+        paintExplore();
       });
     }
     // The action bar's height: the room left under the content (28/10).
