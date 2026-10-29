@@ -251,8 +251,17 @@ if (run("dock")) {
   for (const [w, h] of SIZES) {
     const r = await openRegie(w, h);
     await onAir(r.page);
-    await check(`Dock ${w}×${h} @1.25: no sideways scroll, no cut label, one Diffuser and one Masquer in view, nothing under the bar (six views)`, async () => {
+    await check(`Dock ${w}×${h} @1.25: no sideways scroll, no cut label, one Diffuser and one Masquer in view, nothing under the bar (six views)${w <= 620 ? ", ‹ Diffuser › Masquer at the same places in Bible and Conducteur" : ""}`, async () => {
       const dock = w <= 620;
+      // 29/10 (review under CEF 127): in the Conducteur view › and Masquer
+      // had swapped places; a hand that goes for › there took the verse off air.
+      const bar = {};
+      const BAR = (ids) =>
+        ids.map((q) => {
+          const e = document.querySelector(q);
+          const b = e.getBoundingClientRect();
+          return { q, shown: e.getClientRects().length > 0, l: Math.round(b.left), r: Math.round(b.right), t: Math.round(b.top), b: Math.round(b.bottom) };
+        });
       for (const tab of [0, 1, 2, 3, 4, 5]) {
         await showView(r.page, tab);
         await operatorMoves(r.page, tab);
@@ -263,6 +272,8 @@ if (run("dock")) {
         assert.deepEqual(m.over, [], where + "past the edge");
         assert.deepEqual(m.trunc, [], where + "cut labels");
         await r.page.evaluate(() => scrollTo(0, 0));
+        if (dock && tab === 0) bar[0] = await r.page.evaluate(BAR, ["#btn-take-prev-verse", "#btn-show", "#btn-take-next-verse", "#btn-hide"]);
+        if (dock && tab === 2) bar[2] = await r.page.evaluate(BAR, ["#btn-queue-prev", "#btn-queue-show", "#btn-queue-next", "#btn-hide"]);
         const k = await r.page.evaluate(TAKES);
         assert.equal(k.hides.length, 1, where + "one Masquer " + JSON.stringify(k.hides));
         const hide = k.hides[0];
@@ -286,6 +297,14 @@ if (run("dock")) {
             assert.deepEqual(s.small, [], where + "text under 12 px");
           }
         }
+      }
+      if (dock) {
+        for (const tab of [0, 2]) {
+          const [p, go, n, hide] = bar[tab];
+          assert.ok([p, go, n, hide].every((b) => b.shown && (b.t + b.b) / 2 >= hide.t && (b.t + b.b) / 2 <= hide.b), `${w} px, view ${tab}: one row ` + JSON.stringify(bar[tab]));
+          assert.ok(p.r <= go.l && go.r <= n.l && n.r <= hide.l, `${w} px, view ${tab}: ‹ | Diffuser | › | Masquer ` + JSON.stringify(bar[tab]));
+        }
+        bar[2].forEach((b, i) => assert.ok(Math.abs(b.l - bar[0][i].l) <= 1 && Math.abs(b.r - bar[0][i].r) <= 1, `${w} px: ${b.q} where ${bar[0][i].q} is in the Bible view ` + JSON.stringify([b, bar[0][i]])));
       }
       assert.deepEqual(r.errors, [], "page errors");
     });

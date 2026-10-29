@@ -5832,17 +5832,24 @@ body:not([data-tab="2"]) #tab-queue .cp-queue-part {
   .take .take-hide kbd {
     display: none;
   }
+  /* 29/10 (review under CEF 127): ‹ Diffuser › Masquer as in the Bible
+     view, on the same columns, so that nothing moves under the hand when
+     the view changes (› and Masquer had swapped places here). */
   body[data-tab="2"] .take {
-    grid-template-columns: 44px minmax(0, 3fr) minmax(0, 2fr) 44px;
+    grid-template-columns: 44px minmax(0, 3fr) 44px minmax(0, 2fr);
   }
   body[data-tab="2"] .take-go {
     grid-column: 2;
   }
-  body[data-tab="2"] .take .take-hide {
+  #btn-queue-next {
     grid-column: 3;
   }
-  #btn-queue-next {
+  body[data-tab="2"] .take .take-hide {
     grid-column: 4;
+  }
+  body[data-tab="2"] :is(#btn-queue-prev, #btn-queue-next) {
+    min-width: 0;
+    width: 100%;
   }
   /* Views 3 to 5 hid the whole take (height 0): Masquer stays, full width. */
   body:is([data-tab="3"], [data-tab="4"], [data-tab="5"]) .monitor-bay > .take {
@@ -5904,7 +5911,7 @@ body:not([data-tab="2"]) #tab-queue .cp-queue-part {
 }
 @media (max-width: 400px) {
   body[data-tab="2"] .take {
-    grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 44px;
+    grid-template-columns: 40px minmax(0, 1fr) 40px minmax(0, 1fr);
   }
 }
 @media (max-width: 340px) {
@@ -5914,7 +5921,7 @@ body:not([data-tab="2"]) #tab-queue .cp-queue-part {
     padding-right: 8px;
   }
   body[data-tab="2"] .take {
-    grid-template-columns: 40px minmax(0, 1fr) minmax(0, 1fr) 40px;
+    grid-template-columns: 36px minmax(0, 1fr) 36px minmax(0, 1fr);
   }
   .take-go {
     padding: 6px 8px;
