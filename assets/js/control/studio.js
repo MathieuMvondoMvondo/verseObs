@@ -989,9 +989,18 @@
       // An output still on an older version comes first (review 7, N7).
       var note = el("program-note");
       if (note) {
+        // 29/10: one line, plus the style's name when it is one an older
+        // output may not draw (Onglet, Ruban, Facettes).
+        var look = {
+          onglet: "Onglet clair",
+          "onglet-sombre": "Onglet sombre",
+          ruban: "Ruban",
+          facettes: "Facettes",
+        }[el("style-select") ? el("style-select").value : ""];
         note.hidden = !state.reduced && !state.legacy;
         note.textContent = state.legacy
-          ? "Sortie d’une version précédente : actualisez-la (clic droit sur la source › Actualiser)."
+          ? "Sortie d’une version précédente : actualisez-la (clic droit sur la source › Actualiser)." +
+            (look ? " Le style " + look + " peut ne pas y être dessiné." : "")
           : state.reduced
             ? "Sortie : animations réduites par le système de l’ordinateur OBS (fondus courts)."
             : "";
