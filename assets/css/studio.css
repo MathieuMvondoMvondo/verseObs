@@ -5910,8 +5910,10 @@ body:not([data-tab="2"]) #tab-queue .cp-queue-part {
   }
 }
 @media (max-width: 400px) {
+  /* 29/10: ‹ › stay 44 px wide down to 341 px (touch target), in the
+     Conducteur as in the Bible view; Diffuser keeps ≥ 120 px at 390 px. */
   body[data-tab="2"] .take {
-    grid-template-columns: 40px minmax(0, 1fr) 40px minmax(0, 1fr);
+    grid-template-columns: 44px minmax(0, 1fr) 44px minmax(0, 1fr);
   }
 }
 @media (max-width: 340px) {
@@ -6035,7 +6037,7 @@ body[data-tab="0"] .take-extra {
 }
 @media (max-width: 400px) {
   body[data-tab="0"] .take {
-    grid-template-columns: 40px minmax(0, 1fr) 40px minmax(0, 1fr);
+    grid-template-columns: 44px minmax(0, 1fr) 44px minmax(0, 1fr);
   }
 }
 @media (max-width: 340px) {

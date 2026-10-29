@@ -2536,7 +2536,8 @@ try {
         assert.ok(t.width >= 120, where + "take width " + t.width + " (28/10: ◀ Diffuser ▶ Masquer in the Bible)");
         assert.ok(band.position === "fixed" && band.top === 0 && band.height <= 56, where + "Antenne band " + JSON.stringify(band));
         assert.ok(m.fixed && m.top >= g.vh - 96 && m.bottom <= g.vh && m.left >= t.right && m.width >= 64 && m.height >= 44, where + "Masquer beside Diffuser in the bar " + JSON.stringify(m));
-        // Préc. | Suiv. flank the take in the Conducteur view only.
+        // Préc. and Suiv. in the Conducteur view only, at the places of the
+        // Bible view's ‹ › (281f6a3, b8ab040, 29/10): ‹ Diffuser › Masquer.
         const nav = await dock.studio.evaluate(() =>
           ["#btn-queue-prev", "#btn-queue-next"].map((s) => {
             const r = document.querySelector(s).getBoundingClientRect();
@@ -2545,7 +2546,7 @@ try {
         );
         if (tab === 2) {
           assert.ok(nav.every((b) => b && b.w >= 44 && b.h >= 44), where + "Préc./Suiv. " + JSON.stringify(nav));
-          assert.ok(nav[0].right <= t.left && nav[1].left >= m.right, where + "Préc. | Diffuser | Masquer | Suiv. " + JSON.stringify(nav));
+          assert.ok(nav[0].right <= t.left && t.right <= nav[1].left && nav[1].right <= m.left, where + "Préc. | Diffuser | Suiv. | Masquer " + JSON.stringify({ nav, t, m }));
         } else assert.deepEqual(nav, [null, null], where + "no Préc./Suiv. outside the Conducteur view");
         if (tab === 0) {
           // The editor's heading stays legible: title and tools on one line each.
