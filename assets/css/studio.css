@@ -6182,10 +6182,9 @@ body[data-tab="0"] .take-extra {
   max-width: 320px; /* 180 px × 16/9 */
 }
 @media (max-width: 1000px) {
-  .settings-showcase {
-    grid-template-columns: minmax(0, min(284px, 55%)) minmax(0, 1fr);
-  }
+  /* Centred in its column: the style choices keep their layout. */
   .settings-showcase .cp-preview-stage {
     max-width: 284px; /* 160 px × 16/9 */
+    margin-inline: auto;
   }
 }
