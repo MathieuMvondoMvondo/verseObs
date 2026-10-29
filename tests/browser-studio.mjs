@@ -2549,11 +2549,20 @@ try {
         } else assert.deepEqual(nav, [null, null], where + "no Préc./Suiv. outside the Conducteur view");
         if (tab === 0) {
           // The editor's heading stays legible: title and tools on one line each.
+          // 29/10: counted in text lines (Range rects), no longer read from the
+          // box height: in the dock « Mise en forme » is a 44 px touch target
+          // (dock brief, 28/10), its label still on one 20 px line.
           const head = await dock.studio.evaluate(() =>
-            ["#preview-ref", "#toggle-format"].map((s) => Math.round(document.querySelector(s).getBoundingClientRect().height)),
+            ["#preview-ref", "#toggle-format"].map((s) => {
+              const e = document.querySelector(s);
+              const r = document.createRange();
+              r.selectNodeContents(e);
+              const tops = new Set(Array.from(r.getClientRects()).filter((x) => x.width > 0).map((x) => Math.round(x.top)));
+              return { lines: tops.size, height: Math.round(e.getBoundingClientRect().height) };
+            }),
           );
-          // One line each: a 20/28 title, a 14/20 button with its 4 px padding.
-          assert.ok(head[0] <= 30 && head[1] <= 30, where + "editor heading wraps: " + JSON.stringify(head));
+          // One line each: a 20/28 title, a 14/20 label in a button of at most 44 px.
+          assert.ok(head[0].lines === 1 && head[0].height <= 30 && head[1].lines === 1 && head[1].height <= 44, where + "editor heading wraps: " + JSON.stringify(head));
         }
       }
     }

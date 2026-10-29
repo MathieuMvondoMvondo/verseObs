@@ -13,7 +13,8 @@ export async function pairedDock({ browser, createServer, PORT, check }) {
     const errors = [];
     studio.on("pageerror", (e) => errors.push(e.message));
     await studio.goto(`http://127.0.0.1:${port}/control_panel.html`);
-    await studio.waitForSelector(".chapter-verse");
+    // Ready when the chapter list exists: in the dock (≤ 620 px) the explorer is folded (28/10).
+    await studio.waitForSelector(".chapter-verse", { state: "attached" });
     const phone = await phoneCtx.newPage();
     phone.on("pageerror", (e) => errors.push(e.message));
     await phone.goto(status.url);
