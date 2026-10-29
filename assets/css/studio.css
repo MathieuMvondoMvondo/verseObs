@@ -4149,7 +4149,10 @@ body[data-onair="pending"] .cp-btn-hide {
   border: 0;
 }
 :root {
-  --rail: 64px;
+  /* 29/10: 72 px from 621 px (was 64): « Conducteur » and « Connexions »
+     measure 55-56 px at 12 px in OBS's engine (CEF 127), wider than the
+     53 px a 64 px rail leaves them. */
+  --rail: 72px;
   --pad: 24px;
   --take-w: 168px;
   --bay-gap: 16px;
@@ -4200,7 +4203,7 @@ body[data-onair="pending"] .cp-btn-hide {
     padding: 8px 2px;
     text-align: center;
     font: 500 12px/16px var(--tally-font);
-    letter-spacing: 0.01em;
+    letter-spacing: 0;
     white-space: normal;
   }
   .cp-tab > span {
@@ -5960,7 +5963,7 @@ body[data-tab="0"] .take-extra {
   align-items: center;
   gap: 6px;
   min-height: 32px;
-  font: 500 13px/16px var(--cp-font);
+  font: 500 14px/20px var(--cp-font);
   color: var(--cp-text-secondary);
   cursor: pointer;
 }
@@ -6079,7 +6082,11 @@ body[data-tab="0"] .take-extra {
 }
 /* From 621 px the take column holds Diffuser, Masquer, ‹ › and these two:
    kept compact so the column never grows taller than the monitors (the bay
-   and the preparation stay 8 to 24 px apart). */
+   and the preparation stay 8 to 24 px apart). 29/10: their labels at 14 px
+   like every action (type scale), in a 184 px column up to 1599 px (168 px
+   cut « + Ajouter au conducteur »); the Diffuser's « Ctrl ↵ » joins its
+   first line there, so the column stays within the monitors' height. A
+   label that would not fit wraps: it is never cut. */
 @media (min-width: 621px) {
   body[data-tab="0"] .take {
     gap: 8px;
@@ -6087,13 +6094,25 @@ body[data-tab="0"] .take-extra {
   body[data-tab="0"] .take-extra {
     gap: 4px;
   }
-  body[data-tab="0"] .take-chain {
-    font-size: 12px;
-  }
   body[data-tab="0"] .take-extra .cp-btn-queue-add {
     min-height: 32px;
-    padding: 4px 8px;
-    font-size: 12px;
-    white-space: nowrap;
+    padding: 5px 4px;
+    white-space: normal;
+  }
+}
+@media (min-width: 621px) and (max-width: 1599px) {
+  :root {
+    --take-w: 184px;
+  }
+  .take-go {
+    position: relative;
+    min-height: 72px;
+    padding: 10px 14px;
+  }
+  .take-go kbd {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    margin-top: 0;
   }
 }
