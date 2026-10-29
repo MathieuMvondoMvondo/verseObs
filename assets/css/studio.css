@@ -6110,6 +6110,25 @@ body[data-tab="0"] .take-extra {
   body[data-tab="0"] .cp-header:not(:has(#remote-header-badge:not([hidden]))) .header-right {
     visibility: hidden;
   }
+  #chapter-count {
+    white-space: nowrap;
+  }
+}
+/* 29/10, review at 300 px: « Chapitre » ran into « Verset » and « 36 versets »
+   broke in two. In the narrowest docks the book takes its own row, chapter
+   and verse share the next; the verse count (the list shows the numbers)
+   gives its room to the 20 px title. */
+@media (max-width: 360px) {
+  .scripture-panel .cp-nav-row {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+  .scripture-panel .cp-nav-row label:first-child {
+    flex: 1 0 100%;
+  }
+  #chapter-count {
+    display: none;
+  }
 }
 /* From 621 px the take column holds Diffuser, Masquer, ‹ › and these two:
    kept compact so the column never grows taller than the monitors (the bay
