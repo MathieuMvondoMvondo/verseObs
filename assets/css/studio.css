@@ -5784,6 +5784,7 @@ body:not([data-tab="2"]) #tab-queue .cp-queue-part {
   }
   .passage-editor .section-heading .cp-btn-fav {
     grid-area: fav;
+    justify-self: end;
     width: 44px;
     height: 44px;
   }
@@ -6001,25 +6002,28 @@ body[data-tab="0"] .take-extra {
   body[data-tab="0"] :is(#btn-take-prev-verse, #btn-take-next-verse) .take-nav-label {
     display: none;
   }
+  /* 29/10: ◀ Diffuser ▶ Masquer on the bottom row, as in the other views
+     (Diffuser never moves when the view changes, and stays within the
+     last 96 px); « Enchaîner » and « Ajouter au conducteur » above it. */
   body[data-tab="0"] #btn-take-prev-verse {
     grid-column: 1;
-    grid-row: 1;
+    grid-row: 2;
   }
   body[data-tab="0"] .take-go {
     grid-column: 2;
-    grid-row: 1;
+    grid-row: 2;
   }
   body[data-tab="0"] #btn-take-next-verse {
     grid-column: 3;
-    grid-row: 1;
+    grid-row: 2;
   }
   body[data-tab="0"] .take .take-hide {
     grid-column: 4;
-    grid-row: 1;
+    grid-row: 2;
   }
   body[data-tab="0"] .take-extra {
     grid-column: 1 / -1;
-    grid-row: 2;
+    grid-row: 1;
   }
 }
 @media (max-width: 400px) {
@@ -6078,6 +6082,14 @@ body[data-tab="0"] .take-extra {
   }
   .scripture-panel:not(.is-open) > :not(.section-heading) {
     display: none;
+  }
+  /* Folded, the block is one compact row (29/10: 94 px for one line). */
+  .scripture-panel:not(.is-open) {
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+  .scripture-panel:not(.is-open) > .section-heading {
+    margin-bottom: 0;
   }
 }
 /* From 621 px the take column holds Diffuser, Masquer, ‹ › and these two:
