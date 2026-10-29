@@ -408,6 +408,30 @@ if (run("chain")) {
     assert.deepEqual(sent.slice(0, 5).map((m) => nums(m.reference)), [nums(r1), nums(r2), nums(r1), nums(r2), nums(r4)]);
     assert.deepEqual(errors, []);
   });
+  // 29/10: folded, the list cannot scroll to the prepared verse; opened in
+  // one click it must show it, and stay open after a reload of the dock.
+  await check("Dock 340: the explorer opened in one click shows the prepared verse in its list, and stays open after a reload of the dock", async () => {
+    const toggle = () => page.evaluate(() => document.querySelector("#explore-toggle").getAttribute("aria-expanded"));
+    await page.click("#explore-toggle");
+    assert.equal(await toggle(), "false", "folded again");
+    await page.fill("#search-input", "Jean 3:30");
+    await page.press("#search-input", "Enter");
+    await page.waitForFunction(() => /3:30\b/.test(document.querySelector("#preview-ref").textContent), null, { timeout: 8000 });
+    await page.click("#explore-toggle");
+    const seen = await page.evaluate(() => {
+      const v = document.querySelector("#chapter-list .chapter-verse.selected");
+      const list = document.getElementById("chapter-list");
+      const sc = list.closest(".chapter-scroll") || list;
+      const a = v.getBoundingClientRect(), b = sc.getBoundingClientRect();
+      return { verse: v.dataset.verse, top: Math.round(a.top - b.top), bottom: Math.round(a.bottom - b.top), height: Math.round(b.height) };
+    });
+    assert.ok(seen.verse === "30" && seen.top >= 0 && seen.bottom <= seen.height, "the prepared verse in the list's view " + JSON.stringify(seen));
+    await page.reload();
+    await page.waitForFunction(READY, null, { timeout: 30000 });
+    const after = await page.evaluate(() => ({ expanded: document.querySelector("#explore-toggle").getAttribute("aria-expanded"), shown: document.querySelector("#chapter-list .chapter-verse").getClientRects().length > 0 }));
+    assert.deepEqual(after, { expanded: "true", shown: true }, "open after the reload");
+    assert.deepEqual(errors, []);
+  });
   await ctx.close();
 }
 

@@ -6055,6 +6055,11 @@ body[data-tab="0"] .take-extra {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
+@media (min-width: 621px) {
+  .explore-toggle {
+    cursor: default;
+  }
+}
 /* Narrow dock only (≤ 620 px): from 621 px the explorer keeps its place and
    stays open (the parent's checks click its verses at 820 px). */
 @media (max-width: 620px) {

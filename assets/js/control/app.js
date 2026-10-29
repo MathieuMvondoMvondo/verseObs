@@ -602,7 +602,10 @@
       var paintExplore = function () {
         var narrow = !!(exploreNarrow && exploreNarrow.matches);
         explorePanel.classList.toggle("is-open", exploreOpen);
-        dom.exploreToggle.setAttribute("aria-expanded", exploreOpen || !narrow ? "true" : "false");
+        // From 621 px the heading is only a heading: no toggle to reach.
+        dom.exploreToggle.tabIndex = narrow ? 0 : -1;
+        if (narrow) dom.exploreToggle.setAttribute("aria-expanded", exploreOpen ? "true" : "false");
+        else dom.exploreToggle.removeAttribute("aria-expanded");
       };
       paintExplore();
       if (exploreNarrow && exploreNarrow.addEventListener) exploreNarrow.addEventListener("change", paintExplore);
@@ -613,6 +616,18 @@
           localStorage.setItem("verseobs_explore", exploreOpen ? "1" : "0");
         } catch (e) {}
         paintExplore();
+        // Folded, the list could not scroll to the prepared verse: show it
+        // now, a third down the list, as the list does when it is open.
+        if (!exploreOpen) return;
+        var list = document.getElementById("chapter-list");
+        var picked = list && list.querySelector(".chapter-verse.selected");
+        if (!picked) return;
+        var scroller = list.closest(".chapter-scroll") || list;
+        scroller.scrollTop =
+          picked.getBoundingClientRect().top -
+          scroller.getBoundingClientRect().top +
+          scroller.scrollTop -
+          scroller.clientHeight / 3;
       });
     }
     // The action bar's height: the room left under the content (28/10).
