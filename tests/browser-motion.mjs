@@ -374,6 +374,9 @@ try {
       },
       { ...A, settings: settings() },
     );
+    // 29/10: the first text of this fresh page waits for its typefaces
+    // (up to 900 ms): the 900 ms below start once the output has it on air.
+    await p.waitForFunction(() => window.__states.some((s) => s.visible && s.label === "Jean 3:16"), null, { timeout: 5000 });
     await settle(p, 900);
     let f = await frames(p);
     assert.ok(f.every((x) => !x.moved), "nothing moves");
@@ -427,6 +430,24 @@ try {
       },
       { msg, preset, extra },
     );
+  /**
+   * sendStyled, then wait until the output has the message on air: its own
+   * report (output_state, what the Studio's tally follows) names it. On a
+   * fresh page the first text waits for the bundled typefaces (renderer.js,
+   * fontsReady, up to 900 ms); on a loaded machine that took longer than the
+   * fixed 250 ms the geometry checks gave it (29/10, « ruban Éphésiens 6:15:
+   * nothing on air », on main as on the dock branch). Every check after it
+   * is unchanged.
+   */
+  const sendOnAir = async (page, msg, preset, extra = {}) => {
+    const from = await page.evaluate(() => window.__states.length);
+    await sendStyled(page, msg, preset, extra);
+    await page.waitForFunction(
+      ({ from, label }) => window.__states.slice(from).some((s) => s.visible && s.label === label),
+      { from, label: msg.reference || msg.title || "Texte libre" },
+      { timeout: 5000 },
+    );
+  };
   /** What the audience sees of an onglet card (screen px). */
   const ONGLET_GEOMETRY = () => {
     const card = document.querySelector(".verse-card:not(.vo-probe)");
@@ -534,7 +555,7 @@ try {
     const label = viewport.width + "×" + viewport.height;
     await check("Onglet " + label + ": every case whole, inside the frame, reference in its tab", async () => {
       const shown = async (msg, preset, extra) => {
-        await sendStyled(o.page, msg, preset, { animation: "none", ...extra });
+        await sendOnAir(o.page, msg, preset, { animation: "none", ...extra });
         await o.page.waitForTimeout(250);
         return o.page.evaluate(ONGLET_GEOMETRY);
       };
@@ -731,7 +752,13 @@ try {
               const settings = Object.assign({}, song ? V.FREETEXT_DEFAULTS : V.DEFAULTS, presets[key].settings, { animation: "none", animationDuration: 0, bgImage: "" });
               V.DisplayApp.handleMessage({ type: "hide" });
               await new Promise((r) => setTimeout(r, 60));
+              const from = window.__states.length,
+                label = msg.reference || msg.title || "Texte libre";
               V.DisplayApp.handleMessage(Object.assign({}, msg, { settings }));
+              // 29/10: measured once the output has it on air (its own report);
+              // the first text of a fresh page waits for its typefaces.
+              for (const t0 = performance.now(); performance.now() - t0 < 5000 && !window.__states.slice(from).some((s) => s.visible && s.label === label); )
+                await new Promise((r) => setTimeout(r, 20));
               await new Promise((r) => setTimeout(r, 450));
               const card = document.querySelector(".verse-card:not(.vo-probe)");
               const box = (el) => {
@@ -767,7 +794,7 @@ try {
   // « Ruban » and « Facettes » (Math, 26/10, second reference), then the
   // four existing styles against their 2060f1e composition.
   const H = await import("./browser-habillages.mjs");
-  await H.habillagesMotion({ check, open, verse, ROM, SONG, FREE, sendStyled, frames, send, settle, openRecorded, anims });
+  await H.habillagesMotion({ check, open, verse, ROM, SONG, FREE, sendStyled, sendOnAir, frames, send, settle, openRecorded, anims });
   await H.existingUnchanged({ check, open, verse, ROM, SONG });
   console.log("\n✓ Browser motion: " + passed + " checks passed.");
 } catch (err) {
