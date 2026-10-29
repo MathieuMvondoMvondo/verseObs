@@ -991,7 +991,7 @@
       if (note) {
         note.hidden = !state.reduced && !state.legacy;
         note.textContent = state.legacy
-          ? "Sortie d’une version précédente : dans OBS, clic droit sur la source › Actualiser."
+          ? "Sortie d’une version précédente : actualisez-la (clic droit sur la source › Actualiser)."
           : state.reduced
             ? "Sortie : animations réduites par le système de l’ordinateur OBS (fondus courts)."
             : "";
