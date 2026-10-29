@@ -251,7 +251,7 @@ if (run("dock")) {
   for (const [w, h] of SIZES) {
     const r = await openRegie(w, h);
     await onAir(r.page);
-    await check(`Dock ${w}×${h} @1.25: no sideways scroll, no cut label, one Diffuser and one Masquer in view, nothing under the bar (six views)${w <= 620 ? ", ‹ Diffuser › Masquer at the same places in Bible and Conducteur" : ""}`, async () => {
+    await check(`Dock ${w}×${h} @1.25: no sideways scroll, no cut label, one Diffuser and one Masquer in view, nothing under the bar (six views), « Votre rendu » whole${w <= 620 ? ", ‹ Diffuser › Masquer at the same places in Bible and Conducteur" : ""}`, async () => {
       const dock = w <= 620;
       // 29/10 (review under CEF 127): in the Conducteur view › and Masquer
       // had swapped places; a hand that goes for › there took the verse off air.
@@ -274,6 +274,24 @@ if (run("dock")) {
         await r.page.evaluate(() => scrollTo(0, 0));
         if (dock && tab === 0) bar[0] = await r.page.evaluate(BAR, ["#btn-take-prev-verse", "#btn-show", "#btn-take-next-verse", "#btn-hide"]);
         if (dock && tab === 2) bar[2] = await r.page.evaluate(BAR, ["#btn-queue-prev", "#btn-queue-show", "#btn-queue-next", "#btn-hide"]);
+        if (tab === 4) {
+          // 29/10 (review under CEF 127): « Votre rendu » shows the whole
+          // 1920×1080 frame; its height alone was capped, and from 600 to
+          // 1000 px the lower third was cut or not shown at all.
+          await r.page.waitForFunction(() => {
+            const f = document.getElementById("settings-preview-frame");
+            try { return !!f.contentDocument.querySelector(".verse-card:not(.vo-probe)"); } catch (e) { return false; }
+          }, null, { timeout: 10000 });
+          const sp = await r.page.evaluate(() => {
+            const s = document.getElementById("settings-preview-stage");
+            const f = document.getElementById("settings-preview-frame");
+            const scale = Number((/scale\(([\d.]+)\)/.exec(f.style.transform) || [])[1] || 0);
+            const c = f.contentDocument.querySelector(".verse-card:not(.vo-probe)").getBoundingClientRect();
+            return { w: s.clientWidth, h: s.clientHeight, scale, frameH: +(1080 * scale).toFixed(1), textBottom: +(c.bottom * scale).toFixed(1) };
+          });
+          assert.ok(sp.scale > 0 && sp.frameH - sp.h <= 1.5, where + "« Votre rendu » shows the whole frame " + JSON.stringify(sp));
+          assert.ok(sp.textBottom <= sp.h + 0.5, where + "« Votre rendu » shows the whole text " + JSON.stringify(sp));
+        }
         const k = await r.page.evaluate(TAKES);
         assert.equal(k.hides.length, 1, where + "one Masquer " + JSON.stringify(k.hides));
         const hide = k.hides[0];

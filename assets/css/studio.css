@@ -6173,3 +6173,19 @@ body[data-tab="0"] .take-extra {
     margin-top: 0;
   }
 }
+
+/* 29/10 (review under CEF 127): « Votre rendu » (Habillage) keeps the 16:9
+   of the 1920×1080 frame it shows, scaled to its width. Its height alone was
+   capped (160 px): from 285 px wide, in docks of 600 to 1000 px, the bottom
+   of the frame, where the lower third sits, was cut or not shown at all. */
+.settings-showcase .cp-preview-stage {
+  max-width: 320px; /* 180 px × 16/9 */
+}
+@media (max-width: 1000px) {
+  .settings-showcase {
+    grid-template-columns: minmax(0, min(284px, 55%)) minmax(0, 1fr);
+  }
+  .settings-showcase .cp-preview-stage {
+    max-width: 284px; /* 160 px × 16/9 */
+  }
+}
