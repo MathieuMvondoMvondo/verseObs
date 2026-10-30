@@ -100,10 +100,16 @@
     if (empty) empty.hidden = true;
     var all = feed.querySelectorAll(".st-line");
     for (var i = 0; i < all.length - MAX_LINES; i++) all[i].remove();
+    p.dataset.at = String(Date.now());
     if (obs) {
       all = feed.querySelectorAll(".st-line");
+      var now = Date.now();
+      // Only the two last lines, and only if they are less than 12 s old.
       for (var j = 0; j < all.length; j++)
-        all[j].classList.toggle("is-recent", j >= all.length - OBS_LINES);
+        all[j].classList.toggle(
+          "is-recent",
+          j >= all.length - OBS_LINES && now - Number(all[j].dataset.at) < 12000,
+        );
       // A subtitle leaves the screen after 12 s without a new one.
       clearTimeout(expire);
       expire = setTimeout(function () {

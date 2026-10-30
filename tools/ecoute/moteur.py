@@ -381,7 +381,11 @@ def split_sentences(text: str, limit: int = 280):
     for p in parts:
         while len(p) > limit:  # très long : couper à une virgule
             cut = p.rfind(", ", 0, limit)
-            cut = cut + 1 if cut > 40 else limit
+            if cut > 40:
+                cut += 1
+            else:  # jamais au milieu d'un mot
+                space = p.rfind(" ", 0, limit)
+                cut = space if space > 40 else limit
             out.append(p[:cut].strip())
             p = p[cut:].strip()
         if p:
@@ -583,11 +587,15 @@ class MicSource:
         self.rate = int(info["default_samplerate"]) or 48000
         self.channels = max(1, min(2, int(info["max_input_channels"])))
 
+    SILENT_AFTER = 3.0  # secondes sans aucun bloc : entrée perdue
+
     def run(self, push, stop: threading.Event):
         resample = Resampler(self.rate)
+        last = [time.time()]
 
         def callback(data, frames, when, status):  # noqa: ARG001
-            push(resample(to_mono(data)), time.time())
+            last[0] = time.time()
+            push(resample(to_mono(data)), last[0])
 
         with self.sd.InputStream(
             device=self.device,
@@ -596,9 +604,12 @@ class MicSource:
             dtype="float32",
             blocksize=int(self.rate * 0.1),
             callback=callback,
-        ):
+        ) as stream:
             while not stop.wait(0.2):
-                pass
+                # Un câble débranché ou un pilote figé ne lève pas toujours
+                # d'erreur : sans bloc depuis 3 s, l'écoute passe en panne.
+                if not stream.active or time.time() - last[0] > self.SILENT_AFTER:
+                    raise RuntimeError("plus aucun son reçu (entrée débranchée ou arrêtée ?)")
 
 
 # --------------------------------------------------------------- moteur --
@@ -616,6 +627,7 @@ class Engine:
         self.latencies: deque = deque(maxlen=30)
         self.backlog = 0.0
         self.skipped = 0.0  # secondes abandonnées pour revenir au direct
+        self._lost = 0.0  # pertes de la file pas encore annoncées
         self.catchup_max, self.max_delay, self.catchup = catchup_max, max_delay, catchup
         self.catchup_after = catchup_after
         self.seq = 0
@@ -652,7 +664,8 @@ class Engine:
                         try:
                             old = q.get_nowait()
                             if old is not None:
-                                self.skipped += len(old[0]) / SR
+                                with self._lock:
+                                    self._lost += len(old[0]) / SR
                         except queue.Empty:
                             pass
 
@@ -680,6 +693,11 @@ class Engine:
                             items = items[: items.index(None)]
                         if stop.is_set():
                             return  # arrêt de l'opérateur : plus rien n'est publié
+                        with self._lock:
+                            lost, self._lost = self._lost, 0.0
+                        if lost:  # file saturée : la perte est annoncée comme un saut
+                            self.skipped += lost
+                            self.on_caption({"gap": round(lost, 1)})
                         if not items:
                             break
                         # Retard = attente du plus vieux bloc : la durée du dernier appel.
@@ -761,6 +779,8 @@ class Engine:
         self.latencies.append(latency)
         units = caption_units(en)
         for i, unit in enumerate(units):
+            if stop.is_set():
+                return
             self.seq += 1
             self.on_caption(
                 {

@@ -109,9 +109,8 @@ body[data-link="denied"] .st-status::before {
   color: #ffffff;
 }
 .st-line.st-gap {
-  font-size: 0.68em;
-  font-style: italic;
-  color: #9a9ea8;
+  font-size: 0.82em;
+  color: #c9ccd3;
 }
 .st-empty {
   margin: 0;

@@ -136,6 +136,11 @@ class TextTest(unittest.TestCase):
         self.assertTrue(all(len(u) <= 160 for u in units))
         self.assertEqual(" ".join(units).split(), text.split())
 
+    def test_long_sentence_never_cut_inside_a_word(self):
+        text = " ".join(["unbelievable"] * 40)
+        for part in moteur.split_sentences(text, limit=100) + moteur.caption_units(text):
+            self.assertTrue(all(w == "unbelievable" for w in part.split()), part)
+
     def test_clean_text_controls(self):
         self.assertEqual(moteur.clean_text("a\x00b\n c"), "a b c")
 
@@ -284,6 +289,30 @@ class EngineTest(unittest.TestCase):
         e.start(FakeSource(np.concatenate([speech(2), silence(1)]), speed=10))  # redémarrage propre
         e.wait()
         self.assertEqual(len(captions), 1)
+
+    def test_silent_input_becomes_an_error(self):
+        class DeadStream:
+            active = True
+
+            def __init__(self, **kw):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        src = moteur.MicSource.__new__(moteur.MicSource)
+        src.sd = type("SD", (), {"InputStream": DeadStream})
+        src.device, src.rate, src.channels, src.label = 0, 16000, 1, "muet"
+        src.SILENT_AFTER = 0.5
+        e = moteur.Engine(lambda a: "x", lambda fr: fr, lambda c: None,
+                          segmenter=lambda: moteur.Segmenter(vad=energy_vad))
+        e.start(src)
+        e.wait()
+        self.assertEqual(e.status, "error")
+        self.assertIn("plus aucun son", e.error)
 
     def test_drops_audio_when_hopelessly_late(self):
         audio = np.concatenate([speech(2), silence(0.8)] * 4)
