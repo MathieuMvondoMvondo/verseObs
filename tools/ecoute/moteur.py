@@ -336,6 +336,40 @@ class Transcriber:
         return text
 
 
+class OpenVinoTranscriber:
+    """Option : Whisper par OpenVINO sur la puce graphique Intel (Iris Xe) ou
+    le processeur. Mesuré sur le PC de la régie : small int8 2 fois plus
+    rapide sur l'Iris Xe que faster-whisper sur le processeur, même texte."""
+
+    def __init__(self, model="small", device="GPU", prompt=DEFAULT_PROMPT):
+        import openvino_genai as ov_genai
+
+        path = model
+        if not os.path.isdir(model):
+            from huggingface_hub import snapshot_download
+
+            path = snapshot_download(f"OpenVINO/whisper-{model}-int8-ov")
+        self.pipe = ov_genai.WhisperPipeline(path, device)
+        self.cfg = self.pipe.get_generation_config()
+        self.cfg.language = "<|fr|>"
+        self.cfg.task = "transcribe"
+        self.cfg.return_timestamps = False
+        self.cfg.max_new_tokens = 220
+        if prompt and hasattr(self.cfg, "initial_prompt"):
+            try:
+                self.cfg.initial_prompt = prompt
+            except Exception:
+                pass
+        self.name = f"openvino-{os.path.basename(os.path.normpath(model))}-{device.lower()}"
+        self.pipe.generate(np.zeros(SR, np.float32).tolist(), self.cfg)  # compilation
+
+    def __call__(self, audio: np.ndarray) -> str:
+        result = self.pipe.generate(np.asarray(audio, np.float32).tolist(), self.cfg)
+        texts = getattr(result, "texts", None) or [str(result)]
+        parts = [t.strip() for t in texts if t and not HALLUCINATIONS.search(t)]
+        return clean_text(" ".join(parts))
+
+
 # ---------------------------------------------------------- traduction --
 
 

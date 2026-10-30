@@ -79,13 +79,17 @@ class Service:
             self.proc = None
         self.engine = None
         self.translator_name = ""
+        self.asr_name = "whisper-" + args.modele + "-int8"
 
     # -- chargement -------------------------------------------------------
     def load(self):
         a = self.args
         try:
             t0 = time.time()
-            transcribe = moteur.Transcriber(a.modele, threads=a.threads, beam=a.beam)
+            if a.moteur == "openvino":
+                transcribe = moteur.OpenVinoTranscriber(a.modele, device=a.appareil)
+            else:
+                transcribe = moteur.Transcriber(a.modele, threads=a.threads, beam=a.beam)
             local = moteur.Translator(translator_dir(a.traducteur), threads=a.threads_traduction)
             translate = local
             if a.api_url:
@@ -110,7 +114,8 @@ class Service:
                     self.load_error = "Entrées audio indisponibles : " + str(exc)[:120]
                 if a.entree is not None:
                     self.device = int(a.entree) if str(a.entree).isdigit() else a.entree
-            self.log(f"Modèles prêts en {time.time() - t0:.1f} s (whisper {a.modele} int8, {self.translator_name}).")
+            self.asr_name = getattr(transcribe, "name", "whisper-" + a.modele + "-int8")
+            self.log(f"Modèles prêts en {time.time() - t0:.1f} s ({self.asr_name}, {self.translator_name}).")
         except Exception as exc:
             self.load_error = "Chargement impossible : " + str(exc)[:200]
             self.log(self.load_error)
@@ -174,7 +179,7 @@ class Service:
             "file": self.file_source is not None,
             "devices": self.devices,
             "device": self.device if isinstance(self.device, int) else None,
-            "model": f"whisper-{self.args.modele}-int8",
+            "model": self.asr_name,
             "translator": self.translator_name,
             "latency": e.stats() if e else {},
             "backlog": round(e.backlog, 1) if e else 0,
@@ -285,6 +290,13 @@ def parse(argv=None):
     )
     p.add_argument("--threads-traduction", type=int, default=2)
     p.add_argument("--beam", type=int, default=1)
+    p.add_argument(
+        "--moteur",
+        choices=["faster-whisper", "openvino"],
+        default="faster-whisper",
+        help="openvino : puce graphique Intel (pip install openvino-genai)",
+    )
+    p.add_argument("--appareil", default="GPU", help="OpenVINO : GPU (Iris Xe) ou CPU")
     p.add_argument("--pause", type=float, default=0.5, help="pause qui termine une phrase (s)")
     p.add_argument("--max-phrase", type=float, default=8.0, help="durée maximale d'une phrase (s)")
     p.add_argument("--traducteur", help="dossier d'un modèle CTranslate2 fr→en (sinon OPUS-MT)")

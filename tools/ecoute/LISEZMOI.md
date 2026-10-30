@@ -39,6 +39,7 @@ navigateur indiquée (1920 × 1080). Décochée, la source reste vide.
 | Option | Effet |
 |---|---|
 | `--modele base` | 3 à 4 fois plus rapide, nettement moins juste (voir mesures) |
+| `--moteur openvino` | Whisper sur la puce graphique Intel (Iris Xe) : texte en 1,8 s au lieu de 6,2 s, processeur libre, mais plus de mots perdus (écart 20 % au lieu de 12 %). Installer d’abord `.venv\Scripts\python.exe -m pip install openvino-genai`. |
 | `--entree 18` | entrée audio imposée (numéros : `ecoute.py --liste`) |
 | `--fichier culte.m4a --debut 3900 --duree 300` | répétition sur un enregistrement, au rythme du direct |
 | `--api-url https://…/v1/chat/completions --api-modele …` | traduction par l’API de l’église (désactivée par défaut). La clé se met dans la variable d’environnement `VERSEOBS_ECOUTE_API_CLE` du PC, jamais dans une page. En cas d’erreur, la traduction locale reprend. |
@@ -47,7 +48,10 @@ navigateur indiquée (1920 × 1080). Décochée, la source reste vide.
 
 - Traduction automatique : noms propres, versets cités de mémoire, mots du
   milieu chrétien (« affermi », « onction ») sont parfois faux. La page le dit.
-- La latence dépend du processeur : voir `REPRISE.md` du dossier de travail pour
-  les mesures du PC de la régie.
+- Mesuré sur le PC de la régie (prédication réelle de 5 min, au rythme du direct) :
+  le texte anglais arrive 6 s (médiane, 10 s au pire) après la fin de chaque phrase ;
+  le service prend 40 % du processeur et 0,7 Go de mémoire. Sur une réception plus
+  chargée (OBS qui encode), le retard peut grandir : au-delà de 30 s, le service saute
+  l’audio en attente pour revenir au direct.
 - Le téléphone doit être sur le même Wi-Fi que le PC ; un Wi-Fi « invités » qui
   isole les appareils bloque la page.
