@@ -5,6 +5,7 @@ const os = require("node:os");
 const path = require("node:path");
 const crypto = require("node:crypto");
 const { WebSocketServer, WebSocket } = require("ws");
+const { createCaptions } = require("./captions");
 const ROOT = path.resolve(__dirname, "..");
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -620,7 +621,7 @@ function createServer(port = 8080, options = {}) {
     if (pathname === "/") pathname = "/control_panel.html";
     // Serve product assets only, never git, dependencies, tests or private dotfiles.
     if (
-      !/^\/(control_panel\.html|browser_source\.html|index\.html|assets\/[^.][^?]*|data\/[^.][^?]*)$/.test(
+      !/^\/(control_panel\.html|browser_source\.html|index\.html|sous-titres\.html|assets\/[^.][^?]*|data\/[^.][^?]*)$/.test(
         pathname,
       ) ||
       pathname.split("/").some((p) => p.startsWith("."))
@@ -635,6 +636,11 @@ function createServer(port = 8080, options = {}) {
     maxPayload: 4 * 1024 * 1024,
   });
   const remote = createRemote(port, options.lan, () => wss.clients);
+  // Live English captions (tools/ecoute): read-only page, its own code.
+  const captions = createCaptions(port, options.captions, () => wss.clients, {
+    lanAddresses,
+    sendFile,
+  });
   server.on("upgrade", (req, socket, head) => {
     if (
       !hosts.has(req.headers.host) ||
@@ -650,7 +656,10 @@ function createServer(port = 8080, options = {}) {
   });
   wss.on("connection", (ws) => {
     ws.on("error", () => {});
-    ws.on("close", () => remote.studioGone(ws));
+    ws.on("close", () => {
+      remote.studioGone(ws);
+      captions.gone(ws);
+    });
     ws.on("message", (raw) => {
       let msg;
       try {
@@ -666,6 +675,7 @@ function createServer(port = 8080, options = {}) {
       )
         return;
       if (remote.fromStudio(ws, msg)) return;
+      if (captions.fromRelay(ws, msg)) return;
       if (!TYPES.has(msg.type)) return;
       const payload = JSON.stringify(msg);
       for (const client of wss.clients)
@@ -681,8 +691,10 @@ function createServer(port = 8080, options = {}) {
     for (const ws of wss.clients) ws.terminate();
     wss.close();
     remote.close();
+    captions.close();
   });
   server.remote = remote;
+  server.captions = captions;
   return server;
 }
 module.exports = { createServer, lanAddresses, sanitizeState, REMOTE_LIMITS };

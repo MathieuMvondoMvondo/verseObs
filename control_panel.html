@@ -1828,6 +1828,116 @@
               </div>
             </div>
           </article>
+          <article
+            class="integration-card remote-card captions-card"
+            id="captions-card"
+            data-state="unavailable"
+            data-engine="absent"
+            aria-labelledby="captions-title"
+          >
+            <div class="remote-card-head">
+              <span class="remote-card-icon">
+                <img
+                  class="icon"
+                  src="assets/icons/captions.svg"
+                  alt=""
+                  width="18"
+                  height="18"
+                />
+              </span>
+              <div>
+                <h3 id="captions-title">Sous-titres anglais en direct</h3>
+                <p>
+                  Cet ordinateur écoute la prédication, la traduit en anglais et
+                  l’affiche sur le téléphone des personnes qui ne comprennent pas
+                  le français. Rien ne part à l’antenne sans vous.
+                </p>
+              </div>
+              <span class="remote-optional" id="captions-badge">Facultatif</span>
+            </div>
+            <p class="remote-unavailable" id="captions-unavailable">
+              Disponible quand VerseObs est lancé sur cet ordinateur (npm start),
+              avec le service d’écoute (dossier tools/ecoute).
+            </p>
+            <div class="captions-body" id="captions-body" hidden>
+              <p class="captions-engine" id="captions-engine" aria-live="polite">
+                Service d’écoute non détecté.
+              </p>
+              <label for="captions-device">ENTRÉE AUDIO</label>
+              <div class="captions-row">
+                <select id="captions-device"></select>
+                <button class="remote-enable" id="captions-start" type="button">
+                  Démarrer l’écoute
+                </button>
+                <button class="captions-stop" id="captions-stop" type="button" hidden>
+                  Arrêter l’écoute
+                </button>
+              </div>
+              <dl class="captions-metrics">
+                <div><dt>Latence</dt><dd id="captions-latency">—</dd></div>
+                <div><dt>Retard</dt><dd id="captions-backlog">—</dd></div>
+                <div><dt>Processeur</dt><dd id="captions-cpu">—</dd></div>
+              </dl>
+              <div class="captions-last" id="captions-last" hidden>
+                <p class="captions-last-en" lang="en" id="captions-last-en"></p>
+                <p class="captions-last-fr" lang="fr" id="captions-last-fr"></p>
+              </div>
+              <p class="remote-error" id="captions-error" role="alert" hidden></p>
+              <div class="captions-share" id="captions-share-off">
+                <button class="captions-secondary" id="captions-share" type="button">
+                  Partager sur le Wi-Fi (QR code)
+                </button>
+              </div>
+              <div class="remote-pairing captions-pairing" id="captions-share-on" hidden>
+                <div
+                  class="remote-qr"
+                  id="captions-qr"
+                  role="img"
+                  aria-label="QR code des sous-titres"
+                ></div>
+                <div class="remote-pairing-info">
+                  <ol class="remote-steps">
+                    <li>Le téléphone rejoint le Wi-Fi de cet ordinateur.</li>
+                    <li>Il scanne ce QR code : sous-titres en lecture seule.</li>
+                  </ol>
+                  <label for="captions-url">ADRESSE DES SOUS-TITRES</label>
+                  <div class="copy-url">
+                    <input id="captions-url" readonly /><button
+                      data-copy-url="captions-url"
+                    >
+                      Copier
+                    </button>
+                  </div>
+                  <p class="remote-count" id="captions-viewers" aria-live="polite">
+                    Aucun téléphone connecté
+                  </p>
+                  <div class="remote-actions">
+                    <button id="captions-revoke" type="button">Nouveau lien</button>
+                    <button class="remote-disable" id="captions-unshare" type="button">
+                      Arrêter le partage
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="captions-obs">
+                <label class="captions-check" for="captions-onair"
+                  ><input type="checkbox" id="captions-onair" />Afficher les
+                  sous-titres dans OBS</label
+                >
+                <p>
+                  Source navigateur 1920 × 1080. Elle reste vide tant que cette
+                  case est décochée.
+                </p>
+                <div class="copy-url">
+                  <input id="captions-obs-url" readonly aria-label="Adresse de la source OBS des sous-titres" /><button
+                    data-copy-url="captions-obs-url"
+                  >
+                    Copier
+                  </button>
+                </div>
+              </div>
+            </div>
+          </article>
           <div class="relay-info">
             <span class="status-dot"></span>
             <div>
@@ -2058,6 +2168,7 @@
     <script src="assets/js/control/studio.js?v=2.7"></script>
     <script src="assets/js/control/bilingual.js?v=2.3"></script>
     <script src="assets/js/control/remote-link.js?v=2.3"></script>
+    <script src="assets/js/control/captions-link.js?v=1"></script>
     <script src="assets/js/control/app.js?v=2.7"></script>
   </body>
 </html>
