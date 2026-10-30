@@ -2,7 +2,10 @@
 
 Pour une personne qui ne comprend pas le français : l’ordinateur de la régie
 écoute la prédication, la transcrit, la traduit en anglais et l’affiche sur son
-téléphone, en direct, sur le Wi-Fi de l’église. Tout tourne sur l’ordinateur :
+téléphone, en direct, sur le Wi-Fi de l’église. C’est une aide pour **suivre le
+fil**, pas une traduction fidèle : sur un extrait relu, 3 phrases sur 10 étaient
+justes, 5 compréhensibles avec des fautes, 2 fausses. Les premiers essais se
+font avec elle, en lui demandant ce qu’elle a compris. Tout tourne sur l’ordinateur :
 pas d’abonnement, pas d’envoi sur Internet. Rien ne passe à l’antenne sans
 action de l’opérateur.
 
@@ -17,6 +20,8 @@ action de l’opérateur.
 
 1. Lancer VerseObs comme d’habitude (`npm start`).
 2. Double-cliquer `tools\ecoute\lancer-ecoute.cmd` (laisser la fenêtre ouverte).
+   La première fois que l’on partage le QR code, Windows peut demander d’autoriser
+   Node.js : accepter pour les **réseaux privés** seulement.
 3. Studio › **Connexions** › carte **Sous-titres anglais en direct** :
    - **Entrée audio** : choisir la sortie de la table de mixage branchée sur le
      PC (câble jack ou carte son USB). Le micro intégré du portable marche aussi,
@@ -32,7 +37,14 @@ action de l’opérateur.
    **Nouveau lien** coupe les téléphones connectés et crée un autre QR code.
 
 Option OBS : cocher **Afficher les sous-titres dans OBS** et ajouter la source
-navigateur indiquée (1920 × 1080). Décochée, la source reste vide.
+navigateur indiquée (1920 × 1080). Décochée, la source reste vide. La case se
+décoche seule si l’écoute s’arrête, tombe en panne ou si la connexion est perdue ;
+un sous-titre quitte l’écran après 12 s sans nouvelle phrase.
+
+Si le PC prend trop de retard (plus de 30 s), il saute l’audio en attente pour
+revenir au direct ; le téléphone affiche alors « Some speech was missed » et le
+Studio compte les secondes sautées. En cas de panne, le téléphone l’indique et la
+carte du Studio affiche l’erreur : « Démarrer l’écoute » relance.
 
 ## Réglages utiles (`lancer-ecoute.cmd` accepte les mêmes options)
 
