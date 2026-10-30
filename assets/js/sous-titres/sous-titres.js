@@ -15,8 +15,11 @@
     MAX_LINES = 150,
     OBS_LINES = 2,
     lastN = 0,
+    session = null,
+    expire = 0,
     live = false,
     service = false,
+    engineStatus = null,
     ws = null,
     retry = 0,
     timer = 0,
@@ -51,6 +54,9 @@
     else if (link === "offline") text = "Connection lost. Reconnecting…";
     else if (link === "connecting") text = "Connecting…";
     else if (live) text = "Live";
+    else if (engineStatus === "error")
+      text = "Subtitles stopped by a technical problem. The media team can restart them.";
+    else if (engineStatus === "loading") text = "Starting…";
     else if (service) text = "Paused. Subtitles resume when the sermon starts.";
     else text = "Waiting for the translation service…";
     if (statusEl.textContent !== text) statusEl.textContent = text;
@@ -62,22 +68,34 @@
   function toBottom() {
     feed.scrollTop = feed.scrollHeight;
   }
+  function sameSession(msg) {
+    // A restarted relay counts from 1 again: forget the old numbering.
+    if (msg.session && msg.session !== session) {
+      session = msg.session;
+      lastN = 0;
+    }
+  }
   function add(line) {
-    if (!line || typeof line.en !== "string" || !line.en) return;
+    if (!line) return;
+    var gap = typeof line.gap === "number" && line.gap > 0;
+    if (!gap && (typeof line.en !== "string" || !line.en)) return;
     if (typeof line.n === "number") {
       if (line.n <= lastN) return;
       lastN = line.n;
     }
+    if (gap && obs) return;
     log.push({ n: line.n, end: line.end || 0, at: Date.now() });
     if (log.length > 400) log.shift();
     var stick = follow || nearBottom();
     var p = document.createElement("p");
-    p.className = "st-line is-latest";
+    p.className = gap ? "st-line st-gap" : "st-line is-latest";
     var span = document.createElement("span");
-    span.textContent = line.en;
+    span.textContent = gap
+      ? "Some speech was missed (" + Math.round(line.gap) + " s). Back to live."
+      : line.en;
     p.appendChild(span);
     var previous = feed.querySelector(".st-line.is-latest");
-    if (previous) previous.classList.remove("is-latest");
+    if (previous && !gap) previous.classList.remove("is-latest");
     feed.appendChild(p);
     if (empty) empty.hidden = true;
     var all = feed.querySelectorAll(".st-line");
@@ -86,6 +104,13 @@
       all = feed.querySelectorAll(".st-line");
       for (var j = 0; j < all.length; j++)
         all[j].classList.toggle("is-recent", j >= all.length - OBS_LINES);
+      // A subtitle leaves the screen after 12 s without a new one.
+      clearTimeout(expire);
+      expire = setTimeout(function () {
+        feed.querySelectorAll(".is-recent").forEach(function (e) {
+          e.classList.remove("is-recent");
+        });
+      }, 12000);
     }
     if (stick) {
       toBottom();
@@ -121,20 +146,27 @@
   function onMessage(msg) {
     if (!msg || typeof msg !== "object") return;
     if (msg.type === "captions_hello") {
+      sameSession(msg);
       live = !!msg.live;
       service = !!msg.service;
+      engineStatus = msg.status || null;
       (msg.lines || []).forEach(add);
     } else if (msg.type === "caption") {
+      sameSession(msg);
       add(msg);
     } else if (msg.type === "caption_state") {
+      sameSession(msg);
       live = !!msg.live;
       service = !!msg.service;
+      engineStatus = msg.status || null;
     } else if (msg.type === "caption_clear") {
       clear();
     } else if (msg.type === "caption_status") {
       // OBS source only: the operator decides what goes on air.
+      sameSession(msg);
       service = !!msg.engine;
-      live = !!(msg.state && msg.state.status === "listening");
+      engineStatus = msg.state ? msg.state.status : null;
+      live = engineStatus === "listening";
       body.dataset.onair = msg.onAir ? "1" : "0";
     }
     render();
@@ -182,6 +214,8 @@
     ws.onerror = function () {};
     ws.onclose = function (e) {
       ws = null;
+      // OBS: a lost connection hides the subtitles at once.
+      if (obs) body.dataset.onair = "0";
       if (e.code === 4401) {
         link = "denied";
         return render();

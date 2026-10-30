@@ -108,6 +108,11 @@ body[data-link="denied"] .st-status::before {
 .st-line.is-latest {
   color: #ffffff;
 }
+.st-line.st-gap {
+  font-size: 0.68em;
+  font-style: italic;
+  color: #9a9ea8;
+}
 .st-empty {
   margin: 0;
   font-size: 19px;

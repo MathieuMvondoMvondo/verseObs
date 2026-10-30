@@ -7,7 +7,13 @@
  * serves a READ-ONLY caption page to phones on the local network, with its own
  * code: sharing captions never hands out the remote-control code, and nothing
  * a phone sends is ever relayed. Captions reach OBS only when the operator
- * turns « Sous-titres dans OBS » on (off at every start).
+ * turns « Sous-titres dans OBS » on (off at every start, and withdrawn as soon
+ * as the service stops, fails or disconnects).
+ *
+ * Trust boundary: like the remote's administration, the loopback relay trusts
+ * the pages and programs of this computer (Origin checked, 127.0.0.1 only).
+ * « Only the service publishes » means the first client that announced itself
+ * as the service, while it stays connected; it is not an authentication.
  */
 const http = require("node:http");
 const crypto = require("node:crypto");
@@ -18,7 +24,8 @@ const CAPTION_FILES =
 const CAPTION_LIMITS = {
   history: 40, // lines kept for a phone that joins or comes back
   hello: 25, // lines sent to a phone on (re)connection
-  text: 600, // characters per line
+  text: 600, // characters per line; longer translations become several lines
+  input: 4000, // characters accepted from the service per message
   viewers: 40,
   windowMs: 5000,
   messages: 20, // anything received from a phone, per window
@@ -28,7 +35,7 @@ const CAPTION_LIMITS = {
 const CLOSE_REVOKED = 4401,
   CLOSE_DISABLED = 4000,
   CLOSE_FLOOD = 4429;
-const STATUSES = new Set(["idle", "loading", "listening", "error"]);
+const STATUSES = new Set(["idle", "loading", "listening", "stopping", "error"]);
 
 function obj(value) {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -82,20 +89,36 @@ function engineState(state) {
       avg: num(latency.avg, 3600),
       max: num(latency.max, 3600),
       count: Number.isInteger(latency.count) ? latency.count : 0,
+      skipped: num(latency.skipped, 86400) || 0,
     },
     backlog: num(s.backlog, 86400),
     cpu: num(s.cpu, 100),
     ram: num(s.ram, 1e6),
   };
 }
-/** One translated line, or null. */
+/** Split a long text at word boundaries: nothing is dropped. */
+function splitText(text, max) {
+  const out = [];
+  let rest = text;
+  while (rest.length > max) {
+    let cut = rest.lastIndexOf(" ", max);
+    if (cut < max / 2) cut = max;
+    out.push(rest.slice(0, cut).trim());
+    rest = rest.slice(cut).trim();
+  }
+  if (rest) out.push(rest);
+  return out;
+}
+/** One translated message: { en: [lines], fr, ... }, a gap { gap }, or null. */
 function captionLine(value) {
-  const c = obj(value),
-    en = clean(c.en, CAPTION_LIMITS.text);
+  const c = obj(value);
+  const gap = num(c.gap, 86400);
+  if (gap) return { gap };
+  const en = clean(c.en, CAPTION_LIMITS.input);
   if (!en) return null;
   return {
-    en,
-    fr: clean(c.fr, CAPTION_LIMITS.text),
+    en: splitText(en, CAPTION_LIMITS.text),
+    fr: clean(c.fr, CAPTION_LIMITS.input),
     end: stamp(c.end), // when the phrase ended in the room (service clock)
     ready: stamp(c.ready),
     latency: num(c.latency, 3600),
@@ -135,6 +158,7 @@ function createCaptions(port, options, relayClients, helpers) {
       type: "caption_status",
       id: id(),
       ts: Date.now(),
+      session: boot,
       engine: !!engine,
       state: info,
       onAir,
@@ -162,9 +186,19 @@ function createCaptions(port, options, relayClients, helpers) {
     for (const client of only ? [only] : viewers.clients)
       if (client.readyState === WebSocket.OPEN) client.send(payload);
   }
-  const forViewer = (c) => ({ n: c.n, en: c.en, end: c.end });
+  // « session » changes when the relay restarts: readers then reset their numbering.
+  const forViewer = (c) =>
+    c.gap
+      ? { n: c.n, gap: c.gap, session: boot }
+      : { n: c.n, en: c.en, end: c.end, session: boot };
   function viewerState() {
-    return { type: "caption_state", live: live(), service: !!engine };
+    return {
+      type: "caption_state",
+      live: live(),
+      service: !!engine,
+      status: info ? info.status : null,
+      session: boot,
+    };
   }
 
   // ---- Read-only page on the local network ----
@@ -443,36 +477,51 @@ function createCaptions(port, options, relayClients, helpers) {
   /** Relay messages about captions. Returns true when handled here. */
   function fromRelay(ws, msg) {
     if (msg.type === "caption_engine") {
+      // First service wins while it is connected: a second one is ignored.
+      if (engine && engine !== ws && engine.readyState === WebSocket.OPEN)
+        return true;
       const wasLive = live(),
+        before = info && info.status,
         first = engine !== ws;
       engine = ws;
       info = engineState(msg.state);
+      // Leaving « listening » (stop, error) withdraws OBS: the operator ticks again.
+      if (onAir && before === "listening" && info.status !== "listening")
+        onAir = false;
       publish();
-      if (first || wasLive !== live()) toViewers(viewerState());
+      if (first || wasLive !== live() || before !== info.status)
+        toViewers(viewerState());
       return true;
     }
     if (msg.type === "caption") {
       if (ws !== engine) return true; // only the listening service writes
-      const line = captionLine(msg.caption);
-      if (!line) return true;
-      line.n = ++n;
-      history.push(line);
-      if (history.length > CAPTION_LIMITS.history) history.shift();
-      toViewers(Object.assign({ type: "caption" }, forViewer(line)));
-      toRelay(
-        {
-          type: "caption",
-          id: id(),
-          ts: Date.now(),
-          n: line.n,
-          en: line.en,
-          fr: line.fr,
-          end: line.end,
-          latency: line.latency,
-          onAir,
-        },
-        ws,
-      );
+      const message = captionLine(msg.caption);
+      if (!message) return true;
+      const lines = message.gap
+        ? [{ gap: message.gap }]
+        : message.en.map((en) => Object.assign({}, message, { en }));
+      for (const line of lines) {
+        line.n = ++n;
+        history.push(line);
+        if (history.length > CAPTION_LIMITS.history) history.shift();
+        toViewers(Object.assign({ type: "caption" }, forViewer(line)));
+        toRelay(
+          {
+            type: "caption",
+            id: id(),
+            ts: Date.now(),
+            session: boot,
+            n: line.n,
+            en: line.en || "",
+            fr: line.fr || "",
+            gap: line.gap || 0,
+            end: line.end || 0,
+            latency: line.latency == null ? null : line.latency,
+            onAir,
+          },
+          ws,
+        );
+      }
       return true;
     }
     if (msg.type === "caption_admin") {
@@ -498,6 +547,7 @@ function createCaptions(port, options, relayClients, helpers) {
       } else if (action === "clear") {
         history = [];
         toViewers({ type: "caption_clear" });
+        toRelay({ type: "caption_clear", id: id(), ts: Date.now() });
         publish();
       }
       return true;
@@ -508,6 +558,7 @@ function createCaptions(port, options, relayClients, helpers) {
     if (ws !== engine) return;
     engine = null;
     info = null;
+    onAir = false; // a lost service never leaves old lines on air
     publish();
     toViewers(viewerState());
   }
@@ -533,5 +584,6 @@ module.exports = {
   createCaptions,
   engineState,
   captionLine,
+  splitText,
   CAPTION_LIMITS,
 };

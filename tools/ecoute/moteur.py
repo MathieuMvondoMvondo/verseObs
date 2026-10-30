@@ -15,6 +15,7 @@ import threading
 import time
 import urllib.request
 from collections import deque
+from urllib.parse import urlsplit
 from dataclasses import dataclass
 
 import numpy as np
@@ -339,7 +340,8 @@ class Transcriber:
 class OpenVinoTranscriber:
     """Option : Whisper par OpenVINO sur la puce graphique Intel (Iris Xe) ou
     le processeur. Mesuré sur le PC de la régie : small int8 2 fois plus
-    rapide sur l'Iris Xe que faster-whisper sur le processeur, même texte."""
+    rapide sur l'Iris Xe que faster-whisper sur le processeur, mais plus de
+    mots perdus (écart de 20 % contre 12 % à la référence, extrait de 5 min)."""
 
     def __init__(self, model="small", device="GPU", prompt=DEFAULT_PROMPT):
         import openvino_genai as ov_genai
@@ -387,6 +389,20 @@ def split_sentences(text: str, limit: int = 280):
     return out
 
 
+def caption_units(text: str, limit: int = 160):
+    """Unités de lecture courtes (une ou deux phrases), aucun mot perdu."""
+    units, cur = [], ""
+    for sentence in split_sentences(text, limit=limit):
+        if cur and len(cur) + 1 + len(sentence) > limit:
+            units.append(cur)
+            cur = sentence
+        else:
+            cur = (cur + " " + sentence).strip()
+    if cur:
+        units.append(cur)
+    return units
+
+
 class Translator:
     """Marian OPUS-MT français -> anglais converti pour CTranslate2 (int8)."""
 
@@ -414,6 +430,30 @@ class Translator:
         return clean_text(" ".join(o for o in out if o))
 
 
+LOOPBACK = {"127.0.0.1", "localhost", "::1"}
+
+
+def check_api_url(url: str) -> str:
+    """https:// partout ; http:// seulement vers cet ordinateur ; jamais d'identifiants dans l'adresse."""
+    parts = urlsplit(url)
+    host = (parts.hostname or "").lower()
+    if parts.username or parts.password or not host:
+        raise ValueError("API de traduction : adresse invalide")
+    if parts.scheme == "https" or (parts.scheme == "http" and host in LOOPBACK):
+        return url
+    raise ValueError("API de traduction : adresse https:// obligatoire (http seulement sur cet ordinateur)")
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Une redirection ne doit jamais emporter la clé vers une autre adresse."""
+
+    def redirect_request(self, *args, **kwargs):
+        return None
+
+
+_API_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
 class ApiTranslator:
     """Option : traduction par une API compatible OpenAI (chat/completions)
     fournie par l'église. Désactivée par défaut ; la clé ne quitte jamais ce
@@ -426,8 +466,7 @@ class ApiTranslator:
     )
 
     def __init__(self, url: str, key: str, model: str, fallback=None, timeout=4.0):
-        if not url.startswith(("https://", "http://127.0.0.1", "http://localhost")):
-            raise ValueError("API de traduction : adresse https:// obligatoire")
+        check_api_url(url)
         self.url, self.key, self.model_name = url, key, model
         self.fallback, self.timeout = fallback, timeout
         self.name = "api:" + model
@@ -450,7 +489,7 @@ class ApiTranslator:
             headers={"Content-Type": "application/json", "Authorization": "Bearer " + self.key},
         )
         try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as r:
+            with _API_OPENER.open(req, timeout=self.timeout) as r:
                 data = json.loads(r.read().decode("utf-8"))
             out = clean_text(data["choices"][0]["message"]["content"])
             if out:
@@ -596,72 +635,94 @@ class Engine:
 
     def start(self, source):
         with self._lock:
-            if self.status == "listening":
+            if self.status in ("listening", "stopping"):
                 return
             self._stop = threading.Event()
             self.status, self.error = "listening", ""
             self.source_label = getattr(source, "label", "")
-            q: queue.Queue = queue.Queue()
+            q: queue.Queue = queue.Queue(maxsize=1200)  # 2 min de blocs de 0,1 s au plus
             stop = self._stop
+
+            def put(item):
+                while True:
+                    try:
+                        q.put_nowait(item)
+                        return
+                    except queue.Full:  # moteur bloqué : on perd le plus ancien
+                        try:
+                            old = q.get_nowait()
+                            if old is not None:
+                                self.skipped += len(old[0]) / SR
+                        except queue.Empty:
+                            pass
 
             def produce():
                 try:
-                    source.run(lambda chunk, wall: q.put((chunk, wall)), stop)
+                    source.run(lambda chunk, wall: put((chunk, wall)), stop)
                 except Exception as exc:  # périphérique débranché, refusé…
                     self.error = "Entrée audio : " + str(exc)[:160]
                 finally:
-                    q.put(None)
+                    put(None)
 
             def consume():
-                seg = self.make_segmenter()
-                ended = False
-                while not ended:
-                    items = [q.get()]
-                    while True:  # tout ce qui attend : un seul passage s'il y a du retard
-                        try:
-                            items.append(q.get_nowait())
-                        except queue.Empty:
+                try:
+                    seg = self.make_segmenter()
+                    ended = False
+                    while not ended:
+                        items = [q.get()]
+                        while True:  # tout ce qui attend : un seul passage s'il y a du retard
+                            try:
+                                items.append(q.get_nowait())
+                            except queue.Empty:
+                                break
+                        if None in items:
+                            ended = True
+                            items = items[: items.index(None)]
+                        if stop.is_set():
+                            return  # arrêt de l'opérateur : plus rien n'est publié
+                        if not items:
                             break
-                    if None in items:
-                        ended = True
-                        items = items[: items.index(None)]
-                    if not items:
-                        break
-                    # Retard = attente du plus vieux bloc : la durée du dernier appel.
-                    self.backlog = max(0.0, time.time() - items[0][1])
-                    if self.backlog > self.max_delay:
-                        # Le processeur ne suit plus : revenir au direct plutôt
-                        # que d'afficher des phrases vieilles d'une minute.
-                        self.skipped += sum(len(c) for c, _ in items) / SR + len(seg.buf) / SR
-                        seg.reset()
-                        continue
-                    if not self.catchup:  # une phrase par appel (comparaison)
+                        # Retard = attente du plus vieux bloc : la durée du dernier appel.
+                        self.backlog = max(0.0, time.time() - items[0][1])
+                        if self.backlog > self.max_delay:
+                            # Le processeur ne suit plus : revenir au direct, et le dire.
+                            lost = sum(len(c) for c, _ in items) / SR + len(seg.buf) / SR
+                            self.skipped += lost
+                            seg.reset()
+                            self.on_caption({"gap": round(lost, 1)})
+                            continue
+                        if not self.catchup:  # une phrase par appel (comparaison)
+                            for chunk, wall in items:
+                                for s in seg.feed(chunk, wall):
+                                    self._process(s, stop)
+                            continue
+                        # En retard (plus de 2 s d'attente, ou plus d'une phrase en réserve) :
+                        # tout ce qui attend part en un seul appel, 24 s au plus.
+                        # L'encodeur de Whisper coûte autant pour 2 s que pour 24 s.
                         for chunk, wall in items:
-                            for s in seg.feed(chunk, wall):
-                                self._process(s)
-                        continue
-                    # En retard (plus de 2 s d'attente, ou plus d'une phrase en réserve) :
-                    # tout ce qui attend part en un seul appel, 24 s au plus.
-                    # L'encodeur de Whisper coûte autant pour 2 s que pour 24 s.
-                    for chunk, wall in items:
-                        seg.feed(chunk, wall, scan=False)
-                    behind = (
-                        self.backlog > self.catchup_after
-                        or len(seg.buf) / SR > seg.max_len + self.catchup_after
-                    )
-                    if behind:
-                        s = seg.take(self.catchup_max)
-                        if s:
-                            self._process(s)
-                    else:
-                        for s in seg.feed(np.zeros(0, np.float32), items[-1][1]):
-                            self._process(s)
-                for s in seg.flush():
-                    self._process(s)
-                self.backlog = 0.0
-                with self._lock:
-                    self.status = "error" if self.error else "idle"
-                self.on_change()
+                            seg.feed(chunk, wall, scan=False)
+                        behind = (
+                            self.backlog > self.catchup_after
+                            or len(seg.buf) / SR > seg.max_len + self.catchup_after
+                        )
+                        if behind:
+                            s = seg.take(self.catchup_max)
+                            if s:
+                                self._process(s, stop)
+                        else:
+                            for s in seg.feed(np.zeros(0, np.float32), items[-1][1]):
+                                self._process(s, stop)
+                    if not stop.is_set():  # fin naturelle d'un fichier
+                        for s in seg.flush():
+                            self._process(s, stop)
+                except Exception as exc:  # modèle, traduction ou publication en panne
+                    self.error = "Moteur : " + (str(exc) or exc.__class__.__name__)[:160]
+                    stop.set()  # la capture s'arrête aussi : rien ne s'accumule
+                finally:
+                    self.backlog = 0.0
+                    with self._lock:
+                        self.status = "error" if self.error else "idle"
+                    self.on_change()
 
             self._threads = [
                 threading.Thread(target=produce, name="ecoute-source", daemon=True),
@@ -672,40 +733,49 @@ class Engine:
         self.on_change()
 
     def stop(self, wait=False):
+        with self._lock:
+            if self.status == "listening":
+                self.status = "stopping"  # « idle » quand le calcul en cours est abandonné
         self._stop.set()
+        self.on_change()
         if wait:
-            for t in self._threads:
-                t.join()
+            self.wait()
 
     def wait(self):
         for t in self._threads:
             t.join()
 
-    def _process(self, seg: Segment):
+    def _process(self, seg: Segment, stop: threading.Event):
+        if stop.is_set():
+            return
         t_a = time.time()
         fr = self.transcribe(seg.audio)
         t_b = time.time()
-        if not fr:
+        if not fr or stop.is_set():
             return
         en = self.translate(fr)
         t_c = time.time()
-        if not en:
+        if not en or stop.is_set():
             return
-        self.seq += 1
         latency = t_c - seg.wall_end
         self.latencies.append(latency)
-        self.on_caption(
-            {
-                "seq": self.seq,
-                "fr": fr,
-                "en": en,
-                "start": round(seg.wall_start * 1000),
-                "end": round(seg.wall_end * 1000),
-                "ready": round(t_c * 1000),
-                "audio": round(seg.end - seg.start, 2),
-                "asr": round(t_b - t_a, 3),
-                "mt": round(t_c - t_b, 3),
-                "latency": round(latency, 2),
-                "forced": seg.forced,
-            }
-        )
+        units = caption_units(en)
+        for i, unit in enumerate(units):
+            self.seq += 1
+            self.on_caption(
+                {
+                    "seq": self.seq,
+                    "fr": fr,
+                    "en": unit,
+                    "unit": i + 1,
+                    "units": len(units),
+                    "start": round(seg.wall_start * 1000),
+                    "end": round(seg.wall_end * 1000),
+                    "ready": round(t_c * 1000),
+                    "audio": round(seg.end - seg.start, 2),
+                    "asr": round(t_b - t_a, 3),
+                    "mt": round(t_c - t_b, 3),
+                    "latency": round(latency, 2),
+                    "forced": seg.forced,
+                }
+            )

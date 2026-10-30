@@ -102,7 +102,7 @@ function viewer(url, origin) {
     assert.equal(s.status, "listening");
     assert.equal(s.error.length, 200);
     assert.deepEqual(s.devices, [{ index: 3, name: "Micro USB", api: "WASAPI" }]);
-    assert.deepEqual(s.latency, { last: 3.46, avg: null, max: null, count: 4 });
+    assert.deepEqual(s.latency, { last: 3.46, avg: null, max: null, count: 4, skipped: 0 });
     assert.equal(s.cpu, null);
     assert.equal("secret" in s, false);
     assert.equal(engineState({ status: "<script>" }).status, "idle");
@@ -111,7 +111,12 @@ function viewer(url, origin) {
     assert.equal(captionLine({ en: "   " }), null);
     assert.equal(captionLine(null), null);
     const c = captionLine({ en: "a".repeat(900), fr: 5, end: 1e20, latency: 2.5 });
-    assert.equal(c.en.length, 600);
+    assert.deepEqual(c.en.map((x) => x.length), [600, 300]);
+    const words = Array.from({ length: 260 }, (_, i) => "word" + i).join(" ");
+    const lines = captionLine({ en: words }).en;
+    assert.ok(lines.length > 1 && lines.every((x) => x.length <= 600));
+    assert.equal(lines.join(" "), words, "a long translation loses no word");
+    assert.deepEqual(captionLine({ gap: 12.34 }), { gap: 12.34 });
     assert.equal(c.fr, "");
     assert.equal(c.end, 0);
     assert.equal(c.latency, 2.5);
@@ -164,7 +169,9 @@ function viewer(url, origin) {
       assert.equal(output.log.some((m) => m.type === "caption_command"), false);
     });
 
-    await check("only the service may publish captions", async () => {
+    await check("only the service may publish captions; a second service is ignored", async () => {
+      send(output, { type: "caption_engine", state: { status: "listening" } });
+      await sleep(100);
       send(output, { type: "caption", caption: { en: "Fake line" } });
       send(studio, { type: "caption_command", action: "start" });
       await sleep(150);
@@ -234,7 +241,8 @@ function viewer(url, origin) {
       const line = await until(() => phone.log.find((m) => m.type === "caption"));
       assert.equal(line.en, "Amen.");
       assert.equal(line.n, hello.lines[0].n + 1);
-      assert.deepEqual(Object.keys(line).sort(), ["en", "end", "n", "type"]);
+      assert.deepEqual(Object.keys(line).sort(), ["en", "end", "n", "session", "type"]);
+      assert.equal(line.session, hello.session);
       await until(() => {
         const m = last(studio, "caption_status");
         return m && m.share.viewers === 1 ? m : null;
@@ -254,6 +262,22 @@ function viewer(url, origin) {
       const closed = new Promise((r) => phone.once("close", (code) => r(code)));
       for (let i = 0; i < 25; i++) phone.send("{}");
       assert.equal(await closed, 4429);
+    });
+
+    await check("a stopped service withdraws OBS; the operator must tick again", async () => {
+      send(studio, { type: "caption_admin", action: "onair" });
+      await until(() => {
+        const m = last(output, "caption_status");
+        return m && m.onAir;
+      });
+      send(engine, { type: "caption_engine", state: { status: "idle" } });
+      await until(() => {
+        const m = last(output, "caption_status");
+        return m && m.onAir === false;
+      });
+      send(engine, { type: "caption_engine", state: { status: "listening" } });
+      await sleep(100);
+      assert.equal(last(output, "caption_status").onAir, false);
     });
 
     await check("OBS shows captions only after the operator's action", async () => {
@@ -293,15 +317,21 @@ function viewer(url, origin) {
       share = st.share;
     });
 
-    await check("the service going away is reported to Studio and phones", async () => {
+    await check("the service going away is reported to Studio and phones, OBS withdrawn", async () => {
       const v = await viewer(share.url);
       await until(() => v.ws.log.find((m) => m.type === "captions_hello"));
+      send(studio, { type: "caption_admin", action: "onair" });
+      await until(() => {
+        const m = last(studio, "caption_status");
+        return m && m.onAir;
+      });
       engine.close();
       const st = await until(() => {
         const m = last(studio, "caption_status");
         return m && m.engine === false ? m : null;
       });
       assert.equal(st.state, null);
+      assert.equal(st.onAir, false, "a lost service takes the subtitles off air");
       const state = await until(() => v.ws.log.find((m) => m.type === "caption_state" && m.live === false));
       assert.equal(state.service, false);
       v.ws.terminate();

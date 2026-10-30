@@ -129,6 +129,13 @@ class TextTest(unittest.TestCase):
         self.assertEqual(parts[:3], ["Il vient.", "Est-ce clair ?", "Oui !"])
         self.assertTrue(all(len(p) <= 280 for p in parts))
 
+    def test_caption_units_keep_every_word(self):
+        text = " ".join("Sentence number %d says something about grace and faith." % i for i in range(9))
+        units = moteur.caption_units(text)
+        self.assertGreater(len(units), 2)
+        self.assertTrue(all(len(u) <= 160 for u in units))
+        self.assertEqual(" ".join(units).split(), text.split())
+
     def test_clean_text_controls(self):
         self.assertEqual(moteur.clean_text("a\x00b\n c"), "a b c")
 
@@ -244,12 +251,47 @@ class EngineTest(unittest.TestCase):
         self.assertGreater(worst_single, 10)  # 12 × 2,5 s pour 21,6 s de parole
         self.assertLess(worst_grouped, worst_single - 3)
 
+    def test_engine_error_is_reported_and_capture_stops(self):
+        def broken(a):
+            raise RuntimeError("modèle introuvable")
+
+        e = moteur.Engine(broken, lambda fr: fr, lambda c: None,
+                          segmenter=lambda: moteur.Segmenter(vad=energy_vad))
+        e.start(FakeSource(np.concatenate([speech(2), silence(1)] * 20), realtime=True))
+        e.wait()  # les deux fils se terminent : la capture s'arrête aussi
+        self.assertEqual(e.status, "error")
+        self.assertIn("modèle introuvable", e.error)
+
+    def test_stop_discards_the_phrase_being_computed(self):
+        entered, release = threading.Event(), threading.Event()
+        captions = []
+
+        def slow(a):
+            entered.set()
+            release.wait(5)
+            return "phrase"
+
+        e = moteur.Engine(slow, lambda fr: fr, captions.append,
+                          segmenter=lambda: moteur.Segmenter(vad=energy_vad))
+        e.start(FakeSource(np.concatenate([speech(2), silence(1)] * 10), realtime=True))
+        self.assertTrue(entered.wait(5))
+        e.stop()
+        self.assertEqual(e.status, "stopping")
+        release.set()
+        e.wait()
+        self.assertEqual(captions, [])
+        self.assertEqual(e.status, "idle")
+        e.start(FakeSource(np.concatenate([speech(2), silence(1)]), speed=10))  # redémarrage propre
+        e.wait()
+        self.assertEqual(len(captions), 1)
+
     def test_drops_audio_when_hopelessly_late(self):
         audio = np.concatenate([speech(2), silence(0.8)] * 4)
+        gaps = []
         e = moteur.Engine(
             lambda a: "x",
             lambda fr: fr,
-            lambda c: None,
+            lambda c: gaps.append(c["gap"]) if "gap" in c else None,
             segmenter=lambda: moteur.Segmenter(vad=energy_vad),
             max_delay=5,
         )
@@ -257,6 +299,7 @@ class EngineTest(unittest.TestCase):
         e.start(FakeSource(audio, start_wall=old))
         e.wait()
         self.assertGreater(e.skipped, 5)
+        self.assertAlmostEqual(sum(gaps), e.skipped, delta=0.2)  # chaque saut est annoncé
 
 
 class ApiTranslatorTest(unittest.TestCase):
@@ -299,8 +342,17 @@ class ApiTranslatorTest(unittest.TestCase):
         self.assertEqual(t.failures, 1)
 
     def test_refuses_plain_http_elsewhere(self):
-        with self.assertRaises(ValueError):
-            moteur.ApiTranslator("http://example.com/v1", "k", "m")
+        for url in (
+            "http://example.com/v1",
+            "http://localhost.evil.example/v1",
+            "http://127.0.0.1.example.invalid/v1",
+            "https://user:pass@api.example.com/v1",
+            "ftp://127.0.0.1/v1",
+        ):
+            with self.assertRaises(ValueError, msg=url):
+                moteur.ApiTranslator(url, "k", "m")
+        for url in ("https://api.example.com/v1/chat/completions", "http://127.0.0.1:8080/v1", "http://[::1]:9/v1"):
+            moteur.check_api_url(url)
 
 
 if __name__ == "__main__":

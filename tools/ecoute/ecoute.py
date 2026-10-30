@@ -205,7 +205,10 @@ class Service:
 
     def on_caption(self, c):
         self.write({"type": "caption", "t": time.time(), "caption": c})
-        print(f"[{c['latency']:4.1f} s] {c['en']}", flush=True)
+        if "gap" in c:
+            print(f"[retard] {c['gap']} s d'audio sautées pour revenir au direct", flush=True)
+        else:
+            print(f"[{c['latency']:4.1f} s] {c['en']}", flush=True)
         self.send(self.message("caption", caption=c))
 
     def write(self, obj):

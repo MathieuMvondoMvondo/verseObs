@@ -63,6 +63,7 @@
           "Service d’écoute non détecté : lancez « lancer-ecoute » sur cet ordinateur.";
       else if (st.status === "loading")
         line = "Service d’écoute : chargement des modèles…";
+      else if (st.status === "stopping") line = "Arrêt en cours…";
       else if (listening)
         line =
           "À l’écoute : " +
@@ -97,7 +98,10 @@
       select.disabled = !engine || listening || !!(st && st.file);
       el("captions-start").hidden = listening;
       el("captions-start").disabled =
-        !engine || st.status === "loading" || busy === "start";
+        !engine ||
+        st.status === "loading" ||
+        st.status === "stopping" ||
+        busy === "start";
       el("captions-stop").hidden = !listening;
 
       var lat = (st && st.latency) || {};
@@ -106,7 +110,8 @@
           ? "—"
           : seconds(lat.last) + (lat.avg != null ? " (moy. " + seconds(lat.avg) + ")" : "");
       el("captions-backlog").textContent =
-        listening && st.backlog != null ? seconds(st.backlog) : "—";
+        (listening && st.backlog != null ? seconds(st.backlog) : "—") +
+        (lat.skipped ? " · " + Math.round(lat.skipped) + " s sautées" : "");
       el("captions-cpu").textContent =
         st && st.cpu != null
           ? Math.round(st.cpu) + " %" + (st.ram ? " · " + st.ram + " Mo" : "")
@@ -163,7 +168,7 @@
         if (!wasListening && listening)
           options.notify("Écoute démarrée : les sous-titres anglais arrivent.", "info");
         render();
-      } else if (msg.type === "caption" && status) {
+      } else if (msg.type === "caption" && status && msg.en) {
         status.last = { en: msg.en, fr: msg.fr, latency: msg.latency };
         render();
       }
