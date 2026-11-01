@@ -6,7 +6,3 @@ tools/raw/
 .DS_Store
 artifacts/
 dist/
-__pycache__/
-tools/ecoute/.venv/
-tools/ecoute/modeles/
-tools/ecoute/journaux/

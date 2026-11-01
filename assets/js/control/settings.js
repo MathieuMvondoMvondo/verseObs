@@ -76,9 +76,6 @@
       bgImage: D.bgImage || "",
       signature: D.signature || "",
       template: D.template || "custom",
-      // « Une seule couleur » (Habillage, 28/10): a Studio setting only
-      // (its name must not end in « Color »: those are checked as colours).
-      matchColors: D.matchColors === true,
     };
   };
 
@@ -162,7 +159,6 @@
   Settings.prototype.getForMessage = function () {
     var copy = this.getAll();
     delete copy.bgImage;
-    delete copy.matchColors; // the Studio keeps the colours matched itself
     return copy;
   };
 
@@ -175,22 +171,8 @@
       value = this._getDefaults()[key];
     if (key === "signature") value = window.VerseObs.cleanSignature(value);
     this._settings[key] = value;
-    var synced = this._syncMatchColors(key);
     this.save();
-    if (synced) this._updateUI();
     this._notifyChange();
-  };
-
-  /**
-   * « Une seule couleur » (Habillage, 28/10): the reference's block and the
-   * band share one colour. Changing either changes both.
-   */
-  Settings.prototype._syncMatchColors = function (key) {
-    var s = this._settings;
-    if (!s.matchColors) return false;
-    if (key === "refBgColor") s.bgColor = s.refBgColor;
-    else s.refBgColor = s.bgColor;
-    return true;
   };
 
   /**
@@ -231,7 +213,6 @@
    * another tab changed that this tab never saw.
    */
   Settings.prototype._notifyWholeLook = function () {
-    if (this._syncMatchColors("bgColor")) this._updateUI();
     this._sent = null;
     this._notifyChange();
   };

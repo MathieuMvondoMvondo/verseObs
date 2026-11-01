@@ -48,7 +48,7 @@ async function open(width, height = 900) {
   const studio = await ctx.newPage();
   studio.on("pageerror", (e) => errors.push("studio: " + e.message));
   await studio.goto(`${BASE}/control_panel.html`);
-  await studio.waitForSelector(".chapter-verse", { state: "attached" });
+  await studio.waitForSelector(".chapter-verse");
   await studio.waitForFunction(() =>
     document.querySelector("#connection-dot").classList.contains("connected"),
   );
@@ -298,7 +298,7 @@ async function openRegie(width, height, opts = {}) {
   const studio = await ctx.newPage();
   studio.on("pageerror", (e) => errors.push("studio: " + e.message));
   await studio.goto(`${BASE}/control_panel.html`);
-  await studio.waitForSelector(".chapter-verse", { state: "attached" });
+  await studio.waitForSelector(".chapter-verse");
   await studio.waitForFunction(() => document.querySelector("#connection-dot").classList.contains("connected"));
   await studio.evaluate(() => document.querySelector("#tab-btn-2").click());
   await studio.evaluate(() => document.querySelectorAll("#queue-container .cp-queue-item")[2].click());
@@ -390,7 +390,7 @@ async function openOutputs(sizes, storage) {
   const studio = await ctx.newPage();
   studio.on("pageerror", (e) => errors.push("studio: " + e.message));
   await studio.goto(`${BASE}/control_panel.html`);
-  await studio.waitForSelector(".chapter-verse", { state: "attached" });
+  await studio.waitForSelector(".chapter-verse");
   await studio.waitForFunction(() =>
     document.querySelector("#connection-dot").classList.contains("connected"),
   );
@@ -636,7 +636,7 @@ try {
     const studio = await ctx.newPage();
     studio.on("pageerror", (e) => errors.push("studio: " + e.message));
     await studio.goto(`${BASE}/control_panel.html`);
-    await studio.waitForSelector(".chapter-verse", { state: "attached" });
+    await studio.waitForSelector(".chapter-verse");
     await studio.waitForFunction(() => document.querySelector("#connection-dot").classList.contains("connected"));
     await studio.waitForTimeout(600);
     // Two long passages prepared in one go: the second one is prepared.
@@ -709,7 +709,7 @@ try {
     const studio = await ctx.newPage();
     studio.on("pageerror", (e) => errors.push("studio: " + e.message));
     await studio.goto(`${BASE}/control_panel.html`);
-    await studio.waitForSelector(".chapter-verse", { state: "attached" });
+    await studio.waitForSelector(".chapter-verse");
     await studio.waitForFunction(() => document.querySelector("#connection-dot").classList.contains("connected"));
     // Pixels drawn by the transparent source (what OBS composites), counted
     // in a blank page from a screenshot without background.
@@ -782,7 +782,7 @@ try {
     const studio = await ctx.newPage();
     studio.on("pageerror", (e) => errors.push("studio: " + e.message));
     await studio.goto(`${BASE}/control_panel.html`);
-    await studio.waitForSelector(".chapter-verse", { state: "attached" });
+    await studio.waitForSelector(".chapter-verse");
     const evil = (name) => "url(http://evil.invalid/" + name + ".png)";
     const hostile = { refBgColor: evil("refbg"), textColor: evil("text"), bgColor: evil("bg"), refColor: evil("ref"), borderColor: evil("border"), highlightColor: evil("highlight") };
     // 1. A backup whose colours are pictures from elsewhere, then Diffuser.
@@ -793,7 +793,7 @@ try {
       V.Backup.apply({ app: "verseobs", version: 1, data: { verseobs_settings: JSON.stringify(style) } }, localStorage);
     }, hostile);
     await studio.reload();
-    await studio.waitForSelector(".chapter-verse", { state: "attached" });
+    await studio.waitForSelector(".chapter-verse");
     await studio.waitForFunction(() => document.querySelector("#connection-dot").classList.contains("connected"));
     await prepare(studio, "Jean 3:16");
     await studio.click("#btn-show");
@@ -839,7 +839,7 @@ try {
     const studio = await ctx.newPage();
     studio.on("pageerror", (e) => errors.push("studio: " + e.message));
     await studio.goto(`${BASE}/control_panel.html`);
-    await studio.waitForSelector(".chapter-verse", { state: "attached" });
+    await studio.waitForSelector(".chapter-verse");
     const head = () =>
       studio.evaluate(() => {
         const bar = document.querySelector("#onair-bar");
@@ -863,7 +863,7 @@ try {
           chip: rgb(getComputedStyle(label).backgroundColor),
           hatch: getComputedStyle(tally).backgroundImage,
           link: seen(link) ? link.textContent.trim() : null,
-          top: getComputedStyle(document.querySelector(".cp-connection")).display,
+          top: document.querySelector("#connection-text").textContent,
         };
       });
     // No OBS output answers the Studio: hatched, as on the phone.
@@ -872,8 +872,8 @@ try {
     assert.equal(h.state, "offline", JSON.stringify(h));
     assert.equal(h.label, "Sortie non connectée");
     assert.ok(h.labelSeen, "the state is written in the head");
-    assert.equal(h.hatch, "none", "a flat neutral tally (28/10: hatched, it read as disabled)");
-    assert.equal(h.top, "none", "one status line: the header no longer repeats it (28/10)");
+    assert.match(h.hatch, /repeating-linear-gradient/, "hatched tally");
+    assert.equal(h.top, "Sortie non connectée", "the top bar says the same");
     // The output answers: nothing on air, grey, not hatched.
     const output = await ctx.newPage();
     await output.setViewportSize({ width: 1920, height: 1080 });
@@ -941,7 +941,7 @@ try {
     const studio = await ctx.newPage();
     studio.on("pageerror", (e) => errors.push("studio: " + e.message));
     await studio.goto(`${BASE}/control_panel.html`);
-    await studio.waitForSelector(".chapter-verse", { state: "attached" });
+    await studio.waitForSelector(".chapter-verse");
     await studio.waitForFunction(() => document.querySelector("#connection-dot").classList.contains("connected"));
     await studio.evaluate(() => document.querySelector("#tab-btn-2").click());
     const send = async (index) => {
@@ -1010,7 +1010,7 @@ try {
     const studio = await ctx.newPage();
     studio.on("pageerror", (e) => errors.push("studio: " + e.message));
     await studio.goto(`${BASE}/control_panel.html`);
-    await studio.waitForSelector(".chapter-verse", { state: "attached" });
+    await studio.waitForSelector(".chapter-verse");
     const look = (sel, chip) =>
       studio.evaluate(
         ([sel, chip]) => {
@@ -1179,7 +1179,7 @@ try {
   const mg = await open(1920, 1080);
   const st = mg.studio;
   const ready = async () => {
-    await st.waitForSelector(".chapter-verse", { state: "attached" });
+    await st.waitForSelector(".chapter-verse");
     await st.waitForFunction(() => document.querySelector("#connection-dot").classList.contains("connected"));
   };
   const toTab = (i) => st.evaluate((i) => document.querySelector("#tab-btn-" + i).click(), i);
@@ -1417,7 +1417,7 @@ try {
     const studio = await ctx.newPage();
     studio.on("pageerror", (e) => errors.push("studio: " + e.message));
     await studio.goto(`http://127.0.0.1:${LAN_PORT}/control_panel.html`);
-    await studio.waitForSelector(".chapter-verse", { state: "attached" });
+    await studio.waitForSelector(".chapter-verse");
     await studio.evaluate(() => document.querySelector("#tab-btn-2").click());
     const phoneCtx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
     const phone = await phoneCtx.newPage();
@@ -1752,22 +1752,14 @@ try {
       }
       assert.deepEqual(refusals, [], "no command of this section refused by the relay");
     });
-    await check("Phone: Masquer is never refused by the relay; the other commands keep a flood guard and the phone says so (28/10)", async () => {
+    await check("Phone: the 11th command within one window is refused and the phone says so (relay limit unchanged)", async () => {
+      // A fresh window: the first of these commands opens it.
       const last = Math.max(0, ...sent);
       await phone.waitForTimeout(Math.max(0, last + REMOTE_LIMITS.windowMs * 1.1 - Date.now()));
       const before = refusals.length;
-      await phone.evaluate((n) => {
-        const b = document.querySelector("[data-command=hide]");
-        for (let i = 0; i < n; i++) b.click();
-      }, REMOTE_LIMITS.commands + 1);
-      await phone.waitForTimeout(1500);
-      const hides = refusals.slice(before);
-      assert.deepEqual(hides, [], "no Masquer refused: " + JSON.stringify(hides));
-      // A fresh window, then one « Diffuser » more than the guard allows.
-      await phone.waitForTimeout(REMOTE_LIMITS.windowMs * 1.1);
-      const before2 = refusals.length;
       // Each state of the banner, text and visibility read together, recorded
-      // from before the burst (review 8, B4).
+      // from before the burst: the next state message clears the banner
+      // (remote.js), so a read after the wait could miss it (review 8, B4).
       await phone.evaluate(() => {
         const el = document.querySelector("#banner");
         window.__banner = [];
@@ -1779,16 +1771,17 @@ try {
         });
       });
       await phone.evaluate((n) => {
-        const b = document.querySelector("[data-command=show]");
+        const b = document.querySelector("[data-command=hide]");
         for (let i = 0; i < n; i++) b.click();
       }, REMOTE_LIMITS.commands + 1);
       await phone.waitForFunction(() => window.__banner.some((s) => /Trop de commandes/.test(s.text)), null, { timeout: 10000 });
       const banner = await phone.evaluate(() => window.__banner.find((s) => /Trop de commandes/.test(s.text)));
       await phone.waitForTimeout(500);
-      const late = refusals.slice(before2);
-      console.log("    bursts of " + (REMOTE_LIMITS.commands + 1) + ": Masquer refused " + hides.length + ", Diffuser refused " + JSON.stringify(late));
-      assert.equal(late.length, 1, "exactly one refusal beyond the guard: " + JSON.stringify(late));
-      assert.match(late[0], /^rate_limited /, "refused for its rate");
+      const late = refusals.slice(before);
+      const states = await phone.evaluate(() => window.__banner.length);
+      console.log("    burst of " + (REMOTE_LIMITS.commands + 1) + ": refusals " + JSON.stringify(late) + ", banner " + JSON.stringify(banner) + ", banner states " + states);
+      assert.equal(late.length, 1, "the first 10 pass, exactly one refusal: " + JSON.stringify(late));
+      assert.match(late[0], /^rate_limited /, "the 11th is refused for its rate");
       assert.equal(banner.hidden, false);
       assert.equal(banner.text, "Trop de commandes d’affilée : patientez une seconde.");
     });
@@ -1819,7 +1812,7 @@ try {
   const ts = await tc.newPage();
   ts.on("pageerror", (e) => terrors.push("studio: " + e.message));
   await ts.goto(`${BASE}/control_panel.html`);
-  await ts.waitForSelector(".chapter-verse", { state: "attached" });
+  await ts.waitForSelector(".chapter-verse");
   await ts.waitForFunction(() => document.querySelector("#connection-dot").classList.contains("connected"));
   await check("OBS output and projector together: the tally follows the program over 4 pings, never flips", async () => {
     await prepare(ts, "Psaumes 23:1-6");
@@ -1889,7 +1882,7 @@ try {
   const rs = await rc.newPage();
   rs.on("pageerror", (e) => rerrors.push("studio: " + e.message));
   await rs.goto(`${BASE}/control_panel.html`);
-  await rs.waitForSelector(".chapter-verse", { state: "attached" });
+  await rs.waitForSelector(".chapter-verse");
   await rs.evaluate(() => document.querySelector("#tab-btn-2").click());
   const splitReady = (n) =>
     rs.waitForFunction(
@@ -1986,7 +1979,7 @@ try {
   const ms = await mc.newPage();
   ms.on("pageerror", (e) => merrors.push("studio: " + e.message));
   await ms.goto(`${BASE}/control_panel.html`);
-  await ms.waitForSelector(".chapter-verse", { state: "attached" });
+  await ms.waitForSelector(".chapter-verse");
   await ms.waitForFunction(() => document.querySelector("#connection-dot").classList.contains("connected"));
   // Robustness check by hand: STUDIO_CPU_SLOWDOWN=3 runs the Studio (and its
   // preview) on a CPU three times slower.
@@ -2342,7 +2335,7 @@ try {
     const studio = await ctx.newPage();
     studio.on("pageerror", (e) => errors.push("studio: " + e.message));
     await studio.goto(`${BASE}/control_panel.html`);
-    await studio.waitForSelector(".chapter-verse", { state: "attached" });
+    await studio.waitForSelector(".chapter-verse");
     await studio.waitForFunction(() => document.querySelector("#connection-dot").classList.contains("connected"));
     const geometry = () =>
       studio.evaluate(() => {
@@ -2412,7 +2405,7 @@ try {
     assert.equal(dock.tabs.length, 6);
     assert.ok(dock.tabs.every((t) => t.whole && t.size >= 12), "every tab whole at 390 px: " + JSON.stringify(dock.tabs));
     assert.ok(dock.scroll <= 1, "no hidden tab: " + dock.scroll);
-    assert.ok(dock.fixedTake && dock.show >= 120, "fixed Diffuser " + dock.show + " px, ◀ ▶ and Masquer beside it (28/10)");
+    assert.ok(dock.fixedTake && Math.abs(dock.show - 286) <= 1, "fixed Diffuser " + dock.show + " px");
     // When the preview has something to say, it is shown, above the preparation.
     await prepare(studio, "Psaumes 23:1-6");
     await studio.waitForFunction(() => !document.querySelector("#fit-hint").hidden, null, { timeout: 15000 });
@@ -2514,7 +2507,7 @@ try {
     await r.ctx.close();
   }
   const dock = await openRegie(390, 844);
-  await check("Dock at 390×844: Diffuser and Masquer side by side in the fixed bottom bar, the Antenne band fixed above, in each view (28/10)", async () => {
+  await check("Dock at 390×844: one Diffuser in the fixed bottom bar, one Masquer in the fixed 56 px band, in each view", async () => {
     for (const [tab, name] of views) {
       await showView(dock.studio, tab);
       for (const scroll of [0, 700]) {
@@ -2532,12 +2525,12 @@ try {
         const t = g.takes[0],
           m = g.hides[0];
         assert.ok(t.fixed && t.bottom <= g.vh && t.top >= g.vh - 96, where + "take in the fixed bottom bar " + JSON.stringify(t));
-        // 28/10: Diffuser takes three fifths of the bar, Masquer the rest.
-        assert.ok(t.width >= 120, where + "take width " + t.width + " (28/10: ◀ Diffuser ▶ Masquer in the Bible)");
+        // The brief: the width minus 2 × 52 px (review 3: the side padding
+        // had been taken off as well, 254 px instead of 286 px at 390).
+        assert.ok(Math.abs(t.width - (g.clientWidth - 2 * 52)) <= 2, where + "take width " + t.width + " (width − 2×52 px)");
         assert.ok(band.position === "fixed" && band.top === 0 && band.height <= 56, where + "Antenne band " + JSON.stringify(band));
-        assert.ok(m.fixed && m.top >= g.vh - 96 && m.bottom <= g.vh && m.left >= t.right && m.width >= 64 && m.height >= 44, where + "Masquer beside Diffuser in the bar " + JSON.stringify(m));
-        // Préc. and Suiv. in the Conducteur view only, at the places of the
-        // Bible view's ‹ › (281f6a3, b8ab040, 29/10): ‹ Diffuser › Masquer.
+        assert.ok(m.top >= 0 && m.bottom <= 56 && m.width >= 44 && m.height >= 44, where + "Masquer in the band " + JSON.stringify(m));
+        // Préc. | Suiv. flank the take in the Conducteur view only.
         const nav = await dock.studio.evaluate(() =>
           ["#btn-queue-prev", "#btn-queue-next"].map((s) => {
             const r = document.querySelector(s).getBoundingClientRect();
@@ -2546,24 +2539,15 @@ try {
         );
         if (tab === 2) {
           assert.ok(nav.every((b) => b && b.w >= 44 && b.h >= 44), where + "Préc./Suiv. " + JSON.stringify(nav));
-          assert.ok(nav[0].right <= t.left && t.right <= nav[1].left && nav[1].right <= m.left, where + "Préc. | Diffuser | Suiv. | Masquer " + JSON.stringify({ nav, t, m }));
+          assert.ok(nav[0].right <= t.left && nav[1].left >= t.right, where + "Préc. | Diffuser | Suiv. " + JSON.stringify(nav));
         } else assert.deepEqual(nav, [null, null], where + "no Préc./Suiv. outside the Conducteur view");
         if (tab === 0) {
           // The editor's heading stays legible: title and tools on one line each.
-          // 29/10: counted in text lines (Range rects), no longer read from the
-          // box height: in the dock « Mise en forme » is a 44 px touch target
-          // (dock brief, 28/10), its label still on one 20 px line.
           const head = await dock.studio.evaluate(() =>
-            ["#preview-ref", "#toggle-format"].map((s) => {
-              const e = document.querySelector(s);
-              const r = document.createRange();
-              r.selectNodeContents(e);
-              const tops = new Set(Array.from(r.getClientRects()).filter((x) => x.width > 0).map((x) => Math.round(x.top)));
-              return { lines: tops.size, height: Math.round(e.getBoundingClientRect().height) };
-            }),
+            ["#preview-ref", "#toggle-format"].map((s) => Math.round(document.querySelector(s).getBoundingClientRect().height)),
           );
-          // One line each: a 20/28 title, a 14/20 label in a button of at most 44 px.
-          assert.ok(head[0].lines === 1 && head[0].height <= 30 && head[1].lines === 1 && head[1].height <= 44, where + "editor heading wraps: " + JSON.stringify(head));
+          // One line each: a 20/28 title, a 14/20 button with its 4 px padding.
+          assert.ok(head[0] <= 30 && head[1] <= 30, where + "editor heading wraps: " + JSON.stringify(head));
         }
       }
     }

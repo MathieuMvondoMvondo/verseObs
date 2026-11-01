@@ -5,7 +5,6 @@ const os = require("node:os");
 const path = require("node:path");
 const crypto = require("node:crypto");
 const { WebSocketServer, WebSocket } = require("ws");
-const { createCaptions } = require("./captions");
 const ROOT = path.resolve(__dirname, "..");
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -38,11 +37,9 @@ const REMOTE_FILES =
   /^\/(remote\.html|assets\/css\/remote\.css|assets\/js\/remote\/remote\.js|assets\/icons\/[a-z0-9-]+\.svg)$/;
 const REMOTE_LIMITS = {
   windowMs: 5000,
-  // A flood guard no hand reaches (28/10: the former 10 per window refused
-  // an operator stepping through plans); « hide » is never limited.
-  commands: 40, // per remote and per window
-  allCommands: 80, // all remotes together, per window
-  messages: 120, // anything received, per remote and per window
+  commands: 10, // per remote and per window
+  allCommands: 20, // all remotes together, per window
+  messages: 30, // anything received, per remote and per window
   maxRemotes: 8,
   authWindowMs: 60000,
   authFailures: 10, // per address before a temporary block
@@ -412,12 +409,9 @@ function createRemote(port, options, studios) {
         !REMOTE_COMMANDS.has(msg.command)
       )
         return answer("error", { reason: "forbidden" });
-      // Taking a text off air must always work (28/10): « Masquer » is
-      // never refused for its rate.
       if (
-        msg.command !== "hide" &&
-        (!allow(counter, "commands", REMOTE_LIMITS.commands) ||
-          !allow(globalWindow, "count", REMOTE_LIMITS.allCommands))
+        !allow(counter, "commands", REMOTE_LIMITS.commands) ||
+        !allow(globalWindow, "count", REMOTE_LIMITS.allCommands)
       )
         return answer("error", { reason: "rate_limited" });
       if (!controller || controller.readyState !== WebSocket.OPEN)
@@ -626,7 +620,7 @@ function createServer(port = 8080, options = {}) {
     if (pathname === "/") pathname = "/control_panel.html";
     // Serve product assets only, never git, dependencies, tests or private dotfiles.
     if (
-      !/^\/(control_panel\.html|browser_source\.html|index\.html|sous-titres\.html|assets\/[^.][^?]*|data\/[^.][^?]*)$/.test(
+      !/^\/(control_panel\.html|browser_source\.html|index\.html|assets\/[^.][^?]*|data\/[^.][^?]*)$/.test(
         pathname,
       ) ||
       pathname.split("/").some((p) => p.startsWith("."))
@@ -641,11 +635,6 @@ function createServer(port = 8080, options = {}) {
     maxPayload: 4 * 1024 * 1024,
   });
   const remote = createRemote(port, options.lan, () => wss.clients);
-  // Live English captions (tools/ecoute): read-only page, its own code.
-  const captions = createCaptions(port, options.captions, () => wss.clients, {
-    lanAddresses,
-    sendFile,
-  });
   server.on("upgrade", (req, socket, head) => {
     if (
       !hosts.has(req.headers.host) ||
@@ -661,10 +650,7 @@ function createServer(port = 8080, options = {}) {
   });
   wss.on("connection", (ws) => {
     ws.on("error", () => {});
-    ws.on("close", () => {
-      remote.studioGone(ws);
-      captions.gone(ws);
-    });
+    ws.on("close", () => remote.studioGone(ws));
     ws.on("message", (raw) => {
       let msg;
       try {
@@ -680,7 +666,6 @@ function createServer(port = 8080, options = {}) {
       )
         return;
       if (remote.fromStudio(ws, msg)) return;
-      if (captions.fromRelay(ws, msg)) return;
       if (!TYPES.has(msg.type)) return;
       const payload = JSON.stringify(msg);
       for (const client of wss.clients)
@@ -696,10 +681,8 @@ function createServer(port = 8080, options = {}) {
     for (const ws of wss.clients) ws.terminate();
     wss.close();
     remote.close();
-    captions.close();
   });
   server.remote = remote;
-  server.captions = captions;
   return server;
 }
 module.exports = { createServer, lanAddresses, sanitizeState, REMOTE_LIMITS };

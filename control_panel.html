@@ -9,8 +9,8 @@
       content="Votre studio de diffusion biblique. Préparez, organisez et diffusez vos passages dans OBS."
     />
     <title>VerseObs — Studio</title>
-    <link rel="stylesheet" href="assets/css/control.css?v=2.9" />
-    <link rel="stylesheet" href="assets/css/studio.css?v=2.9" />
+    <link rel="stylesheet" href="assets/css/control.css?v=2.3" />
+    <link rel="stylesheet" href="assets/css/studio.css?v=2.4" />
   </head>
   <body data-tab="0">
     <a class="skip-link" href="#search-input">Aller à la recherche</a>
@@ -279,7 +279,7 @@
           <iframe
             class="cp-preview-frame"
             id="preview-frame"
-            src="browser_source.html?preview=1&v=2.9"
+            src="browser_source.html?preview=1&v=2.3"
             title="Aperçu du passage préparé"
             tabindex="-1"
           ></iframe>
@@ -355,19 +355,12 @@
               <span class="take-nav-label">Suiv.</span> <span aria-hidden="true">&rsaquo;</span>
             </button>
           </div>
-          <!-- 28/10: « Enchaîner à l'antenne » (on by default: ‹ › put the
-               neighbouring verse on air while a verse is on air) and
-               « Ajouter au conducteur », beside Diffuser, never covered. -->
-          <div class="take-extra">
-            <label class="take-chain"><input type="checkbox" id="chain-toggle" checked /><span>Enchaîner à l’antenne</span></label>
-            <button class="cp-btn-queue-add" id="btn-add-queue" type="button">+ Ajouter au conducteur</button>
-          </div>
         </div>
         <div class="cp-preview-stage is-program" id="program-stage">
           <iframe
             class="cp-preview-frame"
             id="program-frame"
-            src="browser_source.html?monitor=1&v=2.9"
+            src="browser_source.html?monitor=1&v=2.3"
             title="Retour des commandes de diffusion"
             tabindex="-1"
           ></iframe>
@@ -402,7 +395,7 @@
                   type="search"
                   class="cp-search-input"
                   id="search-input"
-                  placeholder="Référence ou mot-clé"
+                  placeholder="Une référence, un mot, une inspiration…"
                   autocomplete="off"
                   spellcheck="false"
                   aria-label="Rechercher une référence ou des mots-clés"
@@ -454,7 +447,7 @@
           <div class="bible-workspace">
             <section class="scripture-panel">
               <div class="section-heading">
-                <h2><button type="button" class="explore-toggle" id="explore-toggle" aria-expanded="false">Explorer la Bible</button></h2>
+                <h2>Explorer la Bible</h2>
                 <span id="chapter-count" class="muted"></span>
               </div>
               <div class="cp-nav-row">
@@ -665,6 +658,11 @@
                     ></textarea>
                   </section>
                 </div>
+              </div>
+              <div class="prepare-actions">
+                <button class="cp-btn-queue-add" id="btn-add-queue">
+                  + Ajouter au conducteur
+                </button>
               </div>
               <div class="quick-styles">
                 <div class="section-heading">
@@ -1218,7 +1216,7 @@
               <iframe
                 class="cp-preview-frame"
                 id="settings-preview-frame"
-                src="browser_source.html?preview=1&v=2.9"
+                src="browser_source.html?preview=1&v=2.3"
                 title="Aperçu en direct de l'overlay"
                 tabindex="-1"
                 aria-hidden="true"
@@ -1493,16 +1491,6 @@
                     data-setting="refBgColor"
                     value="#2d1a3e"
                   />
-                </div>
-              </div>
-
-              <div class="cp-setting-row">
-                <span class="cp-setting-label">Une seule couleur (référence assortie au bandeau)</span>
-                <div class="cp-setting-control">
-                  <label class="cp-toggle">
-                    <input type="checkbox" data-setting="matchColors" aria-label="Une seule couleur : la référence prend la couleur du bandeau" />
-                    <span class="cp-toggle-slider"></span>
-                  </label>
                 </div>
               </div>
 
@@ -1840,118 +1828,6 @@
               </div>
             </div>
           </article>
-          <article
-            class="integration-card remote-card captions-card"
-            id="captions-card"
-            data-state="unavailable"
-            data-engine="absent"
-            aria-labelledby="captions-title"
-          >
-            <div class="remote-card-head">
-              <span class="remote-card-icon">
-                <img
-                  class="icon"
-                  src="assets/icons/captions.svg"
-                  alt=""
-                  width="18"
-                  height="18"
-                />
-              </span>
-              <div>
-                <h3 id="captions-title">Sous-titres anglais en direct</h3>
-                <p>
-                  Cet ordinateur écoute la prédication, la traduit en anglais et
-                  l’affiche sur le téléphone des personnes qui ne comprennent pas
-                  le français. Rien ne part à l’antenne sans vous.
-                </p>
-              </div>
-              <span class="remote-optional" id="captions-badge">Facultatif</span>
-            </div>
-            <p class="remote-unavailable" id="captions-unavailable">
-              Disponible quand VerseObs est lancé sur cet ordinateur (npm start),
-              avec le service d’écoute (dossier tools/ecoute).
-            </p>
-            <div class="captions-body" id="captions-body" hidden>
-              <p class="captions-engine" id="captions-engine" aria-live="polite">
-                Service d’écoute non détecté.
-              </p>
-              <label for="captions-device">ENTRÉE AUDIO</label>
-              <div class="captions-row">
-                <select id="captions-device"></select>
-                <button class="remote-enable" id="captions-start" type="button">
-                  Démarrer l’écoute
-                </button>
-                <button class="captions-stop" id="captions-stop" type="button" hidden>
-                  Arrêter l’écoute
-                </button>
-              </div>
-              <p class="captions-api" id="captions-api" hidden></p>
-              <dl class="captions-metrics">
-                <div><dt>Latence</dt><dd id="captions-latency">—</dd></div>
-                <div><dt>Retard</dt><dd id="captions-backlog">—</dd></div>
-                <div><dt>Processeur</dt><dd id="captions-cpu">—</dd></div>
-              </dl>
-              <div class="captions-last" id="captions-last" hidden>
-                <p class="captions-last-en" lang="en" id="captions-last-en"></p>
-                <p class="captions-last-fr" lang="fr" id="captions-last-fr"></p>
-              </div>
-              <p class="remote-error" id="captions-error" role="alert" hidden></p>
-              <div class="captions-share" id="captions-share-off">
-                <button class="captions-secondary" id="captions-share" type="button">
-                  Partager sur le Wi-Fi (QR code)
-                </button>
-              </div>
-              <div class="remote-pairing captions-pairing" id="captions-share-on" hidden>
-                <div
-                  class="remote-qr"
-                  id="captions-qr"
-                  role="img"
-                  aria-label="QR code des sous-titres"
-                ></div>
-                <div class="remote-pairing-info">
-                  <ol class="remote-steps">
-                    <li>Le téléphone rejoint le Wi-Fi de cet ordinateur.</li>
-                    <li>Il scanne ce QR code : sous-titres en lecture seule.</li>
-                  </ol>
-                  <label for="captions-url">ADRESSE DES SOUS-TITRES</label>
-                  <div class="copy-url">
-                    <input id="captions-url" readonly /><button
-                      data-copy-url="captions-url"
-                    >
-                      Copier
-                    </button>
-                  </div>
-                  <p class="remote-count" id="captions-viewers" aria-live="polite">
-                    Aucun téléphone connecté
-                  </p>
-                  <div class="remote-actions">
-                    <button id="captions-revoke" type="button">Nouveau lien</button>
-                    <button class="remote-disable" id="captions-unshare" type="button">
-                      Arrêter le partage
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <div class="captions-obs">
-                <label class="captions-check" for="captions-onair"
-                  ><input type="checkbox" id="captions-onair" />Afficher les
-                  sous-titres dans OBS</label
-                >
-                <p>
-                  Source navigateur 1920 × 1080. Elle reste vide tant que cette
-                  case est décochée ; la case se décoche seule si l’écoute
-                  s’arrête ou tombe en panne.
-                </p>
-                <div class="copy-url">
-                  <input id="captions-obs-url" readonly aria-label="Adresse de la source OBS des sous-titres" /><button
-                    data-copy-url="captions-obs-url"
-                  >
-                    Copier
-                  </button>
-                </div>
-              </div>
-            </div>
-          </article>
           <div class="relay-info">
             <span class="status-dot"></span>
             <div>
@@ -2162,27 +2038,26 @@
     ></div>
 
     <!-- Scripts: shared first, then control modules, then app -->
-    <script src="assets/js/shared/constants.js?v=2.9"></script>
-    <script src="assets/js/shared/books.js?v=2.9"></script>
-    <script src="assets/js/shared/html.js?v=2.9"></script>
-    <script src="assets/js/shared/secondary.js?v=2.9"></script>
-    <script src="assets/js/shared/passage.js?v=2.9"></script>
-    <script src="assets/js/shared/channel.js?v=2.9"></script>
-    <script src="assets/js/shared/qrcode.js?v=2.9"></script>
-    <script src="assets/js/control/bible-loader.js?v=2.9"></script>
-    <script src="assets/js/control/search.js?v=2.9"></script>
-    <script src="assets/js/control/plan.js?v=2.9"></script>
-    <script src="assets/js/control/navigation.js?v=2.9"></script>
-    <script src="assets/js/control/settings.js?v=2.9"></script>
-    <script src="assets/js/control/history.js?v=2.9"></script>
-    <script src="assets/js/control/favorites.js?v=2.9"></script>
-    <script src="assets/js/control/freetext.js?v=2.9"></script>
-    <script src="assets/js/control/queue.js?v=2.9"></script>
-    <script src="assets/js/control/backup.js?v=2.9"></script>
-    <script src="assets/js/control/studio.js?v=2.9"></script>
-    <script src="assets/js/control/bilingual.js?v=2.9"></script>
-    <script src="assets/js/control/remote-link.js?v=2.9"></script>
-    <script src="assets/js/control/captions-link.js?v=2.9"></script>
-    <script src="assets/js/control/app.js?v=2.9"></script>
+    <script src="assets/js/shared/constants.js?v=2.3"></script>
+    <script src="assets/js/shared/books.js?v=2.3"></script>
+    <script src="assets/js/shared/html.js?v=2.3"></script>
+    <script src="assets/js/shared/secondary.js?v=2.3"></script>
+    <script src="assets/js/shared/passage.js?v=2.3"></script>
+    <script src="assets/js/shared/channel.js?v=2.3"></script>
+    <script src="assets/js/shared/qrcode.js?v=2.3"></script>
+    <script src="assets/js/control/bible-loader.js?v=2.3"></script>
+    <script src="assets/js/control/search.js?v=2.3"></script>
+    <script src="assets/js/control/plan.js?v=2.3"></script>
+    <script src="assets/js/control/navigation.js?v=2.3"></script>
+    <script src="assets/js/control/settings.js?v=2.3"></script>
+    <script src="assets/js/control/history.js?v=2.3"></script>
+    <script src="assets/js/control/favorites.js?v=2.3"></script>
+    <script src="assets/js/control/freetext.js?v=2.3"></script>
+    <script src="assets/js/control/queue.js?v=2.3"></script>
+    <script src="assets/js/control/backup.js?v=2.3"></script>
+    <script src="assets/js/control/studio.js?v=2.7"></script>
+    <script src="assets/js/control/bilingual.js?v=2.3"></script>
+    <script src="assets/js/control/remote-link.js?v=2.3"></script>
+    <script src="assets/js/control/app.js?v=2.7"></script>
   </body>
 </html>

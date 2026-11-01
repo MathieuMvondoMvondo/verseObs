@@ -21,7 +21,6 @@
     queue,
     planImport,
     remoteLink,
-    captionsLink,
     favorites;
   var channel = null;
   // What the output is doing, as the Studio shows it (shared with the phone remote).
@@ -158,7 +157,6 @@
       },
     });
     _initRemote();
-    _initCaptions();
     _loadDefaultBible();
   }
 
@@ -198,17 +196,6 @@
   }
   function _outputChanged() {
     if (remoteLink) remoteLink.changed();
-  }
-
-  // ---- Live English captions (local listening service, npm start only) ----
-
-  function _initCaptions() {
-    if (!window.VerseObs.CaptionsLink || !document.getElementById("captions-card"))
-      return;
-    captionsLink = new window.VerseObs.CaptionsLink({
-      channel: channel,
-      notify: _notify,
-    });
   }
 
   // ---- DOM caching ----
@@ -261,8 +248,6 @@
     dom.btnTakePrevVerse = document.getElementById("btn-take-prev-verse");
     dom.btnTakeNextVerse = document.getElementById("btn-take-next-verse");
     dom.btnAddQueue = document.getElementById("btn-add-queue");
-    dom.chainToggle = document.getElementById("chain-toggle");
-    dom.exploreToggle = document.getElementById("explore-toggle");
 
     // Format toolbar
     dom.formatToolbar = document.getElementById("format-toolbar");
@@ -580,75 +565,16 @@
     if (dom.btnHide) {
       dom.btnHide.addEventListener("click", _hideVerse);
     }
-    // The explorer's arrows follow the same rule as ‹ › (28/10).
     if (dom.btnPrev) {
       dom.btnPrev.addEventListener("click", function () {
-        _stepVerse(-1);
+        navigation.goToPrevious();
       });
     }
     if (dom.btnNext) {
       dom.btnNext.addEventListener("click", function () {
-        _stepVerse(1);
+        navigation.goToNext();
       });
     }
-    if (dom.chainToggle) {
-      try {
-        dom.chainToggle.checked = localStorage.getItem("verseobs_chain") !== "0";
-      } catch (e) {}
-      dom.chainToggle.addEventListener("change", function () {
-        try {
-          localStorage.setItem("verseobs_chain", dom.chainToggle.checked ? "1" : "0");
-        } catch (e) {}
-      });
-    }
-    // In the narrow dock (≤ 620 px) the explorer is a block at the top of
-    // the Bible view, opened in one click (28/10). It stays as the operator
-    // left it, after a reload of the dock too (29/10). From 621 px it is
-    // always open at its place.
-    if (dom.exploreToggle) {
-      var explorePanel = dom.exploreToggle.closest(".scripture-panel");
-      var exploreNarrow = window.matchMedia ? window.matchMedia("(max-width: 620px)") : null;
-      var exploreOpen = false;
-      try {
-        exploreOpen = localStorage.getItem("verseobs_explore") === "1";
-      } catch (e) {}
-      var paintExplore = function () {
-        var narrow = !!(exploreNarrow && exploreNarrow.matches);
-        explorePanel.classList.toggle("is-open", exploreOpen);
-        // From 621 px the heading is only a heading: no toggle to reach.
-        dom.exploreToggle.tabIndex = narrow ? 0 : -1;
-        if (narrow) dom.exploreToggle.setAttribute("aria-expanded", exploreOpen ? "true" : "false");
-        else dom.exploreToggle.removeAttribute("aria-expanded");
-      };
-      paintExplore();
-      if (exploreNarrow && exploreNarrow.addEventListener) exploreNarrow.addEventListener("change", paintExplore);
-      dom.exploreToggle.addEventListener("click", function () {
-        if (!(exploreNarrow && exploreNarrow.matches)) return;
-        exploreOpen = !exploreOpen;
-        try {
-          localStorage.setItem("verseobs_explore", exploreOpen ? "1" : "0");
-        } catch (e) {}
-        paintExplore();
-        // Folded, the list could not scroll to the prepared verse: show it
-        // now, a third down the list, as the list does when it is open.
-        if (!exploreOpen) return;
-        var list = document.getElementById("chapter-list");
-        var picked = list && list.querySelector(".chapter-verse.selected");
-        if (!picked) return;
-        var scroller = list.closest(".chapter-scroll") || list;
-        scroller.scrollTop =
-          picked.getBoundingClientRect().top -
-          scroller.getBoundingClientRect().top +
-          scroller.scrollTop -
-          scroller.clientHeight / 3;
-      });
-    }
-    // The action bar's height: the room left under the content (28/10).
-    var takeBar = document.getElementById("take");
-    if (takeBar && window.ResizeObserver)
-      new ResizeObserver(function () {
-        document.documentElement.style.setProperty("--take-h", takeBar.offsetHeight + "px");
-      }).observe(takeBar);
     if (dom.btnTakePrevVerse) {
       dom.btnTakePrevVerse.addEventListener("click", function () {
         _stepVerse(-1);
@@ -1514,9 +1440,8 @@
     var versionName = disp.version;
 
     var msgData = {
-      // A direct broadcast never lights a conductor row. « b: » marks a verse
-      // sent from the Bible: no conductor identifier, even imported, holds « : ».
-      cue: "b:" + window.VerseObs.Queue.newId(),
+      // A direct broadcast never lights a conductor row.
+      cue: "b" + window.VerseObs.Queue.newId(),
       secondary: bilingual.value(),
       text: dom.previewText ? dom.previewText.innerText : disp.text,
       reference: disp.reference,
@@ -1589,25 +1514,16 @@
       if (++tries < 20) _chainTimer = setTimeout(attempt, 100);
     })();
   }
-  // « Enchaîner à l'antenne » (28/10, on by default): unticked, ‹ › and a
-  // click in the explorer only prepare; a double-click still puts the verse
-  // on air.
   // Enchaîner si un verset de la Bible est à l'antenne. Après un rechargement
   // de la régie (dock OBS), seule la sortie sait ce qui est affiché : on
-  // enchaîne seulement si elle renvoie le repère d'un verset envoyé depuis la
-  // Bible (« b:… », _showCurrentVerse). Un texte libre ou un chant (« t… »), un
-  // élément du conducteur (« q… », ou importé avec son identifiant, « b… »
-  // compris : il ne contient jamais « : ») ou un repère inconnu : on prépare
-  // sans rien envoyer (relecture du 01/11 : un chant était remplacé par › ).
+  // enchaîne aussi quand elle annonce un affichage dont la régie ignore la
+  // nature (jamais par-dessus un texte libre ou un élément du conducteur).
   function _chainActive() {
     if (_onAirItem) return _onAirItem.type === "verse";
-    return !!_output.visible && /^b:/.test(_output.cue || "");
-  }
-  function _chainOn() {
-    return !(dom.chainToggle && !dom.chainToggle.checked);
+    return !!_output.visible;
   }
   function _stepVerse(dir) {
-    var chain = _chainActive() && _chainOn();
+    var chain = _chainActive();
     if (dir < 0) navigation.goToPrevious();
     else navigation.goToNext();
     if (chain) _airWhenReady();
@@ -1616,7 +1532,7 @@
   // le verset cliqué y passe directement ; sinon il est préparé.
   // Double-clic (immediate) : diffusé tout de suite dans tous les cas.
   function _pickVerse(verse, immediate) {
-    var chain = _chainActive() && _chainOn();
+    var chain = _chainActive();
     var sel = navigation.getSelection();
     navigation.setSelection(sel.bookId, sel.chapter, verse);
     _onNavigationChange(navigation.getSelection());
@@ -1653,13 +1569,12 @@
       onTransport: function (connected) {
         if (window.VerseObs.Studio) window.VerseObs.Studio.setRelay(connected);
         if (remoteLink) remoteLink.setRelay(connected);
-        if (captionsLink) captionsLink.setRelay(connected);
       },
     });
     channel.onMessage(_handleMessage);
-    _sendMessage(MSG.PING, { build: window.VerseObs.BUILD });
+    _sendMessage(MSG.PING, {});
     setInterval(function () {
-      _sendMessage(MSG.PING, { build: window.VerseObs.BUILD });
+      _sendMessage(MSG.PING, {});
     }, 3000);
   }
   function _handleMessage(msg) {
@@ -1683,15 +1598,9 @@
         };
       known.last = performance.now();
       // « Ruban » and « Facettes » too: a 2060f1e output lacks them.
-      // And its release (01/11): the output online until now (a9049a9) has
-      // every cap but no BUILD and no self-reload; it is older until the
-      // operator refreshes it, so the régie asks for it.
-      known.current =
-        [MSG.STYLE_PATCH, "onglet", "ruban", "facettes"].every(function (c) {
-          return caps.indexOf(c) !== -1;
-        }) &&
-        typeof msg.build === "number" &&
-        msg.build >= window.VerseObs.BUILD;
+      known.current = [MSG.STYLE_PATCH, "onglet", "ruban", "facettes"].every(function (c) {
+        return caps.indexOf(c) !== -1;
+      });
       _output.legacy = _legacyOutput();
       // Outputs from before roles are program outputs.
       if (msg.role !== "projector") _programSeen = performance.now();
@@ -2372,17 +2281,6 @@
   // ---- Keyboard shortcuts ----
 
   function _initKeyboard() {
-    // Dock OBS (28/10): the régie never stays shifted sideways. In OBS a
-    // dock showed its lower half cut on the left; nothing in the régie is
-    // meant to scroll horizontally (text fields excepted).
-    document.addEventListener(
-      "scroll",
-      function (e) {
-        var t = e.target === document ? document.scrollingElement : e.target;
-        if (t && t.scrollLeft && !/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) t.scrollLeft = 0;
-      },
-      true,
-    );
     document.addEventListener("keydown", function (e) {
       // The plan dialog owns the keyboard: Escape closes it, never the output.
       if (planImport && planImport.isOpen()) return;

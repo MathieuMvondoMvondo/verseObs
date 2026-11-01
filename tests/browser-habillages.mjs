@@ -162,15 +162,14 @@ const squash = (s) => String(s).replace(/\s+/g, " ").trim();
 
 /** Motion and composition checks (tests/browser-motion.mjs). */
 export async function habillagesMotion(t) {
-  const { check, open, verse, ROM, SONG, FREE, sendStyled, sendOnAir, frames, send, settle, openRecorded, anims } = t;
+  const { check, open, verse, ROM, SONG, FREE, sendStyled, frames, send, settle, openRecorded, anims } = t;
   const EPH = verse("Éphésiens", 6, 15);
   for (const viewport of [{ width: 1920, height: 1080 }, { width: 1280, height: 720 }]) {
     const o = await open("no-preference", viewport);
     const label = viewport.width + "×" + viewport.height;
     await check("Ruban and Facettes " + label + ": every case whole, inside the frame, no decoration over a letter, a round medallion", async () => {
       const shown = async (msg, preset, extra) => {
-        // Measured once the output has it on air (browser-motion.mjs, sendOnAir).
-        await sendOnAir(o.page, msg, preset, { animation: "none", ...extra });
+        await sendStyled(o.page, msg, preset, { animation: "none", ...extra });
         await o.page.waitForTimeout(250);
         return o.page.evaluate(GEOMETRY);
       };
@@ -337,13 +336,7 @@ export async function existingUnchanged({ check, open, verse, ROM, SONG }) {
               const settings = Object.assign({}, song ? V.FREETEXT_DEFAULTS : V.DEFAULTS, presets[key].settings, { animation: "none", animationDuration: 0, bgImage: "" });
               V.DisplayApp.handleMessage({ type: "hide" });
               await new Promise((r) => setTimeout(r, 60));
-              const from = window.__states.length,
-                label = msg.reference || msg.title || "Texte libre";
               V.DisplayApp.handleMessage(Object.assign({}, msg, { settings }));
-              // 29/10: measured once the output has it on air (its own report);
-              // the first text of a fresh page waits for its typefaces.
-              for (const t0 = performance.now(); performance.now() - t0 < 5000 && !window.__states.slice(from).some((s) => s.visible && s.label === label); )
-                await new Promise((r) => setTimeout(r, 20));
               await new Promise((r) => setTimeout(r, 450));
               await document.fonts.ready;
               const card = document.querySelector(".verse-card:not(.vo-probe)");
