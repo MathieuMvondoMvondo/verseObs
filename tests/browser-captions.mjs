@@ -232,6 +232,27 @@ try {
   });
 
   if (!REAL) {
+    await check("Studio : ligne API (modèles, secours, plafond annoncé, aucun coût) ou « Tout en local »", async () => {
+      await studio.waitForFunction(() => /Tout en local/.test(document.querySelector("#captions-api").textContent));
+      fake.state.api = { translation: "Claude Sonnet 5", transcription: "OpenAI gpt-transcribe", capped: false, notice: "", spent: 0.42 };
+      await studio.waitForFunction(() => /traduction Claude Sonnet 5, transcription OpenAI gpt-transcribe/.test(document.querySelector("#captions-api").textContent));
+      const t1 = await studio.textContent("#captions-card");
+      assert.doesNotMatch(t1, /€|\$|0,42|0\.42/, "aucun coût dans le Studio");
+      fake.state.api = Object.assign({}, fake.state.api, { capped: true, notice: "Plafond de dépense atteint : traduction et transcription repassées en local jusqu'à la fin de la séance." });
+      await studio.waitForFunction(() => document.querySelector("#captions-api").classList.contains("is-capped"));
+      await studio.waitForFunction(() => /Plafond de dépense atteint : les sous-titres/.test(document.body.textContent));
+      const g = await studio.evaluate(() => {
+        const e = document.querySelector("#captions-api"), r = e.getBoundingClientRect(), card = document.querySelector("#captions-card").getBoundingClientRect();
+        return { color: getComputedStyle(e).color, inside: r.left >= card.left - 0.5 && r.right <= card.right + 0.5 };
+      });
+      assert.equal(g.color, "rgb(243, 192, 88)");
+      assert.ok(g.inside, "ligne API dans la carte");
+      fake.state.api = Object.assign({}, fake.state.api, { capped: false, notice: "" });
+      await studio.waitForFunction(() => !document.querySelector("#captions-api").classList.contains("is-capped"));
+      await studio.locator("#captions-card").screenshot({ path: path.join(OUT, `studio-carte-api-${TAG}.png`) });
+      fake.state.api = { translation: "", transcription: "", capped: false, notice: "" };
+    });
+
     await check("Téléphone : A+ grossit le texte et s'en souvient ; « Back to live » après lecture en arrière", async () => {
       const before = await phone.$eval(".st-line", (e) => parseFloat(getComputedStyle(e).fontSize));
       await phone.click("#st-larger");

@@ -9,3 +9,4 @@ dist/
 __pycache__/
 tools/ecoute/.venv/
 tools/ecoute/modeles/
+tools/ecoute/journaux/

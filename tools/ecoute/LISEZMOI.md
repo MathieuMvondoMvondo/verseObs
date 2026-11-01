@@ -9,6 +9,11 @@ font avec elle, en lui demandant ce qu’elle a compris. Tout tourne sur l’ord
 pas d’abonnement, pas d’envoi sur Internet. Rien ne passe à l’antenne sans
 action de l’opérateur.
 
+Avec les clés d’API de Math (facultatif, voir plus bas), la transcription passe
+par OpenAI et la traduction par Claude : le PC ne calcule presque plus rien.
+Whisper et OPUS-MT restent chargés en secours et reprennent seuls, sans délai,
+à la moindre panne, lenteur ou quota de l’API.
+
 ## Installer (une fois, sur le PC de la régie)
 
 1. Python 3.10 à 3.13 doit être présent (c’est le cas sur le PC de Math).
@@ -46,6 +51,56 @@ revenir au direct ; le téléphone affiche alors « Some speech was missed » et
 Studio compte les secondes sautées. En cas de panne, le téléphone l’indique et la
 carte du Studio affiche l’erreur : « Démarrer l’écoute » relance.
 
+## Avec vos clés d’API (facultatif)
+
+Les clés ne s’écrivent qu’au clavier du PC de la régie, en saisie masquée.
+Elles ne passent jamais par Telegram, un message, une page ou un fichier du
+dépôt, et Hermes ne les voit jamais.
+
+1. **Réclamer les crédits inclus dans les abonnements** (avant de créer les clés) :
+   - ChatGPT Pro : sur chatgpt.com, Paramètres › Facturation › *API credits*
+     (crédits de l’API OpenAI, audio compris ; ils ne couvrent pas Codex).
+   - Claude Max ou Ultra : sur claude.ai, Paramètres › Facturation ›
+     *API credits* › *Link organization*.
+2. **Créer les clés** : platform.claude.com › *API keys* › *Create key*
+   (commence par `sk-ant-`) ; platform.openai.com › *API keys* ›
+   *Create new secret key* (commence par `sk-`, facultative).
+3. Sur le PC de la régie, double-cliquer **`tools\ecoute\configurer-cles.cmd`** :
+   coller la clé Anthropic (rien ne s’affiche), Entrée ; puis la clé OpenAI,
+   ou Entrée seule pour garder Whisper en local. Chaque clé enregistrée affiche
+   seulement « clé enregistrée ». Elles vont dans les variables d’environnement
+   de l’utilisateur Windows (`VERSEOBS_ECOUTE_ANTHROPIC_CLE`,
+   `VERSEOBS_ECOUTE_OPENAI_CLE` : des noms propres à VerseObs, pour que Claude
+   Code ou Codex sur le même PC ne les prennent pas).
+4. Fermer puis relancer `lancer-ecoute.cmd`. Sa fenêtre annonce « API :
+   traduction Claude auto… ». Dans le Studio, la carte indique « API :
+   traduction Claude Sonnet 5, transcription OpenAI gpt-transcribe ».
+
+Ce qui part sur Internet : chaque phrase (le son vers OpenAI si sa clé existe,
+le texte français vers Anthropic). Modèles (vérifiés le 01/11/2026 sur les
+documentations officielles) :
+- traduction « auto » : **Claude Sonnet 5** en effort bas ; si la médiane des
+  5 dernières traductions dépasse 1,5 s, **Claude Haiku 4.5** (le plus rapide)
+  pour le reste de la séance. Aucune mesure n’a pu être faite avant le culte
+  (pas de clé côté serveur) : la latence de chaque phrase est notée dans
+  `tools\ecoute\journaux\api-<date>.jsonl` ;
+- transcription : **gpt-transcribe**, le modèle recommandé par OpenAI, envoyé
+  par phrase découpée aux pauses (le flux temps réel d’OpenAI demanderait un
+  autre protocole : pas pour ce premier essai).
+
+Coût (pour mémoire, les crédits inclus le couvrent) : sur la prédication du
+11/10, 12,6 phrases par minute, soit environ 760 par heure, ~330 jetons
+envoyés et ~20 reçus par phrase. Claude Sonnet 5 (2 $ / 10 $ par million de
+jetons) ≈ 0,66 $ par heure ; Haiku 4.5 (1 $ / 5 $) ≈ 0,33 $ ; gpt-transcribe
+(0,0045 $ par minute d’audio) ≤ 0,27 $ par heure de parole. Total ≈ 1 $ par
+heure de culte au plus. Aucun plafond par défaut (`--plafond-euros 5` en fixe
+un ; au-delà, tout repasse en local). Le coût estimé est noté au journal, pas
+dans le Studio.
+
+**Revenir au tout local** : `lancer-ecoute.cmd --tout-local` (pour une séance),
+ou `effacer-cles.cmd` (retire les deux clés du PC). Si la traduction est lente :
+`lancer-ecoute.cmd --modele-claude claude-haiku-4-5`.
+
 ## Réglages utiles (`lancer-ecoute.cmd` accepte les mêmes options)
 
 | Option | Effet |
@@ -55,6 +110,9 @@ carte du Studio affiche l’erreur : « Démarrer l’écoute » relance.
 | `--entree 18` | entrée audio imposée (numéros : `ecoute.py --liste`) |
 | `--fichier culte.m4a --debut 3900 --duree 300` | répétition sur un enregistrement, au rythme du direct |
 | `--api-url https://…/v1/chat/completions --api-modele …` | traduction par l’API de l’église (désactivée par défaut). La clé se met dans la variable d’environnement `VERSEOBS_ECOUTE_API_CLE` du PC, jamais dans une page. En cas d’erreur, la traduction locale reprend. |
+| `--tout-local` | ignore les clés d’API pour cette séance |
+| `--modele-claude claude-haiku-4-5` | traduction toujours par Haiku 4.5 (`claude-sonnet-5` : toujours Sonnet ; `auto` par défaut) |
+| `--delai-api 4` / `--delai-transcription 8` | délai maximal d’un appel (s) avant de passer la phrase en local |
 
 ## Limites connues
 

@@ -1,19 +1,28 @@
 """VerseObs Écoute : moteur local (découpage par pauses, transcription, traduction).
 
 Tout tourne sur le processeur de l'ordinateur de la régie : rien ne part sur
-Internet, sauf si l'église active elle-même une traduction par API (option,
-désactivée par défaut, clé lue dans l'environnement du service uniquement).
+Internet, sauf si l'opérateur a enregistré ses propres clés d'API
+(configurer-cles.cmd) : traduction par Claude (Anthropic), transcription par
+OpenAI. Les clés ne sont lues que dans l'environnement du service, jamais
+affichées ni journalisées ; un plafond de dépense par séance ramène tout en
+local, comme toute panne, lenteur ou quota de l'API.
 """
 
 from __future__ import annotations
 
+import io
 import json
+import math
 import os
 import queue
 import re
+import secrets
+import socket
 import threading
 import time
+import urllib.error
 import urllib.request
+import wave
 from collections import deque
 from urllib.parse import urlsplit
 from dataclasses import dataclass
@@ -501,6 +510,454 @@ class ApiTranslator:
         except Exception:
             self.failures += 1
         return self.fallback(text) if self.fallback else ""
+
+
+# --------------------------------------------- API payantes (option) --
+# Vérifié le 01/11/2026 sur la documentation officielle :
+# - Claude Sonnet 5 (« claude-sonnet-5 », 2 $ / 10 $ par million de jetons, réflexion
+#   adaptative réglée par output_config.effort) et Claude Haiku 4.5, le Haiku le plus
+#   récent (« claude-haiku-4-5-20251001 », 1 $ / 5 $, « le plus rapide », effort non pris
+#   en charge) : docs.claude.com/en/docs/about-claude/models/overview, /pricing, /effort.
+#   En-têtes x-api-key et anthropic-version (docs.claude.com/en/api/versioning :
+#   2023-06-01 ; la 2026-10-21 refuse temperature/top_p/top_k, jamais envoyés ici).
+# - Choix « auto » (défaut) : Sonnet 5 en effort bas ; si la médiane des 5 dernières
+#   traductions dépasse 1,5 s (délai dépassé compté), Haiku 4.5 pour le reste de la séance.
+#   Aucune clé n'était disponible pour mesurer avant le culte : la latence de chaque
+#   phrase est notée au journal et le choix se fait sur place.
+# - OpenAI « gpt-transcribe » est le modèle de transcription recommandé, 0,0045 $
+#   par minute d'audio (platform.openai.com/docs/models/gpt-transcribe) ;
+#   whisper-1 et gpt-4o-*-transcribe ferment le 26/02/2027.
+ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
+ANTHROPIC_VERSION = "2023-06-01"
+CLAUDE_SONNET = "claude-sonnet-5"
+CLAUDE_HAIKU = "claude-haiku-4-5-20251001"
+ANTHROPIC_MODEL = "auto"  # Sonnet 5, puis Haiku 4.5 si la médiane dépasse SLOW_CLAUDE
+SLOW_CLAUDE = 1.5  # s par traduction (médiane des 5 dernières)
+ANTHROPIC_PRICES = {  # $ par million de jetons (entrée, sortie)
+    "claude-haiku-4-5": (1.0, 5.0),
+    "claude-sonnet-5": (2.0, 10.0),
+    "claude-opus-5": (5.0, 25.0),
+}
+EFFORT_MODELS = ("claude-sonnet-5", "claude-opus-5", "claude-fable-5")  # output_config.effort accepté
+DISPLAY = {"claude-sonnet-5": "Claude Sonnet 5", "claude-haiku-4-5": "Claude Haiku 4.5",
+           "claude-opus-5": "Claude Opus 5", "gpt-transcribe": "OpenAI gpt-transcribe"}
+UNKNOWN_CLAUDE_PRICE = (5.0, 25.0)  # modèle hors table : on compte cher, le plafond protège
+OPENAI_TRANSCRIBE_URL = "https://api.openai.com/v1/audio/transcriptions"
+OPENAI_TRANSCRIBE_MODEL = "gpt-transcribe"
+OPENAI_TRANSCRIBE_PRICES = {"gpt-transcribe": 0.0045}  # $ par minute d'audio
+UNKNOWN_TRANSCRIBE_PRICE = 0.006
+# Noms propres à VerseObs : jamais ANTHROPIC_API_KEY / OPENAI_API_KEY, que
+# Claude Code ou Codex sur le même PC prendraient pour eux (facturation API).
+KEY_ENV = {"anthropic": "VERSEOBS_ECOUTE_ANTHROPIC_CLE", "openai": "VERSEOBS_ECOUTE_OPENAI_CLE"}
+_KEY_LIKE = re.compile(r"(sk-|key-|bearer\s+)[A-Za-z0-9_\-.]{6,}", re.I)
+
+
+def mask_secrets(text, *keys) -> str:
+    """Retire toute clé (connue ou de forme sk-…) d'un texte affiché ou journalisé."""
+    text = str(text or "")
+    for k in keys:
+        if k and len(k) >= 6:
+            text = text.replace(k, "•••")
+    return _KEY_LIKE.sub(lambda m: m.group(1) + "•••", text)
+
+
+def euros(x: float) -> str:
+    return f"{x:.2f}".replace(".", ",") + " €"
+
+
+def display_name(model: str) -> str:
+    for name in sorted(DISPLAY, key=len, reverse=True):
+        if model == name or model.startswith(name + "-"):
+            return DISPLAY[name]
+    return model
+
+
+def price_for(prices: dict, model: str):
+    for name in sorted(prices, key=len, reverse=True):
+        if model == name or model.startswith(name + "-"):
+            return prices[name]
+    return None
+
+
+class Depense:
+    """Coût estimé d'une séance (un lancement du service), noté au journal.
+
+    Aucun plafond par défaut (décision de Math, 01/11). Avec --plafond-euros,
+    chaque appel payant est estimé AVANT de partir : s'il ferait dépasser le
+    plafond, il ne part pas et tout repasse en local jusqu'à la fin de la séance.
+    """
+
+    def __init__(self, plafond_eur=None, euros_par_dollar=1.0, on_change=None, journal=None):
+        self.plafond = None if plafond_eur is None else max(0.0, float(plafond_eur))
+        self.taux = float(euros_par_dollar)
+        self.on_change = on_change or (lambda: None)
+        self.journal = journal or (lambda obj: None)
+        self.usd = 0.0
+        self.capped = False
+        self.calls = {"anthropic": 0, "openai": 0}
+        self.tokens_in = self.tokens_out = 0
+        self.audio_s = 0.0
+        self.local = 0  # phrases faites en local alors qu'une API était prévue
+        self._lock = threading.Lock()
+
+    @property
+    def eur(self) -> float:
+        return self.usd * self.taux
+
+    def allow(self, estimate_usd: float) -> bool:
+        with self._lock:
+            if self.capped:
+                return False
+            if self.plafond is None or (self.usd + max(0.0, estimate_usd)) * self.taux <= self.plafond:
+                return True
+            self.capped = True
+            total = self.eur
+        self.journal({"type": "api_plafond", "t": time.time(), "total_eur": round(total, 4),
+                      "plafond_eur": self.plafond})
+        print("[api] plafond de dépense atteint : retour au tout local.", flush=True)
+        self.on_change()
+        return False
+
+    def add(self, service: str, model: str, usd: float, estimated=False, **detail):
+        with self._lock:
+            self.usd += max(0.0, usd)
+            self.calls[service] = self.calls.get(service, 0) + 1
+            self.tokens_in += int(detail.get("jetons_entree") or 0)
+            self.tokens_out += int(detail.get("jetons_sortie") or 0)
+            self.audio_s += float(detail.get("audio_s") or 0.0)
+            total = self.eur
+        self.journal(dict({"type": "api_cout", "t": time.time(), "service": service, "modele": model,
+                           "cout_usd": round(usd, 6), "estime": bool(estimated),
+                           "total_eur": round(total, 4)}, **detail))
+
+    def notice(self) -> str:
+        return ("Plafond de dépense atteint : traduction et transcription repassées en local "
+                "jusqu'à la fin de la séance.") if self.capped else ""
+
+    def recap(self) -> dict:
+        with self._lock:
+            return {
+                "total_eur": round(self.eur, 4),
+                "plafond_eur": self.plafond,
+                "plafond_atteint": self.capped,
+                "appels_claude": self.calls.get("anthropic", 0),
+                "jetons_entree": self.tokens_in,
+                "jetons_sortie": self.tokens_out,
+                "appels_transcription": self.calls.get("openai", 0),
+                "minutes_transcrites": round(self.audio_s / 60, 2),
+                "phrases_en_local": self.local,
+            }
+
+    def recap_text(self) -> str:
+        r = self.recap()
+        plafond = "sans plafond" if r["plafond_eur"] is None else "plafond " + euros(r["plafond_eur"])
+        parts = [f"{euros(r['total_eur'])} estimés ({plafond}" + (", atteint" if r["plafond_atteint"] else "") + ")"]
+        if r["appels_claude"]:
+            parts.append(f"Claude : {r['appels_claude']} phrases")
+        if r["appels_transcription"]:
+            parts.append(f"OpenAI : {r['minutes_transcrites']:.1f} min".replace(".", ","))
+        if r["phrases_en_local"]:
+            parts.append(f"{r['phrases_en_local']} replis en local")
+        return " · ".join(parts)
+
+
+def _api_error(exc):
+    """(code HTTP, raison courte, définitive) — jamais le corps brut de la réponse."""
+    if isinstance(exc, urllib.error.HTTPError):
+        kind = ""
+        try:
+            data = json.loads(exc.read(4000).decode("utf-8", "replace"))
+            kind = re.sub(r"[^a-z_]", "", str((data.get("error") or {}).get("type") or ""))[:40]
+        except Exception:
+            pass
+        reason = f"HTTP {exc.code}" + (f" {kind}" if kind else "")
+        # Clé refusée, facturation, droits, modèle inconnu, requête rejetée
+        # (dont le plafond de dépense fixé dans la console) : inutile d'insister.
+        return exc.code, reason, exc.code in (400, 401, 402, 403, 404)
+    if isinstance(exc, (socket.timeout, TimeoutError)) or "timed out" in str(exc):
+        return 0, "délai dépassé", False
+    if isinstance(exc, urllib.error.URLError) and isinstance(getattr(exc, "reason", None), (socket.timeout, TimeoutError)):
+        return 0, "délai dépassé", False
+    return 0, ("réseau indisponible" if isinstance(exc, (urllib.error.URLError, OSError))
+               else "réponse illisible"), False
+
+
+class _Garde:
+    """Repli local d'un client payant : une panne → cette phrase en local ;
+    deux de suite ou un quota (429) → local pendant 60 s ; clé refusée ou
+    requête rejetée → local jusqu'à la fin de la séance."""
+
+    PAUSE = 60.0
+
+    def __init__(self, label: str, budget: Depense):
+        self.label, self.budget = label, budget
+        self.calls = self.failures = self.consecutive = 0
+        self.until = 0.0
+        self.off = ""
+        self.notice = ""
+
+    def usable(self) -> bool:
+        return not self.off and not self.budget.capped and time.time() >= self.until
+
+    def ok(self):
+        self.calls += 1
+        self.consecutive = 0
+        if not self.off:
+            self.notice = ""
+
+    def failed(self, exc, key) -> bool:
+        """Retourne True si l'appel a pu partir et être facturé (délai dépassé)."""
+        code, reason, final = _api_error(exc)
+        self.failures += 1
+        self.consecutive += 1
+        if final:
+            self.off = reason
+            self.notice = f"{self.label} : {reason}, local jusqu'à la fin de la séance."
+        elif code == 429 or self.consecutive >= 2:
+            self.until = time.time() + self.PAUSE
+            self.notice = f"{self.label} : {reason}, local pendant 1 min."
+        else:
+            self.notice = f"{self.label} : {reason}, phrase faite en local."
+        self.notice = mask_secrets(self.notice, key)
+        print("[api] " + self.notice, flush=True)
+        return reason == "délai dépassé"
+
+
+_WRAPPERS = re.compile(r'^(?:english|translation|traduction)\s*:\s*', re.I)
+
+
+class AnthropicTranslator:
+    """Traduction par Claude (API Messages d'Anthropic) avec un court contexte
+    des phrases précédentes. Toute erreur, lenteur, quota ou dépassement du
+    plafond : la traduction locale (OPUS-MT) prend la phrase."""
+
+    SYSTEM = (
+        "You write live English subtitles for a French Christian sermon, for a listener who "
+        "does not speak French. Translate the NEW French fragment into natural, faithful English. "
+        "Keep names and Bible references, with standard English book names (Jean 3:16 -> John 3:16). "
+        "The French comes from speech recognition: fix an obvious recognition slip only when the "
+        "context makes it certain. Never add notes, quotes or comments. Answer with the English "
+        "translation of the new fragment only."
+    )
+
+    def __init__(self, key: str, fallback, budget: Depense, model=ANTHROPIC_MODEL, url=ANTHROPIC_URL,
+                 timeout=4.0, context=3, max_tokens=400, slow=SLOW_CLAUDE):
+        check_api_url(url)
+        if not key:
+            raise ValueError("clé Anthropic absente")
+        self._key = key
+        self.fallback, self.budget = fallback, budget
+        self.auto = model in ("", "auto")
+        self.url, self.timeout = url, float(timeout)
+        self.max_tokens = int(max_tokens)
+        self.history: deque = deque(maxlen=max(0, int(context)))
+        self.slow = float(slow)
+        self.latencies: deque = deque(maxlen=5)
+        self.effort_ok = True
+        self.garde = _Garde("Claude", budget)
+        self._use(CLAUDE_SONNET if self.auto else model)
+
+    def _use(self, model: str):
+        self.model = model
+        self.p_in, self.p_out = price_for(ANTHROPIC_PRICES, model) or UNKNOWN_CLAUDE_PRICE
+        self.name = "claude:" + model
+        self.latencies.clear()
+
+    def _switch_to_haiku(self, why: str):
+        if not self.auto or self.model == CLAUDE_HAIKU:
+            return False
+        before = self.model
+        self._use(CLAUDE_HAIKU)
+        self.budget.journal({"type": "api_modele", "t": time.time(), "de": before, "vers": CLAUDE_HAIKU,
+                             "raison": why})
+        print(f"[api] traduction : {display_name(before)} → {display_name(CLAUDE_HAIKU)} ({why}).", flush=True)
+        return True
+
+    def _measured(self, seconds: float):
+        """Latence d'une traduction (ou délai dépassé) : règle Sonnet/Haiku du mode auto."""
+        self.latencies.append(seconds)
+        if self.auto and self.model != CLAUDE_HAIKU and len(self.latencies) == self.latencies.maxlen:
+            median = sorted(self.latencies)[len(self.latencies) // 2]
+            if median > self.slow:
+                self._switch_to_haiku(f"médiane {median:.2f} s > {self.slow:.1f} s")
+
+    def __repr__(self):
+        return f"AnthropicTranslator(model={self.model!r})"
+
+    def _prompt(self, text: str) -> str:
+        lines = []
+        if self.history:
+            lines.append("Context, already subtitled (do not translate again):")
+            for fr, en in self.history:
+                lines.append("FR: " + fr[-300:])
+                lines.append("EN: " + en[-300:])
+            lines.append("")
+        lines.append("New French fragment to translate:")
+        lines.append(text)
+        return "\n".join(lines)
+
+    def _cost(self, tokens_in: float, tokens_out: float) -> float:
+        return (tokens_in * self.p_in + tokens_out * self.p_out) / 1e6
+
+    def __call__(self, text: str) -> str:
+        if not self.garde.usable():
+            return self._local(text)
+        user = self._prompt(text)
+        estimate = self._cost((len(self.SYSTEM) + len(user)) / 3 + 20,
+                              min(self.max_tokens, len(text) / 2.5 + 30))
+        if not self.budget.allow(estimate):
+            return self._local(text)
+        t0 = time.time()
+        try:
+            data = self._post(user)
+            took = time.time() - t0
+            usage = data.get("usage") or {}
+            tin, tout = int(usage.get("input_tokens") or 0), int(usage.get("output_tokens") or 0)
+            model = self.model
+            self.budget.add("anthropic", model, self._cost(tin, tout), jetons_entree=tin,
+                            jetons_sortie=tout, duree_s=round(took, 3))
+            self._measured(took)
+            out = "".join(b.get("text", "") for b in data.get("content") or []
+                          if isinstance(b, dict) and b.get("type") == "text")
+            out = clean_text(_WRAPPERS.sub("", out.strip().strip('"').strip("“”")))
+            if not out:
+                raise ValueError("réponse vide")
+            self.garde.ok()
+            self.history.append((text, out))
+            return out
+        except Exception as exc:
+            code = exc.code if isinstance(exc, urllib.error.HTTPError) else 0
+            if self.auto and code in (400, 404) and self._switch_to_haiku(f"HTTP {code} sur Sonnet"):
+                return self._local(text)  # Haiku dès la phrase suivante
+            if self.garde.failed(exc, self._key):  # parti mais sans réponse : compté
+                self.budget.add("anthropic", self.model, estimate, estimated=True,
+                                duree_s=round(time.time() - t0, 3))
+                self._measured(self.timeout)
+            return self._local(text)
+
+    def _post(self, user: str) -> dict:
+        payload = {
+            "model": self.model,
+            "max_tokens": self.max_tokens,
+            "system": self.SYSTEM,
+            "messages": [{"role": "user", "content": user}],
+        }
+        effort = self.effort_ok and any(self.model == m or self.model.startswith(m + "-") for m in EFFORT_MODELS)
+        if effort:  # sous-titres : réflexion minimale, réponse aussitôt
+            payload["output_config"] = {"effort": "low"}
+        try:
+            return self._send(payload)
+        except urllib.error.HTTPError as exc:
+            if not (effort and exc.code == 400):
+                raise
+            self.effort_ok = False  # paramètre refusé : on le retire pour la séance
+            payload.pop("output_config")
+            return self._send(payload)
+
+    def _send(self, payload: dict) -> dict:
+        req = urllib.request.Request(self.url, data=json.dumps(payload).encode("utf-8"), method="POST", headers={
+            "content-type": "application/json",
+            "x-api-key": self._key,
+            "anthropic-version": ANTHROPIC_VERSION,
+        })
+        with _API_OPENER.open(req, timeout=self.timeout) as r:
+            return json.loads(r.read().decode("utf-8"))
+
+    def _local(self, text: str) -> str:
+        self.budget.local += 1
+        out = self.fallback(text) if self.fallback else ""
+        if out:
+            self.history.append((text, out))
+        return out
+
+
+def wav_bytes(audio: np.ndarray) -> bytes:
+    pcm = (np.clip(np.asarray(audio, np.float32), -1.0, 1.0) * 32767).astype("<i2").tobytes()
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(SR)
+        w.writeframes(pcm)
+    return buf.getvalue()
+
+
+def multipart(fields: dict, file: tuple):
+    boundary = "verseobs-" + secrets.token_hex(12)
+    out = io.BytesIO()
+    for k, v in fields.items():
+        out.write(f'--{boundary}\r\nContent-Disposition: form-data; name="{k}"\r\n\r\n'.encode())
+        out.write(str(v).encode("utf-8") + b"\r\n")
+    name, filename, ctype, data = file
+    out.write(f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"; '
+              f'filename="{filename}"\r\nContent-Type: {ctype}\r\n\r\n'.encode())
+    out.write(data + f"\r\n--{boundary}--\r\n".encode())
+    return out.getvalue(), "multipart/form-data; boundary=" + boundary
+
+
+class OpenAITranscriber:
+    """Transcription par l'API OpenAI (gpt-transcribe), seulement si une clé
+    OpenAI est enregistrée. Toute erreur, lenteur, quota ou dépassement du
+    plafond : Whisper en local prend la phrase."""
+
+    def __init__(self, key: str, fallback, budget: Depense, model=OPENAI_TRANSCRIBE_MODEL,
+                 url=OPENAI_TRANSCRIBE_URL, timeout=8.0, prompt=DEFAULT_PROMPT):
+        check_api_url(url)
+        if not key:
+            raise ValueError("clé OpenAI absente")
+        self._key = key
+        self.fallback, self.budget = fallback, budget
+        self.model, self.url, self.timeout = model, url, float(timeout)
+        self.price = price_for(OPENAI_TRANSCRIBE_PRICES, model) or UNKNOWN_TRANSCRIBE_PRICE
+        self.base_prompt, self.previous = prompt, ""
+        self.garde = _Garde("Transcription OpenAI", budget)
+        self.name = "openai:" + model
+
+    def __repr__(self):
+        return f"OpenAITranscriber(model={self.model!r})"
+
+    def __call__(self, audio: np.ndarray) -> str:
+        seconds = len(audio) / SR
+        if not self.garde.usable():
+            return self._local(audio)
+        estimate = math.ceil(seconds) / 60 * self.price
+        if not self.budget.allow(estimate):
+            return self._local(audio)
+        fields = {"model": self.model, "language": "fr", "response_format": "json"}
+        prompt = (self.base_prompt + " " + self.previous[-200:]).strip()
+        if prompt:
+            fields["prompt"] = prompt
+        body, ctype = multipart(fields, ("file", "phrase.wav", "audio/wav", wav_bytes(audio)))
+        req = urllib.request.Request(self.url, data=body, method="POST", headers={
+            "Content-Type": ctype,
+            "Authorization": "Bearer " + self._key,
+        })
+        t0 = time.time()
+        try:
+            with _API_OPENER.open(req, timeout=self.timeout) as r:
+                data = json.loads(r.read().decode("utf-8"))
+            usage = data.get("usage") or {}
+            billed = math.ceil(seconds)
+            if usage.get("type") == "duration" and isinstance(usage.get("seconds"), (int, float)):
+                billed = float(usage["seconds"])
+            self.budget.add("openai", self.model, billed / 60 * self.price, audio_s=round(seconds, 2),
+                            duree_s=round(time.time() - t0, 3))
+            text = clean_text(str(data.get("text") or ""))
+            if HALLUCINATIONS.search(text) and len(text) < 120:
+                text = ""
+            self.garde.ok()
+            if text:
+                self.previous = text
+            return text
+        except Exception as exc:
+            if self.garde.failed(exc, self._key):
+                self.budget.add("openai", self.model, estimate, estimated=True, audio_s=round(seconds, 2),
+                                duree_s=round(time.time() - t0, 3))
+            return self._local(audio)
+
+    def _local(self, audio: np.ndarray) -> str:
+        self.budget.local += 1
+        return self.fallback(audio) if self.fallback else ""
 
 
 # -------------------------------------------------------------- sources --

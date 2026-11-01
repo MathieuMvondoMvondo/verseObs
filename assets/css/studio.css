@@ -3575,6 +3575,20 @@ body {
 .captions-secondary:hover {
   background: #2e3034;
 }
+.integration-card .captions-api {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #aeb3bd;
+  overflow-wrap: anywhere;
+}
+.integration-card .captions-api.is-warning {
+  color: #f3c058;
+}
+.integration-card .captions-api.is-capped {
+  color: #f3c058;
+  font-weight: 600;
+}
 .captions-metrics {
   display: flex;
   flex-wrap: wrap;

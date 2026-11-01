@@ -107,6 +107,28 @@ function viewer(url, origin) {
     assert.equal("secret" in s, false);
     assert.equal(engineState({ status: "<script>" }).status, "idle");
   });
+  await check("engineState: the paid-API line passes, nothing else (never a key, never a cost)", () => {
+    const fake = "sk-ant-FAUSSE-CLE-DE-TEST-pas-une-vraie-0000";
+    const s = engineState({
+      status: "listening",
+      api: {
+        translation: "Claude Sonnet 5",
+        transcription: "",
+        capped: "yes",
+        notice: "y".repeat(400),
+        spent: 0.42,
+        limit: 2,
+        key: fake,
+        headers: { "x-api-key": fake },
+      },
+    });
+    assert.deepEqual(Object.keys(s.api).sort(), ["capped", "notice", "transcription", "translation"]);
+    assert.equal(s.api.translation, "Claude Sonnet 5");
+    assert.equal(s.api.capped, false);
+    assert.equal(s.api.notice.length, 200);
+    assert.equal(JSON.stringify(s).includes(fake), false);
+    assert.deepEqual(engineState({}).api, { translation: "", transcription: "", capped: false, notice: "" });
+  });
   await check("captionLine refuses empty text and trims long lines", () => {
     assert.equal(captionLine({ en: "   " }), null);
     assert.equal(captionLine(null), null);

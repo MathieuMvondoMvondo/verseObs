@@ -14,7 +14,8 @@
       relay = false,
       busy = "",
       busyTimer = 0,
-      lastQr = "";
+      lastQr = "",
+      cappedSeen = false;
 
     function send(action, extra) {
       var ok = options.channel.sendRelay(
@@ -116,6 +117,31 @@
         st && st.cpu != null
           ? Math.round(st.cpu) + " %" + (st.ram ? " · " + st.ram + " Mo" : "")
           : "—";
+
+      // Paid APIs (the operator's own keys): what runs, estimated cost, cap.
+      var api = (st && st.api) || {},
+        paid = !!(api.translation || api.transcription),
+        apiEl = el("captions-api"),
+        apiText = "";
+      if (engine && paid) {
+        apiText =
+          "API : traduction " +
+          (api.translation || "locale") +
+          ", transcription " +
+          (api.transcription || "locale") +
+          " · Whisper et OPUS-MT en secours.";
+        if (api.notice) apiText += " " + api.notice;
+      } else if (engine) apiText = "Tout en local : aucune clé d’API.";
+      apiEl.hidden = !apiText;
+      apiEl.textContent = apiText;
+      apiEl.classList.toggle("is-capped", !!api.capped);
+      apiEl.classList.toggle("is-warning", !!api.notice && !api.capped);
+      if (api.capped && !cappedSeen)
+        options.notify(
+          "Plafond de dépense atteint : les sous-titres continuent tout en local.",
+          "error",
+        );
+      cappedSeen = !!api.capped;
 
       var error = (st && st.error) || share.error || "";
       el("captions-error").hidden = !error;

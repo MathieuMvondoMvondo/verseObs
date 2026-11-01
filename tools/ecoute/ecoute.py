@@ -12,6 +12,14 @@ Autres usages :
                                                    simulation au rythme du direct
     python ecoute.py --fichier x.wav --sans-relais --demarrer --fin-auto --journal m.jsonl
                                                    mesure sans VerseObs
+    python ecoute.py --tout-local                  ignorer les clés d'API pour cette séance
+
+Clés d'API (facultatives, enregistrées par configurer-cles.cmd, jamais dans
+une page ni un journal) : VERSEOBS_ECOUTE_ANTHROPIC_CLE → traduction par
+Claude ; VERSEOBS_ECOUTE_OPENAI_CLE → transcription par OpenAI (gpt-transcribe).
+Whisper et OPUS-MT restent chargés en secours et ne calculent rien tant que
+l'API répond. Sans clé, tout reste local. Plafond de dépense : aucun par
+défaut (--plafond-euros pour en fixer un).
 """
 
 from __future__ import annotations
@@ -80,23 +88,56 @@ class Service:
         self.engine = None
         self.translator_name = ""
         self.asr_name = "whisper-" + args.modele + "-int8"
+        # API payantes (facultatives) : garde-fou, clients, récapitulatif.
+        self.budget = None
+        self.paid = []  # clients d'API actifs (traduction, transcription)
+        self._secrets = []  # seulement pour les masquer dans un texte affiché
+        self.cost_journal = None
+        self.recap = ""
+        self._was_listening = False
 
     # -- chargement -------------------------------------------------------
     def load(self):
         a = self.args
         try:
             t0 = time.time()
+            keys = {} if a.tout_local else {
+                name: os.environ.get(var, "").strip() for name, var in moteur.KEY_ENV.items()}
+            self._secrets = [k for k in keys.values() if k]
+            self.budget = moteur.Depense(a.plafond_euros, a.euros_par_dollar,
+                                         on_change=self.changed, journal=self.write_cost)
             if a.moteur == "openvino":
                 transcribe = moteur.OpenVinoTranscriber(a.modele, device=a.appareil)
             else:
                 transcribe = moteur.Transcriber(a.modele, threads=a.threads, beam=a.beam)
+            if keys.get("openai"):  # sinon Whisper reste seul, en local
+                transcribe = moteur.OpenAITranscriber(
+                    keys["openai"], transcribe, self.budget, model=a.modele_transcription,
+                    url=a.url_openai, timeout=a.delai_transcription)
+                self.paid.append(transcribe)
             local = moteur.Translator(translator_dir(a.traducteur), threads=a.threads_traduction)
             translate = local
             if a.api_url:
                 key = os.environ.get("VERSEOBS_ECOUTE_API_CLE", "")
                 if not key:
                     raise RuntimeError("VERSEOBS_ECOUTE_API_CLE absente : API de traduction non activée")
+                self._secrets.append(key)
                 translate = moteur.ApiTranslator(a.api_url, key, a.api_modele, fallback=local)
+            elif keys.get("anthropic"):
+                translate = moteur.AnthropicTranslator(
+                    keys["anthropic"], local, self.budget, model=a.modele_claude,
+                    url=a.url_anthropic, timeout=a.delai_api)
+                self.paid.append(translate)
+            keys = None
+            if self.paid:
+                self.log("API : " + ", ".join(
+                    ("traduction " + ("Claude auto (Sonnet 5, Haiku 4.5 si lent)" if c.auto else
+                                      moteur.display_name(c.model)))
+                    if isinstance(c, moteur.AnthropicTranslator) else
+                    ("transcription " + moteur.display_name(c.model)) for c in self.paid)
+                    + " ; Whisper/OPUS-MT en secours." + (
+                        "" if self.budget.plafond is None else
+                        f" Plafond de dépense : {moteur.euros(self.budget.plafond)}."))
             self.translator_name = translate.name
             self.engine = moteur.Engine(
                 transcribe,
@@ -117,7 +158,7 @@ class Service:
             self.asr_name = getattr(transcribe, "name", "whisper-" + a.modele + "-int8")
             self.log(f"Modèles prêts en {time.time() - t0:.1f} s ({self.asr_name}, {self.translator_name}).")
         except Exception as exc:
-            self.load_error = "Chargement impossible : " + str(exc)[:200]
+            self.load_error = moteur.mask_secrets("Chargement impossible : " + str(exc)[:200], *self._secrets)
             self.log(self.load_error)
         self.ready.set()
         self.changed()
@@ -164,7 +205,7 @@ class Service:
     def state(self):
         e = self.engine
         status = "loading" if not self.ready.is_set() else (e.status if e else "error")
-        error = self.load_error if not e else (e.error or "")
+        error = moteur.mask_secrets(self.load_error if not e else (e.error or ""), *self._secrets)
         cpu = ram = None
         if self.proc:
             try:
@@ -185,7 +226,32 @@ class Service:
             "backlog": round(e.backlog, 1) if e else 0,
             "cpu": cpu,
             "ram": ram,
+            "api": self.api_state(),
         }
+
+    def api_state(self):
+        """Ce que le Studio montre des API payantes : modèles, coût estimé, repli."""
+        b = self.budget
+        tr = next((c for c in self.paid if isinstance(c, moteur.AnthropicTranslator)), None)
+        asr = next((c for c in self.paid if isinstance(c, moteur.OpenAITranscriber)), None)
+        notices = [b.notice()] if b and b.capped else [c.garde.notice for c in self.paid if c.garde.notice]
+        # Pas de coût dans le Studio (décision de Math, 01/11) : il reste au journal.
+        return {
+            "translation": moteur.display_name(tr.model) if tr else "",
+            "transcription": moteur.display_name(asr.model) if asr else "",
+            "capped": bool(b and b.capped),
+            "notice": moteur.mask_secrets(" ".join(notices), *self._secrets)[:200],
+        }
+
+    def finish_session(self):
+        """Fin de séance (arrêt, fin de fichier, sortie) : récapitulatif des dépenses."""
+        if not self.paid or not self.budget:
+            return
+        self.recap = "Dernière écoute : " + self.budget.recap_text()
+        self.write_cost(dict({"type": "api_recapitulatif", "t": time.time(), "texte": self.recap},
+                             **self.budget.recap()))
+        where = self.args.journal or (self.cost_journal.name if self.cost_journal else "")
+        self.log("Fin d'écoute : récapitulatif des appels d'API noté dans " + where)
 
     def message(self, kind, **extra):
         self.n += 1
@@ -196,6 +262,10 @@ class Service:
             self.loop.call_soon_threadsafe(self.outbox.put_nowait, msg)
 
     def changed(self):
+        listening = bool(self.engine and self.engine.status in ("listening", "stopping"))
+        if self._was_listening and not listening:
+            self.finish_session()
+        self._was_listening = listening
         st = self.state()
         self.write({"type": "state", "t": time.time(), "state": st})
         self.send(self.message("caption_engine", state=st))
@@ -205,6 +275,13 @@ class Service:
 
     def on_caption(self, c):
         self.write({"type": "caption", "t": time.time(), "caption": c})
+        if self.paid and not self.journal and "latency" in c and c.get("unit", 1) == 1:
+            # Latence de chaque phrase (sans son texte) : choisir le modèle après le culte.
+            tr = next((x for x in self.paid if isinstance(x, moteur.AnthropicTranslator)), None)
+            self.write_cost({"type": "phrase", "t": time.time(), "latence_s": c.get("latency"),
+                             "transcription_s": c.get("asr"), "traduction_s": c.get("mt"),
+                             "audio_s": c.get("audio"), "modele_traduction": tr.model if tr else "local",
+                             "transcription": self.asr_name})
         if "gap" in c:
             print(f"[retard] {c['gap']} s d'audio sautées pour revenir au direct", flush=True)
         else:
@@ -215,6 +292,21 @@ class Service:
         if self.journal:
             self.journal.write(json.dumps(obj, ensure_ascii=False) + "\n")
             self.journal.flush()
+
+    def write_cost(self, obj):
+        """Appels d'API (coût estimé, latences) : dans --journal s'il existe, sinon journaux/api-<date>.jsonl."""
+        if self.journal:
+            return self.write(obj)
+        try:
+            if self.cost_journal is None:
+                folder = os.path.join(HERE, "journaux")
+                os.makedirs(folder, exist_ok=True)
+                name = time.strftime("api-%Y%m%d-%H%M%S.jsonl")
+                self.cost_journal = open(os.path.join(folder, name), "a", encoding="utf-8")
+            self.cost_journal.write(json.dumps(obj, ensure_ascii=False) + "\n")
+            self.cost_journal.flush()
+        except OSError:
+            pass
 
     def log(self, text):
         print(text, flush=True)
@@ -306,6 +398,21 @@ def parse(argv=None):
     p.add_argument("--api-url", help="option : API de traduction compatible OpenAI (https)")
     p.add_argument("--api-modele", default="gpt-4o-mini")
     p.add_argument("--priorite-basse", action="store_true")
+    p.add_argument("--tout-local", action="store_true",
+                   help="ignorer les clés d'API pour cette séance : Whisper et OPUS-MT seulement")
+    p.add_argument("--plafond-euros", type=float, default=None,
+                   help="dépense estimée maximale par séance (aucune par défaut) ; au-delà, tout en local")
+    p.add_argument("--euros-par-dollar", type=float, default=1.0,
+                   help="conversion des prix en dollars (défaut 1 : 1 $ compté 1 €, estimation majorée)")
+    p.add_argument("--modele-claude", default=moteur.ANTHROPIC_MODEL,
+                   help="auto (défaut : Sonnet 5, Haiku 4.5 si la médiane dépasse 1,5 s), "
+                        "claude-haiku-4-5 (le plus rapide) ou claude-sonnet-5")
+    p.add_argument("--modele-transcription", default=moteur.OPENAI_TRANSCRIBE_MODEL)
+    p.add_argument("--delai-api", type=float, default=4.0, help="délai maximal d'une traduction par Claude (s)")
+    p.add_argument("--delai-transcription", type=float, default=8.0,
+                   help="délai maximal d'une transcription par OpenAI (s)")
+    p.add_argument("--url-anthropic", default=moteur.ANTHROPIC_URL, help=argparse.SUPPRESS)
+    p.add_argument("--url-openai", default=moteur.OPENAI_TRANSCRIBE_URL, help=argparse.SUPPRESS)
     return p.parse_args(argv)
 
 
@@ -336,6 +443,8 @@ def main(argv=None):
     finally:
         if service.engine:
             service.engine.stop()
+        if service._was_listening:
+            service.finish_session()
 
 
 if __name__ == "__main__":

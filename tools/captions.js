@@ -94,6 +94,17 @@ function engineState(state) {
     backlog: num(s.backlog, 86400),
     cpu: num(s.cpu, 100),
     ram: num(s.ram, 1e6),
+    api: apiState(s.api),
+  };
+}
+/** Paid APIs as the Studio shows them: model names and fallback, never a cost or a key. */
+function apiState(api) {
+  const a = obj(api);
+  return {
+    translation: clean(a.translation, 60),
+    transcription: clean(a.transcription, 60),
+    capped: a.capped === true,
+    notice: clean(a.notice, 200),
   };
 }
 /** Split a long text at word boundaries: nothing is dropped. */
