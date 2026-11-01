@@ -21,6 +21,7 @@
     queue,
     planImport,
     remoteLink,
+    captionsLink,
     favorites;
   var channel = null;
   // What the output is doing, as the Studio shows it (shared with the phone remote).
@@ -157,6 +158,7 @@
       },
     });
     _initRemote();
+    _initCaptions();
     _loadDefaultBible();
   }
 
@@ -196,6 +198,17 @@
   }
   function _outputChanged() {
     if (remoteLink) remoteLink.changed();
+  }
+
+  // ---- Live English captions (local listening service, npm start only) ----
+
+  function _initCaptions() {
+    if (!window.VerseObs.CaptionsLink || !document.getElementById("captions-card"))
+      return;
+    captionsLink = new window.VerseObs.CaptionsLink({
+      channel: channel,
+      notify: _notify,
+    });
   }
 
   // ---- DOM caching ----
@@ -1636,6 +1649,7 @@
       onTransport: function (connected) {
         if (window.VerseObs.Studio) window.VerseObs.Studio.setRelay(connected);
         if (remoteLink) remoteLink.setRelay(connected);
+        if (captionsLink) captionsLink.setRelay(connected);
       },
     });
     channel.onMessage(_handleMessage);

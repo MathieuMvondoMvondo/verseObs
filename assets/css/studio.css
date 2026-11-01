@@ -3525,6 +3525,126 @@ body {
   display: none;
 }
 
+/* ---- Live English captions (Connexions) ---------------------------------- */
+.captions-card .captions-engine {
+  margin: 16px 0 0;
+  font-size: 14px;
+  color: #c4c7cf;
+}
+.captions-card[data-engine="listening"] .captions-engine {
+  color: #e8eaee;
+}
+.captions-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.captions-row select {
+  flex: 1 1 220px;
+  min-width: 0;
+  height: 38px;
+  padding: 0 10px;
+  font-size: 14px;
+  color: #e3e5e9;
+  background: #151618;
+  border: 1px solid #3b3d43;
+  border-radius: 7px;
+}
+.captions-row .remote-enable {
+  font-size: 14px;
+}
+.captions-stop,
+.captions-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 12px;
+  font-size: 14px;
+  color: #d5d7dc;
+  background: #26272b;
+  border: 1px solid #404248;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.captions-stop {
+  color: #f1b8ae;
+  border-color: #5a3a35;
+}
+.captions-stop:hover,
+.captions-secondary:hover {
+  background: #2e3034;
+}
+.captions-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin: 16px 0 0;
+}
+.captions-metrics div {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.captions-metrics dt {
+  font-size: 13px;
+  color: #8f939e;
+}
+.captions-metrics dd {
+  margin: 0;
+  font-size: 14px;
+  color: #e3e5e9;
+  font-variant-numeric: tabular-nums;
+}
+.captions-last {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: #151618;
+  border: 1px solid #303237;
+  border-radius: 8px;
+}
+.integration-card .captions-last p {
+  max-width: none;
+}
+.integration-card .captions-last-en {
+  font-size: 15px;
+  line-height: 1.5;
+  color: #f1f2f4;
+}
+.integration-card .captions-last-fr {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #8f939e;
+}
+.captions-share {
+  margin-top: 18px;
+}
+.captions-pairing,
+.captions-obs {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #303237;
+}
+.integration-card .captions-check {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 6px;
+  font-size: 14px;
+  letter-spacing: 0;
+  color: #d5d7dc;
+  cursor: pointer;
+}
+.captions-check input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+.captions-obs .copy-url {
+  margin-top: 8px;
+}
+
 /* ---- Monitor bay: Studio Mode -----------------------------------------------
    OBS Studio Mode: the preview on the left, the program on the right, each
    with its own tally head. Both frames always keep their 1920×1080 layout

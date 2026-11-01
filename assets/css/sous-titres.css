@@ -1,0 +1,186 @@
+/* VerseObs · live English subtitles (phone page, and OBS source with ?obs=1). */
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+body {
+  --st-size: 28px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: 100vh;
+  height: 100dvh;
+  background: #0d0e10;
+  color: #f4f5f7;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+.st-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+  border-bottom: 1px solid #25272c;
+}
+.st-heading {
+  min-width: 0;
+}
+.st-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+}
+.st-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 3px 0 0;
+  font-size: 15px;
+  color: #a9adb6;
+}
+.st-status::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #5d616b;
+}
+body[data-live="1"][data-link="open"] .st-status {
+  color: #e9ebef;
+}
+body[data-live="1"][data-link="open"] .st-status::before {
+  background: #64c98a;
+}
+body[data-link="offline"] .st-status::before,
+body[data-link="denied"] .st-status::before {
+  background: #e0846f;
+}
+.st-size {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+.st-size button,
+.st-back {
+  font: inherit;
+  cursor: pointer;
+}
+.st-size button {
+  min-width: 48px;
+  height: 44px;
+  padding: 0 10px;
+  font-size: 17px;
+  font-weight: 600;
+  color: #eceef1;
+  background: #17181b;
+  border: 1px solid #383b42;
+  border-radius: 10px;
+}
+.st-size button:disabled {
+  color: #5e626b;
+}
+.st-feed {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 18px 18px 28px;
+  font-size: var(--st-size);
+  line-height: 1.36;
+  -webkit-overflow-scrolling: touch;
+}
+.st-line {
+  margin: 0 0 0.6em;
+  color: #a3a7b0;
+  overflow-wrap: anywhere;
+}
+.st-line.is-latest {
+  color: #ffffff;
+}
+.st-line.st-gap {
+  font-size: 0.82em;
+  color: #c9ccd3;
+}
+.st-empty {
+  margin: 0;
+  font-size: 19px;
+  line-height: 1.5;
+  color: #8e929c;
+}
+.st-back {
+  position: fixed;
+  left: 50%;
+  bottom: calc(64px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  min-height: 44px;
+  padding: 0 20px;
+  font-size: 17px;
+  font-weight: 600;
+  color: #111214;
+  background: #eceef1;
+  border: 0;
+  border-radius: 22px;
+}
+.st-back[hidden] {
+  display: none;
+}
+.st-note {
+  padding: 9px 16px calc(9px + env(safe-area-inset-bottom));
+  font-size: 14px;
+  line-height: 1.4;
+  color: #868a94;
+  border-top: 1px solid #25272c;
+}
+
+/* ---- OBS source (?obs=1 on this computer): last lines only, on demand ---- */
+body.obs {
+  display: block;
+  background: transparent;
+}
+body.obs .st-top,
+body.obs .st-note,
+body.obs .st-back,
+body.obs .st-empty {
+  display: none;
+}
+body.obs .st-feed {
+  position: fixed;
+  left: 50%;
+  bottom: 7vh;
+  transform: translateX(-50%);
+  width: min(84vw, 1560px);
+  overflow: hidden;
+  padding: 0;
+  text-align: center;
+  font-size: 4.2vh;
+  line-height: 1.32;
+}
+body.obs .st-line {
+  display: none;
+  margin: 0.25em 0 0;
+  color: #ffffff;
+}
+body.obs .st-line.is-recent {
+  display: block;
+}
+body.obs .st-line span {
+  padding: 0.08em 0.4em;
+  background: rgba(8, 9, 11, 0.78);
+  border-radius: 0.18em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+body.obs:not([data-onair="1"]) .st-feed {
+  visibility: hidden;
+}

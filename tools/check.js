@@ -16,7 +16,12 @@ function walk(dir) {
 }
 walk(path.join(root, "assets/js"));
 walk(path.join(root, "tools"));
-for (const file of ["control_panel.html", "browser_source.html", "remote.html"]) {
+for (const file of [
+  "control_panel.html",
+  "browser_source.html",
+  "remote.html",
+  "sous-titres.html",
+]) {
   const html = fs.readFileSync(path.join(root, file), "utf8"),
     ids = new Set();
   for (const match of html.matchAll(/\bid="([^"]+)"/g)) {
