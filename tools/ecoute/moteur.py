@@ -524,9 +524,10 @@ class ApiTranslator:
 #   traductions dépasse 1,5 s (délai dépassé compté), Haiku 4.5 pour le reste de la séance.
 #   Aucune clé n'était disponible pour mesurer avant le culte : la latence de chaque
 #   phrase est notée au journal et le choix se fait sur place.
-# - OpenAI « gpt-transcribe » est le modèle de transcription recommandé, 0,0045 $
-#   par minute d'audio (platform.openai.com/docs/models/gpt-transcribe) ;
-#   whisper-1 et gpt-4o-*-transcribe ferment le 26/02/2027.
+# - OpenAI « gpt-transcribe » est le modèle de transcription recommandé (guide
+#   speech-to-text : « Start with gpt-transcribe »), 0,0045 $ par minute d'audio
+#   (developers.openai.com/api/docs/models/gpt-transcribe). Envoi par phrase découpée
+#   aux pauses (le flux temps réel passe par une session WebSocket : pas pour ce premier essai).
 ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 ANTHROPIC_VERSION = "2023-06-01"
 CLAUDE_SONNET = "claude-sonnet-5"

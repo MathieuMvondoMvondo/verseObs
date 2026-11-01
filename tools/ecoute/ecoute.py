@@ -258,8 +258,12 @@ class Service:
         return dict(type=kind, id=f"ecoute-{self.boot}-{self.n}", ts=int(time.time() * 1000), **extra)
 
     def send(self, msg):
-        if self.loop and self.outbox is not None:
-            self.loop.call_soon_threadsafe(self.outbox.put_nowait, msg)
+        loop = self.loop
+        if loop and self.outbox is not None and not loop.is_closed():
+            try:
+                loop.call_soon_threadsafe(self.outbox.put_nowait, msg)
+            except RuntimeError:  # boucle fermée entre-temps : le service s'arrête
+                pass
 
     def changed(self):
         listening = bool(self.engine and self.engine.status in ("listening", "stopping"))

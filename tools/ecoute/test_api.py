@@ -453,6 +453,24 @@ class TestServiceSansFuite(unittest.TestCase):
             self.assertIsInstance(service.engine.transcribe, FakeLocalAsr)
 
 
+class TestArretDuService(unittest.TestCase):
+    def test_envoi_apres_fermeture_de_la_boucle(self):
+        # Fin de fichier (--fin-auto) ou Ctrl+C : asyncio.run a fermé la boucle, puis
+        # engine.stop() prévient encore le service ; jamais d'exception à la sortie.
+        import asyncio
+        service = ecoute.Service(ecoute.parse(["--sans-relais"]))
+
+        async def boucle():
+            service.loop = asyncio.get_running_loop()
+            service.outbox = asyncio.Queue()
+
+        asyncio.run(boucle())
+        self.assertTrue(service.loop.is_closed())
+        service.send({"type": "caption_engine"})  # ne lève rien
+        with contextlib.redirect_stdout(io.StringIO()):
+            service.changed()
+
+
 class TestScriptsEtDepot(unittest.TestCase):
     def test_configurer_cles_saisie_masquee_setx(self):
         with open(os.path.join(HERE, "configurer-cles.cmd"), "rb") as f:
