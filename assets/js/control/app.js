@@ -1514,8 +1514,9 @@
     var versionName = disp.version;
 
     var msgData = {
-      // A direct broadcast never lights a conductor row.
-      cue: "b" + window.VerseObs.Queue.newId(),
+      // A direct broadcast never lights a conductor row. « b: » marks a verse
+      // sent from the Bible: no conductor identifier, even imported, holds « : ».
+      cue: "b:" + window.VerseObs.Queue.newId(),
       secondary: bilingual.value(),
       text: dom.previewText ? dom.previewText.innerText : disp.text,
       reference: disp.reference,
@@ -1594,12 +1595,13 @@
   // Enchaîner si un verset de la Bible est à l'antenne. Après un rechargement
   // de la régie (dock OBS), seule la sortie sait ce qui est affiché : on
   // enchaîne seulement si elle renvoie le repère d'un verset envoyé depuis la
-  // Bible (« b… », _showCurrentVerse). Un texte libre ou un chant (« t… »), un
-  // élément du conducteur (« q… ») ou un repère inconnu : on prépare sans
-  // rien envoyer (relecture du 01/11 : un chant était remplacé par › ).
+  // Bible (« b:… », _showCurrentVerse). Un texte libre ou un chant (« t… »), un
+  // élément du conducteur (« q… », ou importé avec son identifiant, « b… »
+  // compris : il ne contient jamais « : ») ou un repère inconnu : on prépare
+  // sans rien envoyer (relecture du 01/11 : un chant était remplacé par › ).
   function _chainActive() {
     if (_onAirItem) return _onAirItem.type === "verse";
-    return !!_output.visible && /^b/.test(_output.cue || "");
+    return !!_output.visible && /^b:/.test(_output.cue || "");
   }
   function _chainOn() {
     return !(dom.chainToggle && !dom.chainToggle.checked);

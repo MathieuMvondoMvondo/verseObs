@@ -504,6 +504,39 @@ if (run("chain")) {
     await out.waitForFunction(() => !document.querySelector(".verse-card:not(.is-leaving)"), null, { timeout: 10000 });
     assert.deepEqual(errors, []);
   });
+  // Review 01/11, round 2 (Astra): an imported conductor keeps its own
+  // identifiers, and one may begin with « b ». Only « b: », which no
+  // conductor identifier can hold, proves a verse sent from the Bible.
+  await check("After a reload of the dock: an imported conductor item whose identifier begins with « b » (song or verse) is never replaced by › or the explorer's arrows", async () => {
+    const items = [
+      { id: "bchant01", type: "text", title: "Chant importé", text: "CHANT IMPORTE A CONSERVER" },
+      { id: "bqverset01", type: "verse", reference: "Psaumes 23:1", text: "VERSET DU CONDUCTEUR A CONSERVER" },
+    ];
+    const file = { app: "verseobs-session", version: 1, name: "Relecture 01/11", items };
+    await page.locator("#session-file").setInputFiles({ name: "b.verseobs.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(file)) });
+    await page.waitForFunction(() => (JSON.parse(localStorage.getItem("verseobs_queue") || "{}").items || []).length === 2, null, { timeout: 5000 });
+    for (const [n, item] of items.entries()) {
+      await page.click("#tab-btn-2");
+      if (n) await page.click("#btn-queue-next");
+      await page.click("#btn-queue-show");
+      await out.waitForFunction((t) => document.body.innerText.includes(t), item.text, { timeout: 10000 });
+      await page.reload();
+      await page.waitForFunction(READY, null, { timeout: 30000 });
+      await page.click("#tab-btn-0");
+      await page.waitForFunction(() => document.querySelector("#onair-bar").dataset.state === "live", null, { timeout: 15000 });
+      const before = await ref();
+      await page.click("#btn-take-next-verse");
+      await page.waitForFunction((b) => document.querySelector("#preview-ref").textContent.trim() !== b, before, { timeout: 5000 });
+      if ((await page.getAttribute("#explore-toggle", "aria-expanded")) !== "true") await page.click("#explore-toggle");
+      await page.click("#btn-next");
+      await page.waitForTimeout(1500);
+      assert.equal(await shows(), 0, item.id + ": nothing sent after the reload");
+      assert.ok(await out.evaluate((t) => document.body.innerText.includes(t), item.text), item.id + " stays on air");
+      await page.click("#btn-hide");
+      await out.waitForFunction(() => !document.querySelector(".verse-card:not(.is-leaving)"), null, { timeout: 10000 });
+    }
+    assert.deepEqual(errors, []);
+  });
   await ctx.close();
 }
 
