@@ -943,12 +943,17 @@ class OpenAITranscriber:
                 billed = float(usage["seconds"])
             self.budget.add("openai", self.model, billed / 60 * self.price, audio_s=round(seconds, 2),
                             duree_s=round(time.time() - t0, 3))
-            text = clean_text(str(data.get("text") or ""))
+            if not isinstance(data, dict) or not isinstance(data.get("text"), str):
+                raise ValueError("réponse sans texte")  # schéma inattendu : repli local
+            text = clean_text(data["text"])
             if HALLUCINATIONS.search(text) and len(text) < 120:
                 text = ""
             self.garde.ok()
-            if text:
-                self.previous = text
+            if not text:
+                # Un segment retenu comme parole par le découpage, rendu vide par l'API :
+                # Whisper le tente (il peut lui aussi conclure au silence).
+                return self._local(audio)
+            self.previous = text
             return text
         except Exception as exc:
             if self.garde.failed(exc, self._key):

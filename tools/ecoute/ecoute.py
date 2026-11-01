@@ -93,6 +93,7 @@ class Service:
         self.paid = []  # clients d'API actifs (traduction, transcription)
         self._secrets = []  # seulement pour les masquer dans un texte affiché
         self.cost_journal = None
+        self.custom_api = ""  # --api-url (API compatible OpenAI) : modèle déclaré au Studio
         self.recap = ""
         self._was_listening = False
 
@@ -117,12 +118,13 @@ class Service:
                 self.paid.append(transcribe)
             local = moteur.Translator(translator_dir(a.traducteur), threads=a.threads_traduction)
             translate = local
-            if a.api_url:
+            if a.api_url and not a.tout_local:
                 key = os.environ.get("VERSEOBS_ECOUTE_API_CLE", "")
                 if not key:
                     raise RuntimeError("VERSEOBS_ECOUTE_API_CLE absente : API de traduction non activée")
                 self._secrets.append(key)
                 translate = moteur.ApiTranslator(a.api_url, key, a.api_modele, fallback=local)
+                self.custom_api = a.api_modele
             elif keys.get("anthropic"):
                 translate = moteur.AnthropicTranslator(
                     keys["anthropic"], local, self.budget, model=a.modele_claude,
@@ -237,7 +239,8 @@ class Service:
         notices = [b.notice()] if b and b.capped else [c.garde.notice for c in self.paid if c.garde.notice]
         # Pas de coût dans le Studio (décision de Math, 01/11) : il reste au journal.
         return {
-            "translation": moteur.display_name(tr.model) if tr else "",
+            "translation": (moteur.display_name(tr.model) if tr else
+                            ("API " + self.custom_api if self.custom_api else "")),
             "transcription": moteur.display_name(asr.model) if asr else "",
             "capped": bool(b and b.capped),
             "notice": moteur.mask_secrets(" ".join(notices), *self._secrets)[:200],
@@ -257,13 +260,20 @@ class Service:
         self.n += 1
         return dict(type=kind, id=f"ecoute-{self.boot}-{self.n}", ts=int(time.time() * 1000), **extra)
 
-    def send(self, msg):
+    def _in_loop(self, fn, *args):
+        """Programme fn dans la boucle du service ; rien si elle est déjà fermée (arrêt)."""
         loop = self.loop
-        if loop and self.outbox is not None and not loop.is_closed():
-            try:
-                loop.call_soon_threadsafe(self.outbox.put_nowait, msg)
-            except RuntimeError:  # boucle fermée entre-temps : le service s'arrête
-                pass
+        if not loop or loop.is_closed():
+            return False
+        try:
+            loop.call_soon_threadsafe(fn, *args)
+            return True
+        except RuntimeError:  # fermée entre-temps : le service s'arrête
+            return False
+
+    def send(self, msg):
+        if self.outbox is not None:
+            self._in_loop(self.outbox.put_nowait, msg)
 
     def changed(self):
         listening = bool(self.engine and self.engine.status in ("listening", "stopping"))
@@ -273,9 +283,8 @@ class Service:
         st = self.state()
         self.write({"type": "state", "t": time.time(), "state": st})
         self.send(self.message("caption_engine", state=st))
-        if self.args.fin_auto and self.started_once and st["status"] in ("idle", "error"):
-            if self.loop:
-                self.loop.call_soon_threadsafe(self.loop.call_later, 1.0, self.loop.stop)
+        if self.args.fin_auto and self.started_once and st["status"] in ("idle", "error") and self.loop:
+            self._in_loop(self.loop.call_later, 1.0, self.loop.stop)
 
     def on_caption(self, c):
         self.write({"type": "caption", "t": time.time(), "caption": c})

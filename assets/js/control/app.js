@@ -1593,11 +1593,13 @@
   // on air.
   // Enchaîner si un verset de la Bible est à l'antenne. Après un rechargement
   // de la régie (dock OBS), seule la sortie sait ce qui est affiché : on
-  // enchaîne aussi quand elle annonce un affichage dont la régie ignore la
-  // nature (jamais par-dessus un texte libre ou un élément du conducteur).
+  // enchaîne seulement si elle renvoie le repère d'un verset envoyé depuis la
+  // Bible (« b… », _showCurrentVerse). Un texte libre ou un chant (« t… »), un
+  // élément du conducteur (« q… ») ou un repère inconnu : on prépare sans
+  // rien envoyer (relecture du 01/11 : un chant était remplacé par › ).
   function _chainActive() {
     if (_onAirItem) return _onAirItem.type === "verse";
-    return !!_output.visible;
+    return !!_output.visible && /^b/.test(_output.cue || "");
   }
   function _chainOn() {
     return !(dom.chainToggle && !dom.chainToggle.checked);
@@ -1679,9 +1681,15 @@
         };
       known.last = performance.now();
       // « Ruban » and « Facettes » too: a 2060f1e output lacks them.
-      known.current = [MSG.STYLE_PATCH, "onglet", "ruban", "facettes"].every(function (c) {
-        return caps.indexOf(c) !== -1;
-      });
+      // And its release (01/11): the output online until now (a9049a9) has
+      // every cap but no BUILD and no self-reload; it is older until the
+      // operator refreshes it, so the régie asks for it.
+      known.current =
+        [MSG.STYLE_PATCH, "onglet", "ruban", "facettes"].every(function (c) {
+          return caps.indexOf(c) !== -1;
+        }) &&
+        typeof msg.build === "number" &&
+        msg.build >= window.VerseObs.BUILD;
       _output.legacy = _legacyOutput();
       // Outputs from before roles are program outputs.
       if (msg.role !== "projector") _programSeen = performance.now();

@@ -300,11 +300,21 @@ class TestTranscriptionOpenAI(ApiCase):
         self.assertEqual(asr(np.zeros(moteur.SR, np.float32)), "local fr")
         self.assertIn("HTTP 503", asr.garde.notice)
 
-    def test_silence_sans_texte_ne_bascule_pas(self):
-        self.api.plan = [(200, {"text": ""}, 0)]
-        asr = self.asr()
-        self.assertEqual(asr(np.zeros(moteur.SR, np.float32)), "")
-        self.assertEqual(asr.garde.notice, "")
+    def test_texte_vide_sur_un_segment_de_parole_whisper_le_tente(self):
+        # Relecture du 01/11 : une réponse vide ne doit pas faire disparaître une phrase.
+        for payload in ({"text": ""}, {"text": "   "}):
+            self.api.plan = [(200, payload, 0)]
+            asr = self.asr()
+            self.assertEqual(asr(np.full(moteur.SR, 0.15, np.float32)), "local fr")
+            self.assertEqual(asr.garde.notice, "")  # l'API répond : pas une panne
+            self.assertTrue(asr.garde.usable())
+
+    def test_reponse_mal_formee_repli_et_avertissement(self):
+        for payload in ({}, {"text": None}, {"text": 12}, ["texte"]):
+            self.api.plan = [(200, payload, 0)]
+            asr = self.asr()
+            self.assertEqual(asr(np.full(moteur.SR, 0.15, np.float32)), "local fr")
+            self.assertIn("réponse illisible", asr.garde.notice)
 
 
 class FakeLocalAsr:
@@ -453,7 +463,59 @@ class TestServiceSansFuite(unittest.TestCase):
             self.assertIsInstance(service.engine.transcribe, FakeLocalAsr)
 
 
+class TestToutLocal(unittest.TestCase):
+    def setUp(self):
+        self.api = FakeApi()
+
+    def tearDown(self):
+        self.api.close()
+
+    def test_tout_local_prime_aussi_sur_l_api_compatible_openai(self):
+        env = {"VERSEOBS_ECOUTE_API_CLE": FAKE_ANTHROPIC}
+        args = ["--tout-local", "--api-url", self.api.base + "/v1/chat/completions"]
+        with contextlib.redirect_stdout(io.StringIO()), service_with(env, args, self.api) as (service, sent, journal):
+            self.assertEqual(service.engine.translate("Bonjour."), "local: Bonjour.")
+            api = service.api_state()
+        self.assertEqual(self.api.requests, [])
+        self.assertEqual((api["translation"], api["transcription"]), ("", ""))
+
+    def test_api_compatible_openai_declaree_au_studio(self):
+        env = {"VERSEOBS_ECOUTE_API_CLE": FAKE_ANTHROPIC}
+        args = ["--api-url", self.api.base + "/v1/chat/completions"]
+        with contextlib.redirect_stdout(io.StringIO()), service_with(env, args, self.api) as (service, sent, journal):
+            api = service.api_state()
+        self.assertEqual(api["translation"], "API gpt-4o-mini")  # jamais « Tout en local »
+        self.assertNotIn(FAKE_ANTHROPIC, json.dumps(api))
+
+
 class TestArretDuService(unittest.TestCase):
+    def test_cycle_complet_fin_auto_sans_exception(self):
+        # Relecture du 01/11 : main(--fin-auto) levait encore « Event loop is closed »
+        # dans changed() (programmation de l'arrêt), après send().
+        class SourceVide:
+            label = "source-de-test"
+
+            def __init__(self, *a, **k):
+                pass
+
+            def run(self, push, stop):
+                pass
+
+        with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()), \
+                contextlib.redirect_stderr(io.StringIO()), \
+                mock.patch.object(moteur, "Transcriber", FakeLocalAsr), \
+                mock.patch.object(moteur, "Translator", FakeLocalMt), \
+                mock.patch.object(moteur, "FileSource", SourceVide), \
+                mock.patch.object(moteur, "list_devices", lambda: []), \
+                mock.patch.object(ecoute, "translator_dir", lambda arg: tmp), \
+                mock.patch.dict(os.environ, {}, clear=False):
+            for var in moteur.KEY_ENV.values():
+                os.environ.pop(var, None)
+            t0 = time.time()
+            ecoute.main(["--fichier", "inutile.wav", "--sans-relais", "--demarrer", "--fin-auto",
+                         "--journal", os.path.join(tmp, "j.jsonl")])
+        self.assertLess(time.time() - t0, 30)
+
     def test_envoi_apres_fermeture_de_la_boucle(self):
         # Fin de fichier (--fin-auto) ou Ctrl+C : asyncio.run a fermé la boucle, puis
         # engine.stop() prévient encore le service ; jamais d'exception à la sortie.
@@ -478,8 +540,11 @@ class TestScriptsEtDepot(unittest.TestCase):
         text = raw.decode("utf-8")
         self.assertEqual(raw.count(b"\n"), raw.count(b"\r\n"), "fins de ligne Windows")
         self.assertEqual(text.count("-AsSecureString"), 2)
-        self.assertIn("setx VERSEOBS_ECOUTE_ANTHROPIC_CLE $p > $null", text)
-        self.assertIn("setx VERSEOBS_ECOUTE_OPENAI_CLE $p > $null", text)
+        # Rangée dans les variables de l'utilisateur comme setx, mais sans lancer de
+        # programme avec la clé en argument (ligne de commande, audit 4688).
+        self.assertIn("[Environment]::SetEnvironmentVariable('VERSEOBS_ECOUTE_ANTHROPIC_CLE', $p, 'User')", text)
+        self.assertIn("[Environment]::SetEnvironmentVariable('VERSEOBS_ECOUTE_OPENAI_CLE', $p, 'User')", text)
+        self.assertNotIn("setx ", text.replace("comme setx", ""))
         self.assertEqual(text.count("echo clé enregistrée"), 2)
         self.assertIn("ZeroFreeBSTR", text)
         # La clé n'est jamais affichée ni écrite dans un fichier.

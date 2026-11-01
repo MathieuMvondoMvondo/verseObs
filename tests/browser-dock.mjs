@@ -469,6 +469,41 @@ if (run("chain")) {
     assert.deepEqual(after, { expanded: "true", shown: true }, "open after the reload");
     assert.deepEqual(errors, []);
   });
+  // Review 01/11 (Sol): after a reload of the dock, the régie only knows what
+  // the output reports. A song on air is never replaced by › or the explorer's
+  // arrows; a verse sent from the Bible still chains (1fb2b33).
+  await check("After a reload of the dock: › and the explorer's arrows never replace a song on air; a Bible verse still chains", async () => {
+    await page.click("#tab-btn-1");
+    await page.locator("#freetext-editable").fill("CHANT A CONSERVER A L ANTENNE");
+    await page.click("#btn-free-show");
+    await out.waitForFunction(() => document.body.innerText.includes("CHANT A CONSERVER"), null, { timeout: 10000 });
+    await page.reload();
+    await page.waitForFunction(READY, null, { timeout: 30000 });
+    await page.click("#tab-btn-0");
+    await page.waitForFunction(() => document.querySelector("#onair-bar").dataset.state === "live", null, { timeout: 15000 });
+    const before = await ref();
+    await page.click("#btn-take-next-verse");
+    await page.waitForFunction((b) => document.querySelector("#preview-ref").textContent.trim() !== b, before, { timeout: 5000 });
+    if ((await page.getAttribute("#explore-toggle", "aria-expanded")) !== "true") await page.click("#explore-toggle");
+    await page.click("#btn-next");
+    await page.waitForTimeout(1500);
+    assert.equal(await shows(), 0, "nothing sent after the reload");
+    assert.ok(await out.evaluate(() => document.body.innerText.includes("CHANT A CONSERVER")), "the song stays on air");
+    // A verse sent from the Bible, then a reload: › still puts the next verse on air.
+    await page.click("#btn-show");
+    const r1 = await ref();
+    await onScreen(r1);
+    await page.reload();
+    await page.waitForFunction(READY, null, { timeout: 30000 });
+    await page.waitForFunction(() => document.querySelector("#onair-bar").dataset.state === "live", null, { timeout: 15000 });
+    await page.click("#btn-take-next-verse");
+    const r2 = await ref();
+    assert.notEqual(nums(r2), nums(r1));
+    await onScreen(r2, r1);
+    await page.click("#btn-hide");
+    await out.waitForFunction(() => !document.querySelector(".verse-card:not(.is-leaving)"), null, { timeout: 10000 });
+    assert.deepEqual(errors, []);
+  });
   await ctx.close();
 }
 
@@ -575,6 +610,40 @@ if (run("colours")) {
     assert.ok(onair.every((v, i) => Math.abs(v - [21, 23, 28][i]) <= 6), "sampled the Facettes band (#15171c): " + onair);
     assert.ok(onair.every((v, i) => Math.abs(v - shown[i]) <= 6), "band: antenna " + onair + " vs preview " + shown);
     assert.ok(Math.max(...corner) - Math.min(...corner) <= 3, "neutral backdrop, no colour cast: " + corner);
+  });
+  await ctx.close();
+}
+
+if (run("build")) {
+  // Review 01/11 (Astra, Sol): the output online until now (a9049a9) has every
+  // « cap » but no BUILD and no self-reload. Emulated here by its BUILD line
+  // removed: the régie must ask to refresh it, never confirm it, and still air.
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const out = await ctx.newPage();
+  await out.route("**/assets/js/shared/constants.js*", async (route) => {
+    const r = await route.fetch();
+    const body = (await r.text()).replace(/window\.VerseObs\.BUILD = [0-9.]+;/, "");
+    await route.fulfill({ response: r, body });
+  });
+  await out.setViewportSize({ width: 1920, height: 1080 });
+  await out.goto(BASE + "browser_source.html");
+  assert.equal(await out.evaluate(() => window.VerseObs.BUILD), undefined, "emulated output without BUILD");
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.goto(BASE + "control_panel.html");
+  await page.waitForFunction(READY, null, { timeout: 30000 });
+  await check("An output without this release's BUILD (the one online before 01/11): « Sortie à actualiser », never confirmed, Diffuser still airs", async () => {
+    await page.click("#btn-show");
+    await expectOnAir(out, await page.evaluate(() => document.querySelector("#preview-ref").textContent), "older output");
+    await page.waitForFunction(() => !document.querySelector("#program-note").hidden && /actualise/i.test(document.querySelector("#program-note").textContent), null, { timeout: 10000 });
+    await page.waitForTimeout(3500);
+    const head = await page.evaluate(() => ({ state: document.querySelector("#onair-bar").dataset.state, label: document.querySelector("#onair-bar .cp-onair-label").textContent }));
+    assert.equal(head.state, "live");
+    assert.notEqual(head.label, "Sortie confirmée", JSON.stringify(head));
+    await page.click("#btn-hide");
+    await out.waitForFunction(() => !document.querySelector(".verse-card:not(.is-leaving)"), null, { timeout: 10000 });
+    assert.deepEqual(errors, []);
   });
   await ctx.close();
 }
