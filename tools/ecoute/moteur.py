@@ -546,7 +546,9 @@ ANTHROPIC_PRICES = {  # $ par million de jetons (entrée, sortie)
 EFFORT_MODELS = ("claude-sonnet-5", "claude-opus-5", "claude-fable-5")  # output_config.effort accepté
 DISPLAY = {"claude-sonnet-5": "Claude Sonnet 5", "claude-haiku-4-5": "Claude Haiku 4.5",
            "claude-opus-5": "Claude Opus 5", "gpt-transcribe": "OpenAI gpt-transcribe",
-           "gpt-4o-mini": "GPT-4o mini"}
+           "gpt-4o-mini": "GPT-4o mini", "gpt-6.1-terra": "GPT-6.1 Terra", "gpt-6.1-sol": "GPT-6.1 Sol",
+           "gpt-6-sol": "GPT-6 Sol", "gpt-6-luna": "GPT-6 Luna", "gpt-5.6-sol": "GPT-5.6 Sol",
+           "gpt-5.6-terra": "GPT-5.6 Terra", "gpt-5.6-luna": "GPT-5.6 Luna"}
 UNKNOWN_CLAUDE_PRICE = (5.0, 25.0)  # modèle hors table : on compte cher, le plafond protège
 OPENAI_TRANSCRIBE_URL = "https://api.openai.com/v1/audio/transcriptions"
 OPENAI_TRANSCRIBE_MODEL = "gpt-transcribe"
@@ -559,9 +561,15 @@ UNKNOWN_TRANSCRIBE_PRICE = 0.006
 # developers.openai.com/api/docs/pricing ($ par million de jetons : entrée, sortie).
 OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions"
 OPENAI_SECOURS_MODEL = "gpt-4o-mini"
+# Banc 2 du 02/11 (4 prédications, 4 orateurs, 80 phrases, notation à l'aveugle Fable + Astra) : GPT-6.1 Terra,
+# effort de raisonnement « none », traduit en premier quand la clé OpenAI existe (19,7/20 pour Fable contre 19,1
+# pour Claude Sonnet 5, devant pour chaque orateur ; 1,28 s / 1,53 s depuis le PC, aucun appel au-delà de 4 s ;
+# ≈ 0,26 $ par heure). Claude Sonnet 5 devient son secours, puis OPUS-MT.
+OPENAI_TRADUCTION_MODEL = "gpt-6.1-terra"
 OPENAI_CHAT_PRICES = {
     "gpt-4o-mini": (0.15, 0.60), "gpt-4.1-mini": (0.40, 1.60), "gpt-5.4-mini": (0.75, 4.50),
     "gpt-5.6-luna": (0.20, 1.20), "gpt-5.6-terra": (2.0, 12.0), "gpt-6-luna": (0.10, 0.50),
+    "gpt-6.1-terra": (1.0, 5.0), "gpt-6.1-sol": (2.0, 10.0), "gpt-6-sol": (2.0, 10.0), "gpt-5.6-sol": (4.0, 20.0),
 }
 UNKNOWN_CHAT_PRICE = (5.0, 30.0)  # modèle hors table : on compte cher
 # Noms propres à VerseObs : jamais ANTHROPIC_API_KEY / OPENAI_API_KEY, que
@@ -904,9 +912,10 @@ class AnthropicTranslator:
 
 
 class OpenAIChatTranslator(AnthropicTranslator):
-    """Secours de Claude : GPT par l'API OpenAI (chat/completions), même consigne et même contexte
-    que Claude, avec la clé OpenAI de la transcription. Seul traducteur payant si aucune clé
-    Anthropic n'est enregistrée. Toute panne, lenteur ou quota : OPUS-MT en local."""
+    """GPT par l'API OpenAI (chat/completions), même consigne et même contexte que Claude, avec la
+    clé OpenAI de la transcription. Par défaut le premier traducteur (GPT-6.1 Terra, secours Claude
+    Sonnet 5) ; avec --traduction claude, le secours de Claude (GPT-4o mini). Toute panne, lenteur
+    ou quota : le secours, puis OPUS-MT en local."""
 
     SERVICE, LABEL, PREFIX = "openai-traduction", "Traduction GPT", "openai:"
     PRICES, UNKNOWN_PRICE = OPENAI_CHAT_PRICES, UNKNOWN_CHAT_PRICE
@@ -917,6 +926,7 @@ class OpenAIChatTranslator(AnthropicTranslator):
             raise ValueError("clé OpenAI absente")
         super().__init__(key, fallback, budget, model=model if model not in ("", "auto") else OPENAI_SECOURS_MODEL,
                          url=url, timeout=timeout, context=context, max_tokens=max_tokens)
+        self.reasoning = "none"  # le plus bas ; « low » pour la séance si le modèle refuse « none »
 
     def __repr__(self):
         return f"OpenAIChatTranslator(model={self.model!r})"
@@ -930,18 +940,28 @@ class OpenAIChatTranslator(AnthropicTranslator):
         if self.model.startswith(("gpt-4o", "gpt-4.1")):
             payload["temperature"] = 0
         else:  # GPT-5 et suivants : aucune réflexion pour une ligne de sous-titre
-            payload["reasoning_effort"] = "none"
-        req = urllib.request.Request(self.url, data=json.dumps(payload).encode("utf-8"), method="POST", headers={
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + self._key,
-        })
-        with _API_OPENER.open(req, timeout=self.timeout) as r:
-            data = json.loads(r.read().decode("utf-8"))
+            payload["reasoning_effort"] = self.reasoning
+        try:
+            data = self._send_openai(payload)
+        except urllib.error.HTTPError as exc:
+            # Banc du 02/11 : GPT-6.1 Sol et GPT-6 Astra refusent « none » (HTTP 400) ; « low » est leur minimum.
+            if not (exc.code == 400 and payload.get("reasoning_effort") == "none"):
+                raise
+            self.reasoning = payload["reasoning_effort"] = "low"
+            data = self._send_openai(payload)
         usage = data.get("usage") or {}
         message = (data.get("choices") or [{}])[0].get("message") or {}
         # Même forme que l'API Messages : le reste du client (coût, contexte, repli) est celui de Claude.
         return {"usage": {"input_tokens": usage.get("prompt_tokens"), "output_tokens": usage.get("completion_tokens")},
                 "content": [{"type": "text", "text": message.get("content") or ""}]}
+
+    def _send_openai(self, payload: dict) -> dict:
+        req = urllib.request.Request(self.url, data=json.dumps(payload).encode("utf-8"), method="POST", headers={
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + self._key,
+        })
+        with _API_OPENER.open(req, timeout=self.timeout) as r:
+            return json.loads(r.read().decode("utf-8"))
 
 
 def wav_bytes(audio: np.ndarray) -> bytes:

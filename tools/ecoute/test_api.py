@@ -111,6 +111,12 @@ class TestModeles(unittest.TestCase):
         self.assertEqual(moteur.ANTHROPIC_MODEL, "claude-sonnet-5")  # banc du 02/11 : défaut fixe
         self.assertEqual(ecoute.parse([]).modele_claude, "claude-sonnet-5")
         self.assertEqual(ecoute.parse([]).secours_openai, "gpt-4o-mini")
+        # banc 2 du 02/11 (4 prédications, aveugle Fable + Astra) : GPT-6.1 Terra traduit en premier
+        self.assertEqual(moteur.OPENAI_TRADUCTION_MODEL, "gpt-6.1-terra")
+        self.assertEqual((ecoute.parse([]).traduction, ecoute.parse([]).modele_gpt), ("gpt", "gpt-6.1-terra"))
+        self.assertEqual(ecoute.parse(["--traduction", "claude"]).traduction, "claude")
+        self.assertEqual(moteur.price_for(moteur.OPENAI_CHAT_PRICES, "gpt-6.1-terra"), (1.0, 5.0))
+        self.assertEqual(moteur.display_name("gpt-6.1-terra"), "GPT-6.1 Terra")
         self.assertEqual(moteur.price_for(moteur.OPENAI_CHAT_PRICES, "gpt-4o-mini"), (0.15, 0.60))
         self.assertEqual(moteur.display_name("gpt-4o-mini"), "GPT-4o mini")
         self.assertEqual(moteur.CLAUDE_SONNET, "claude-sonnet-5")
@@ -339,6 +345,18 @@ class TestSecoursGpt(ApiCase):
         self.assertEqual(len(self.api.requests), 4)
         self.assertIn("GPT-4o mini pendant 1 min", tr.garde.notice)
 
+    def test_effort_none_refuse_repasse_en_low_pour_la_seance(self):
+        # Banc du 02/11 : GPT-6.1 Sol et GPT-6 Astra refusent reasoning_effort « none » (HTTP 400).
+        self.api.plan = [(400, {"error": {"type": "invalid_request_error", "param": "reasoning_effort"}}, 0),
+                         gpt_ok("Hello."), gpt_ok("Two.")]
+        gpt = moteur.OpenAIChatTranslator(FAKE_OPENAI, local_mt, self.budget, model="gpt-6.1-sol",
+                                          url=self.api.base + "/v1/chat/completions")
+        self.assertEqual(gpt("Bonjour."), "Hello.")
+        self.assertEqual(gpt("Deux."), "Two.")
+        efforts = [json.loads(r["body"])["reasoning_effort"] for r in self.api.requests]
+        self.assertEqual(efforts, ["none", "low", "low"])
+        self.assertEqual((gpt.garde.off, gpt.garde.failures, self.budget.local), ("", 0, 0))
+
     def test_gpt_a_raisonnement_sans_reflexion_et_reponse_illisible(self):
         self.api.plan = [gpt_ok("Hello."), (200, {"choices": []}, 0)]
         gpt = moteur.OpenAIChatTranslator(FAKE_OPENAI, local_mt, self.budget, model="gpt-6-luna",
@@ -458,7 +476,7 @@ class TestServiceSansFuite(unittest.TestCase):
         env = {"VERSEOBS_ECOUTE_ANTHROPIC_CLE": FAKE_ANTHROPIC, "VERSEOBS_ECOUTE_OPENAI_CLE": FAKE_OPENAI}
         out = io.StringIO()
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(out), \
-                service_with(env, [], self.api) as (service, sent, journal):
+                service_with(env, ["--traduction", "claude"], self.api) as (service, sent, journal):
             self.assertEqual(len(service.paid), 3)  # transcription, Claude, secours GPT
             # transcription puis traduction réussies, puis clé refusée qui « renvoie » la clé
             self.api.plan = [(200, {"text": "Car Dieu a tant aimé le monde."}, 0)]
@@ -543,7 +561,8 @@ class TestServiceSansFuite(unittest.TestCase):
 
     def test_secours_gpt_cable_desactivable_et_seul_sans_cle_anthropic(self):
         both = {"VERSEOBS_ECOUTE_ANTHROPIC_CLE": FAKE_ANTHROPIC, "VERSEOBS_ECOUTE_OPENAI_CLE": FAKE_OPENAI}
-        with contextlib.redirect_stdout(io.StringIO()) as out, service_with(both, [], self.api) as (service, sent, j):
+        with contextlib.redirect_stdout(io.StringIO()) as out, \
+                service_with(both, ["--traduction", "claude"], self.api) as (service, sent, j):
             kinds = sorted(type(c).__name__ for c in service.paid)
             claude = service.engine.translate
             self.assertIsInstance(claude.fallback, moteur.OpenAIChatTranslator)
@@ -553,15 +572,56 @@ class TestServiceSansFuite(unittest.TestCase):
         self.assertEqual(kinds, ["AnthropicTranslator", "OpenAIChatTranslator", "OpenAITranscriber"])
         self.assertIn("traduction Claude Sonnet 5 (secours GPT-4o mini)", out.getvalue())
         with contextlib.redirect_stdout(io.StringIO()), \
-                service_with(both, ["--secours-openai", "aucun"], self.api) as (service, sent, j):
+                service_with(both, ["--traduction", "claude", "--secours-openai", "aucun"], self.api) as (service, sent, j):
             self.assertIsInstance(service.engine.translate.fallback, FakeLocalMt)
             self.assertNotIn("OpenAIChatTranslator", [type(c).__name__ for c in service.paid])
         only = {"VERSEOBS_ECOUTE_OPENAI_CLE": FAKE_OPENAI}
         with contextlib.redirect_stdout(io.StringIO()), service_with(only, [], self.api) as (service, sent, j):
             self.api.plan = [gpt_ok("Hello.")]
             self.assertEqual(service.engine.translate("Bonjour."), "Hello.")
-            self.assertEqual(service.api_state()["translation"], "GPT-4o mini")
+            self.assertEqual(service.api_state()["translation"], "GPT-6.1 Terra")
+            self.assertIsInstance(service.engine.translate.fallback, FakeLocalMt)
         self.assertEqual(self.api.requests[-1]["path"], "/v1/chat/completions")
+        self.assertEqual(json.loads(self.api.requests[-1]["body"])["model"], "gpt-6.1-terra")
+
+    def test_par_defaut_gpt_61_terra_puis_claude_meme_contexte_sans_fuite(self):
+        both = {"VERSEOBS_ECOUTE_ANTHROPIC_CLE": FAKE_ANTHROPIC, "VERSEOBS_ECOUTE_OPENAI_CLE": FAKE_OPENAI}
+        with contextlib.redirect_stdout(io.StringIO()) as out, service_with(both, [], self.api) as (service, sent, j):
+            kinds = sorted(type(c).__name__ for c in service.paid)
+            gpt = service.engine.translate
+            self.assertIsInstance(gpt, moteur.OpenAIChatTranslator)
+            self.assertEqual(gpt.model, "gpt-6.1-terra")
+            self.assertIsInstance(gpt.fallback, moteur.AnthropicTranslator)
+            self.assertNotIsInstance(gpt.fallback, moteur.OpenAIChatTranslator)
+            self.assertEqual(gpt.fallback.model, "claude-sonnet-5")
+            self.assertIsInstance(gpt.fallback.fallback, FakeLocalMt)
+            self.assertIs(gpt.fallback.history, gpt.history)
+            self.assertEqual(service.api_state()["translation"], "GPT-6.1 Terra")
+            self.api.plan = [gpt_ok("For God so loved the world."), (500, {"error": {"type": "api_error"}}, 0),
+                             claude_ok("And sin.")]
+            self.assertEqual(gpt("Car Dieu a tant aimé le monde."), "For God so loved the world.")
+            self.assertEqual(gpt("Et le péché."), "And sin.")
+            self.assertIn("phrase faite par Claude Sonnet 5", gpt.garde.notice)
+            state = service.state()
+        self.assertEqual(kinds, ["AnthropicTranslator", "OpenAIChatTranslator", "OpenAITranscriber"])
+        self.assertIn("traduction GPT-6.1 Terra (secours Claude Sonnet 5)", out.getvalue())
+        paths = [r["path"] for r in self.api.requests]
+        self.assertEqual(paths[-3:], ["/v1/chat/completions", "/v1/chat/completions", "/v1/messages"])
+        body = json.loads(self.api.requests[-3]["body"])
+        self.assertEqual((body["model"], body["reasoning_effort"]), ("gpt-6.1-terra", "none"))
+        self.assertNotIn("temperature", body)
+        claude_body = json.loads(self.api.requests[-1]["body"])
+        self.assertEqual(claude_body["model"], "claude-sonnet-5")
+        self.assertIn("FR: Car Dieu a tant aimé le monde.\nEN: For God so loved the world.",
+                      claude_body["messages"][0]["content"])
+        self.assertEqual(self.api.requests[-1]["headers"].get("x-api-key")
+                         or {k.lower(): v for k, v in self.api.requests[-1]["headers"].items()}["x-api-key"],
+                         FAKE_ANTHROPIC)
+        for k in FAKES:
+            self.assertNotIn(k, out.getvalue())
+            self.assertNotIn(k, json.dumps(state, ensure_ascii=False))
+            self.assertNotIn(k, repr(service.paid))
+            self.assertNotIn(k, gpt.garde.notice)
 
     def test_openai_seulement_si_sa_cle_existe(self):
         env = {"VERSEOBS_ECOUTE_ANTHROPIC_CLE": FAKE_ANTHROPIC}

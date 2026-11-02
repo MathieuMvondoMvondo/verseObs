@@ -73,40 +73,44 @@ dépôt, et Hermes ne les voit jamais.
    `VERSEOBS_ECOUTE_OPENAI_CLE` : des noms propres à VerseObs, pour que Claude
    Code ou Codex sur le même PC ne les prennent pas).
 4. Fermer puis relancer `lancer-ecoute.cmd`. Sa fenêtre annonce « API :
-   traduction Claude Sonnet 5 (secours GPT-4o mini), transcription OpenAI
-   gpt-transcribe ». Dans le Studio, la carte indique « API : traduction Claude
-   Sonnet 5, transcription OpenAI gpt-transcribe ».
+   traduction GPT-6.1 Terra (secours Claude Sonnet 5), transcription OpenAI
+   gpt-transcribe ». Dans le Studio, la carte indique « API : traduction GPT-6.1
+   Terra, transcription OpenAI gpt-transcribe ».
 
-Ce qui part sur Internet : chaque phrase (le son vers OpenAI si sa clé existe,
-le texte français vers Anthropic, et vers OpenAI si Claude ne répond pas).
-Modèles choisis au banc du 02/11/2026 : 7 min de la prédication du 11/10,
-mesurées depuis le PC de la régie, 52 phrases traduites par 12 modèles et
-notées à l’aveugle par deux relecteurs (fidélité, anglais naturel, termes
-bibliques, rien d’ajouté ni d’oublié) :
-- traduction : **Claude Sonnet 5** en effort bas, le mieux noté des modèles qui
-  tiennent 1,5 s de médiane et 3 s de p90 (19,3/20 ; 1,27 s et 1,55 s).
-  Secours, dans l’ordre : **GPT-4o mini** (clé OpenAI, 19,1/20, 0,74 s), puis
-  **OPUS-MT** en local (16,6/20, contresens possibles). Le secours prend la
-  phrase si Claude dépasse 4 s, tombe en panne, refuse la clé ou atteint un
-  quota, avec le même contexte. Sans clé Anthropic, GPT-4o mini traduit seul.
+Ce qui part sur Internet : chaque phrase (le son et le texte français vers
+OpenAI si sa clé existe, le texte français vers Anthropic si GPT ne répond pas).
+Modèles choisis au banc 2 du 02/11/2026 : 4 prédications d’ICC Tours (Pst
+Nanushka M. le 01/11, Pst Joyce Manfoundou le 11/10, AP Hozzy Tchibinda le
+20/09, Mathieu Mvondo), 6 à 7 min chacune, mesurées depuis le PC de la régie ;
+80 phrases traduites par 16 systèmes et notées à l’aveugle par deux relecteurs
+(fidélité, anglais naturel, termes bibliques, rien d’ajouté ni d’oublié) :
+- traduction : **GPT-6.1 Terra** sans raisonnement, le mieux noté des modèles
+  qui tiennent 1,5 s de médiane et 3 s de p90 sans appel au-delà de 4 s
+  (19,7/20 ; 1,28 s et 1,53 s), devant pour chacun des quatre orateurs.
+  Secours, dans l’ordre : **Claude Sonnet 5** (clé Anthropic, 19,1/20, 1,23 s),
+  puis **OPUS-MT** en local (17/20, contresens possibles). Le secours prend la
+  phrase si GPT dépasse 4 s, tombe en panne, refuse la clé ou atteint un
+  quota, avec le même contexte. Sans clé OpenAI, Claude Sonnet 5 traduit seul.
+  `--traduction claude` remet l’ordre du banc 1 (Claude, puis GPT-4o mini).
   La latence de chaque phrase reste notée dans `tools\ecoute\journaux\api-<date>.jsonl` ;
 - transcription : **gpt-transcribe**, envoyé par phrase découpée aux pauses :
-  0,66 s par phrase (médiane, 0,85 s au p90) et deux fois moins d’erreurs que
-  Whisper small en local (3,9 s par phrase sur le PC).
+  0,65 s par phrase (médiane, 0,84 s au p90), le moins d’erreurs des 9 voies
+  OpenAI essayées ; Whisper small en local fait environ deux fois plus d’erreurs.
 
-Coût (pour mémoire, les crédits inclus le couvrent), mesuré au banc du 02/11 :
-838 phrases par heure de prédication, ~383 jetons envoyés et ~24 reçus par
-phrase. Claude Sonnet 5 (2 $ / 10 $ par million de jetons) ≈ 0,84 $ par heure ;
-gpt-transcribe (0,0045 $ par minute d’audio) ≈ 0,23 $ par heure de parole,
-0,27 $ au plus ; GPT-4o mini, s’il devait tout prendre, ≈ 0,04 $. Total ≈ 1,10 $
-par heure de culte au plus. Aucun plafond par défaut (`--plafond-euros 5` en fixe
+Coût (pour mémoire, les crédits inclus le couvrent), d’après la consommation
+réelle du banc 2 du 02/11 : 780 phrases par heure de prédication. GPT-6.1 Terra
+(1 $ / 5 $ par million de jetons, ~239 jetons envoyés et ~19 reçus par phrase)
+≈ 0,26 $ par heure ; gpt-transcribe (0,0045 $ par minute facturée, 55 min
+facturées par heure de parole) ≈ 0,25 $ ; Claude Sonnet 5, s’il devait tout
+prendre, ≈ 0,75 $. Total ≈ 0,51 $ par heure de prédication (≈ 1 $ au plus). Aucun plafond par défaut (`--plafond-euros 5` en fixe
 un ; au-delà, tout repasse en local). Le coût estimé est noté au journal, pas
 dans le Studio.
 
 **Revenir au tout local** : `lancer-ecoute.cmd --tout-local` (pour une séance),
 ou `effacer-cles.cmd` (retire les deux clés du PC). Si la traduction est lente :
-`lancer-ecoute.cmd --modele-claude claude-haiku-4-5` (0,77 s, 18,8/20), ou
-`--modele-claude auto` (Sonnet 5, puis Haiku 4.5 si la médiane dépasse 1,5 s).
+`lancer-ecoute.cmd --traduction claude --modele-claude claude-haiku-4-5` (0,74 s,
+18,8/20), ou `--traduction claude --modele-claude auto` (Sonnet 5, puis Haiku 4.5
+si la médiane dépasse 1,5 s).
 
 ## Réglages utiles (`lancer-ecoute.cmd` accepte les mêmes options)
 
@@ -118,8 +122,10 @@ ou `effacer-cles.cmd` (retire les deux clés du PC). Si la traduction est lente 
 | `--fichier culte.m4a --debut 3900 --duree 300` | répétition sur un enregistrement, au rythme du direct |
 | `--api-url https://…/v1/chat/completions --api-modele …` | traduction par l’API de l’église (désactivée par défaut). La clé se met dans la variable d’environnement `VERSEOBS_ECOUTE_API_CLE` du PC, jamais dans une page. En cas d’erreur, la traduction locale reprend. |
 | `--tout-local` | ignore les clés d’API pour cette séance |
-| `--modele-claude claude-haiku-4-5` | traduction par Haiku 4.5, plus rapide mais moins bien noté (`claude-sonnet-5` par défaut ; `auto` : Sonnet puis Haiku si lent) |
-| `--secours-openai aucun` | pas de secours GPT : OPUS-MT en local si Claude ne répond pas (défaut : `gpt-4o-mini`) |
+| `--traduction claude` | Claude traduit en premier, GPT-4o mini en secours (ordre du banc 1) ; défaut `gpt` : GPT-6.1 Terra, secours Claude Sonnet 5 |
+| `--modele-gpt gpt-6-sol` | autre modèle GPT en premier (défaut `gpt-6.1-terra` ; GPT-6 Sol 19,6/20, 1,10 s) |
+| `--modele-claude claude-haiku-4-5` | Claude (secours, ou premier avec `--traduction claude`) en Haiku 4.5 : plus rapide, moins bien noté (`claude-sonnet-5` par défaut ; `auto` : Sonnet puis Haiku si lent) |
+| `--secours-openai aucun` | avec `--traduction claude` : pas de secours GPT, OPUS-MT en local si Claude ne répond pas (défaut : `gpt-4o-mini`) |
 | `--delai-api 4` / `--delai-transcription 8` | délai maximal d’un appel (s) avant de passer la phrase en local |
 
 ## Limites connues

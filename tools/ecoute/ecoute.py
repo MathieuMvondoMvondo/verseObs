@@ -15,10 +15,11 @@ Autres usages :
     python ecoute.py --tout-local                  ignorer les clés d'API pour cette séance
 
 Clés d'API (facultatives, enregistrées par configurer-cles.cmd, jamais dans
-une page ni un journal) : VERSEOBS_ECOUTE_ANTHROPIC_CLE → traduction par
-Claude Sonnet 5 ; VERSEOBS_ECOUTE_OPENAI_CLE → transcription par OpenAI
-(gpt-transcribe) et secours de la traduction (GPT-4o mini, seul traducteur
-payant s'il n'y a pas de clé Anthropic).
+une page ni un journal) : VERSEOBS_ECOUTE_OPENAI_CLE → transcription par
+OpenAI (gpt-transcribe) et traduction par GPT-6.1 Terra (banc 2 du 02/11) ;
+VERSEOBS_ECOUTE_ANTHROPIC_CLE → secours de la traduction (Claude Sonnet 5),
+seul traducteur payant s'il n'y a pas de clé OpenAI. --traduction claude :
+Claude d'abord, GPT-4o mini en secours (ordre du banc 1).
 Whisper et OPUS-MT restent chargés en secours et ne calculent rien tant que
 l'API répond. Sans clé, tout reste local. Plafond de dépense : aucun par
 défaut (--plafond-euros pour en fixer un).
@@ -127,8 +128,21 @@ class Service:
                 self._secrets.append(key)
                 translate = moteur.ApiTranslator(a.api_url, key, a.api_modele, fallback=local)
                 self.custom_api = a.api_modele
+            elif keys.get("openai") and a.traduction == "gpt":
+                # Ordre (banc 2 du 02/11, 4 prédications) : GPT-6.1 Terra → Claude Sonnet 5 → OPUS-MT local.
+                secours = local
+                if keys.get("anthropic"):
+                    secours = moteur.AnthropicTranslator(
+                        keys["anthropic"], local, self.budget, model=a.modele_claude,
+                        url=a.url_anthropic, timeout=a.delai_api)
+                translate = moteur.OpenAIChatTranslator(
+                    keys["openai"], secours, self.budget, model=a.modele_gpt,
+                    url=a.url_openai_traduction, timeout=a.delai_api)
+                self.paid.append(translate)
+                if secours is not local:
+                    self.paid.append(secours)
             else:
-                # Ordre des secours (banc du 02/11) : Claude Sonnet 5 → GPT-4o mini → OPUS-MT local.
+                # --traduction claude (ordre du banc 1, 02/11) : Claude Sonnet 5 → GPT-4o mini → OPUS-MT local.
                 secours = local
                 if keys.get("openai") and a.secours_openai != "aucun":
                     secours = moteur.OpenAIChatTranslator(
@@ -440,6 +454,11 @@ def parse(argv=None):
     p.add_argument("--secours-openai", default=moteur.OPENAI_SECOURS_MODEL,
                    help="traduction de secours par OpenAI si Claude tombe (défaut gpt-4o-mini ; "
                         "« aucun » : OPUS-MT directement) ; seule traduction payante sans clé Anthropic")
+    p.add_argument("--traduction", choices=("gpt", "claude"), default="gpt",
+                   help="qui traduit en premier quand la clé OpenAI existe : gpt (défaut, banc 2 du 02/11 : "
+                        "GPT-6.1 Terra, secours Claude) ou claude (Claude, secours GPT-4o mini)")
+    p.add_argument("--modele-gpt", default=moteur.OPENAI_TRADUCTION_MODEL,
+                   help="modèle GPT qui traduit en premier (défaut gpt-6.1-terra)")
     p.add_argument("--modele-transcription", default=moteur.OPENAI_TRANSCRIBE_MODEL)
     p.add_argument("--delai-api", type=float, default=4.0, help="délai maximal d'une traduction par Claude (s)")
     p.add_argument("--delai-transcription", type=float, default=8.0,
