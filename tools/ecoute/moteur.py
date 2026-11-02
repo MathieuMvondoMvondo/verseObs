@@ -532,7 +532,11 @@ ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 ANTHROPIC_VERSION = "2023-06-01"
 CLAUDE_SONNET = "claude-sonnet-5"
 CLAUDE_HAIKU = "claude-haiku-4-5-20251001"
-ANTHROPIC_MODEL = "auto"  # Sonnet 5, puis Haiku 4.5 si la médiane dépasse SLOW_CLAUDE
+# Banc du 02/11/2026 sur le PC de la régie (prédication du 11/10, 52 phrases, notation à l'aveugle par
+# Fable et Astra, détail dans LISEZMOI.md) : Claude Sonnet 5 en effort bas est le mieux noté des modèles
+# qui tiennent 1,5 s de médiane et 3 s de p90 (1,27 s / 1,55 s depuis le PC). Il devient le défaut FIXE :
+# le mode « auto » passait à Haiku 4.5, moins bien noté, dès une médiane de 1,5 s sur 5 phrases.
+ANTHROPIC_MODEL = CLAUDE_SONNET  # « auto » reste possible : Sonnet 5, puis Haiku 4.5 si la médiane dépasse SLOW_CLAUDE
 SLOW_CLAUDE = 1.5  # s par traduction (médiane des 5 dernières)
 ANTHROPIC_PRICES = {  # $ par million de jetons (entrée, sortie)
     "claude-haiku-4-5": (1.0, 5.0),
@@ -541,12 +545,25 @@ ANTHROPIC_PRICES = {  # $ par million de jetons (entrée, sortie)
 }
 EFFORT_MODELS = ("claude-sonnet-5", "claude-opus-5", "claude-fable-5")  # output_config.effort accepté
 DISPLAY = {"claude-sonnet-5": "Claude Sonnet 5", "claude-haiku-4-5": "Claude Haiku 4.5",
-           "claude-opus-5": "Claude Opus 5", "gpt-transcribe": "OpenAI gpt-transcribe"}
+           "claude-opus-5": "Claude Opus 5", "gpt-transcribe": "OpenAI gpt-transcribe",
+           "gpt-4o-mini": "GPT-4o mini"}
 UNKNOWN_CLAUDE_PRICE = (5.0, 25.0)  # modèle hors table : on compte cher, le plafond protège
 OPENAI_TRANSCRIBE_URL = "https://api.openai.com/v1/audio/transcriptions"
 OPENAI_TRANSCRIBE_MODEL = "gpt-transcribe"
 OPENAI_TRANSCRIBE_PRICES = {"gpt-transcribe": 0.0045}  # $ par minute d'audio
 UNKNOWN_TRANSCRIBE_PRICE = 0.006
+# Secours de Claude (panne, délai dépassé, quota, clé refusée) : GPT-4o mini par l'API OpenAI, avec la
+# clé déjà enregistrée pour la transcription, même consigne et même contexte que Claude ; puis OPUS-MT.
+# Banc du 02/11 : le modèle OpenAI le mieux noté par Fable (19,1/20, à égalité avec GPT-6 Luna, devant
+# pour Astra) et le plus rapide des deux (0,74 s / 1,03 s). Prix lus le 02/11/2026 sur
+# developers.openai.com/api/docs/pricing ($ par million de jetons : entrée, sortie).
+OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions"
+OPENAI_SECOURS_MODEL = "gpt-4o-mini"
+OPENAI_CHAT_PRICES = {
+    "gpt-4o-mini": (0.15, 0.60), "gpt-4.1-mini": (0.40, 1.60), "gpt-5.4-mini": (0.75, 4.50),
+    "gpt-5.6-luna": (0.20, 1.20), "gpt-5.6-terra": (2.0, 12.0), "gpt-6-luna": (0.10, 0.50),
+}
+UNKNOWN_CHAT_PRICE = (5.0, 30.0)  # modèle hors table : on compte cher
 # Noms propres à VerseObs : jamais ANTHROPIC_API_KEY / OPENAI_API_KEY, que
 # Claude Code ou Codex sur le même PC prendraient pour eux (facturation API).
 KEY_ENV = {"anthropic": "VERSEOBS_ECOUTE_ANTHROPIC_CLE", "openai": "VERSEOBS_ECOUTE_OPENAI_CLE"}
@@ -645,6 +662,7 @@ class Depense:
                 "jetons_entree": self.tokens_in,
                 "jetons_sortie": self.tokens_out,
                 "appels_transcription": self.calls.get("openai", 0),
+                "appels_gpt": self.calls.get("openai-traduction", 0),
                 "minutes_transcrites": round(self.audio_s / 60, 2),
                 "phrases_en_local": self.local,
             }
@@ -655,6 +673,8 @@ class Depense:
         parts = [f"{euros(r['total_eur'])} estimés ({plafond}" + (", atteint" if r["plafond_atteint"] else "") + ")"]
         if r["appels_claude"]:
             parts.append(f"Claude : {r['appels_claude']} phrases")
+        if r["appels_gpt"]:
+            parts.append(f"GPT : {r['appels_gpt']} phrases")
         if r["appels_transcription"]:
             parts.append(f"OpenAI : {r['minutes_transcrites']:.1f} min".replace(".", ","))
         if r["phrases_en_local"]:
@@ -692,6 +712,7 @@ class _Garde:
 
     def __init__(self, label: str, budget: Depense):
         self.label, self.budget = label, budget
+        self.relay = "local"  # qui prend la phrase : « local » ou le nom du secours payant
         self.calls = self.failures = self.consecutive = 0
         self.until = 0.0
         self.off = ""
@@ -713,12 +734,13 @@ class _Garde:
         self.consecutive += 1
         if final:
             self.off = reason
-            self.notice = f"{self.label} : {reason}, local jusqu'à la fin de la séance."
+            self.notice = f"{self.label} : {reason}, {self.relay} jusqu'à la fin de la séance."
         elif code == 429 or self.consecutive >= 2:
             self.until = time.time() + self.PAUSE
-            self.notice = f"{self.label} : {reason}, local pendant 1 min."
+            self.notice = f"{self.label} : {reason}, {self.relay} pendant 1 min."
         else:
-            self.notice = f"{self.label} : {reason}, phrase faite en local."
+            self.notice = f"{self.label} : {reason}, phrase faite " + (
+                "en local." if self.relay == "local" else f"par {self.relay}.")
         self.notice = mask_secrets(self.notice, key)
         print("[api] " + self.notice, flush=True)
         return reason == "délai dépassé"
@@ -741,6 +763,9 @@ class AnthropicTranslator:
         "translation of the new fragment only."
     )
 
+    SERVICE, LABEL, PREFIX = "anthropic", "Claude", "claude:"
+    PRICES, UNKNOWN_PRICE = ANTHROPIC_PRICES, UNKNOWN_CLAUDE_PRICE
+
     def __init__(self, key: str, fallback, budget: Depense, model=ANTHROPIC_MODEL, url=ANTHROPIC_URL,
                  timeout=4.0, context=3, max_tokens=400, slow=SLOW_CLAUDE):
         check_api_url(url)
@@ -755,13 +780,16 @@ class AnthropicTranslator:
         self.slow = float(slow)
         self.latencies: deque = deque(maxlen=5)
         self.effort_ok = True
-        self.garde = _Garde("Claude", budget)
+        self.garde = _Garde(self.LABEL, budget)
+        if isinstance(fallback, AnthropicTranslator):  # secours payant : il lit et tient le même contexte
+            fallback.history = self.history
+            self.garde.relay = display_name(fallback.model)
         self._use(CLAUDE_SONNET if self.auto else model)
 
     def _use(self, model: str):
         self.model = model
-        self.p_in, self.p_out = price_for(ANTHROPIC_PRICES, model) or UNKNOWN_CLAUDE_PRICE
-        self.name = "claude:" + model
+        self.p_in, self.p_out = price_for(self.PRICES, model) or self.UNKNOWN_PRICE
+        self.name = self.PREFIX + model
         self.latencies.clear()
 
     def _switch_to_haiku(self, why: str):
@@ -815,7 +843,7 @@ class AnthropicTranslator:
             usage = data.get("usage") or {}
             tin, tout = int(usage.get("input_tokens") or 0), int(usage.get("output_tokens") or 0)
             model = self.model
-            self.budget.add("anthropic", model, self._cost(tin, tout), jetons_entree=tin,
+            self.budget.add(self.SERVICE, model, self._cost(tin, tout), jetons_entree=tin,
                             jetons_sortie=tout, duree_s=round(took, 3))
             self._measured(took)
             out = "".join(b.get("text", "") for b in data.get("content") or []
@@ -831,7 +859,7 @@ class AnthropicTranslator:
             if self.auto and code in (400, 404) and self._switch_to_haiku(f"HTTP {code} sur Sonnet"):
                 return self._local(text)  # Haiku dès la phrase suivante
             if self.garde.failed(exc, self._key):  # parti mais sans réponse : compté
-                self.budget.add("anthropic", self.model, estimate, estimated=True,
+                self.budget.add(self.SERVICE, self.model, estimate, estimated=True,
                                 duree_s=round(time.time() - t0, 3))
                 self._measured(self.timeout)
             return self._local(text)
@@ -865,11 +893,55 @@ class AnthropicTranslator:
             return json.loads(r.read().decode("utf-8"))
 
     def _local(self, text: str) -> str:
-        self.budget.local += 1
+        """Phrase que cette API ne traduit pas : le secours la prend (autre API, puis OPUS-MT)."""
+        chained = isinstance(self.fallback, AnthropicTranslator)
+        if not chained:  # compté une seule fois, par le dernier maillon, s'il finit en local
+            self.budget.local += 1
         out = self.fallback(text) if self.fallback else ""
-        if out:
+        if out and not (chained and self.fallback.history is self.history):
             self.history.append((text, out))
         return out
+
+
+class OpenAIChatTranslator(AnthropicTranslator):
+    """Secours de Claude : GPT par l'API OpenAI (chat/completions), même consigne et même contexte
+    que Claude, avec la clé OpenAI de la transcription. Seul traducteur payant si aucune clé
+    Anthropic n'est enregistrée. Toute panne, lenteur ou quota : OPUS-MT en local."""
+
+    SERVICE, LABEL, PREFIX = "openai-traduction", "Traduction GPT", "openai:"
+    PRICES, UNKNOWN_PRICE = OPENAI_CHAT_PRICES, UNKNOWN_CHAT_PRICE
+
+    def __init__(self, key: str, fallback, budget: Depense, model=OPENAI_SECOURS_MODEL, url=OPENAI_CHAT_URL,
+                 timeout=4.0, context=3, max_tokens=400):
+        if not key:
+            raise ValueError("clé OpenAI absente")
+        super().__init__(key, fallback, budget, model=model if model not in ("", "auto") else OPENAI_SECOURS_MODEL,
+                         url=url, timeout=timeout, context=context, max_tokens=max_tokens)
+
+    def __repr__(self):
+        return f"OpenAIChatTranslator(model={self.model!r})"
+
+    def _post(self, user: str) -> dict:
+        payload = {
+            "model": self.model,
+            "max_completion_tokens": self.max_tokens,
+            "messages": [{"role": "system", "content": self.SYSTEM}, {"role": "user", "content": user}],
+        }
+        if self.model.startswith(("gpt-4o", "gpt-4.1")):
+            payload["temperature"] = 0
+        else:  # GPT-5 et suivants : aucune réflexion pour une ligne de sous-titre
+            payload["reasoning_effort"] = "none"
+        req = urllib.request.Request(self.url, data=json.dumps(payload).encode("utf-8"), method="POST", headers={
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + self._key,
+        })
+        with _API_OPENER.open(req, timeout=self.timeout) as r:
+            data = json.loads(r.read().decode("utf-8"))
+        usage = data.get("usage") or {}
+        message = (data.get("choices") or [{}])[0].get("message") or {}
+        # Même forme que l'API Messages : le reste du client (coût, contexte, repli) est celui de Claude.
+        return {"usage": {"input_tokens": usage.get("prompt_tokens"), "output_tokens": usage.get("completion_tokens")},
+                "content": [{"type": "text", "text": message.get("content") or ""}]}
 
 
 def wav_bytes(audio: np.ndarray) -> bytes:

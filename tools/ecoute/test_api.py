@@ -74,6 +74,11 @@ def claude_ok(text="For God so loved the world.", tin=100, tout=10):
                   "usage": {"input_tokens": tin, "output_tokens": tout}}, 0)
 
 
+def gpt_ok(text="And sin.", tin=100, tout=10):
+    return (200, {"choices": [{"message": {"role": "assistant", "content": text}}],
+                  "usage": {"prompt_tokens": tin, "completion_tokens": tout}}, 0)
+
+
 def local_mt(text):
     return "LOCAL: " + text
 
@@ -103,7 +108,11 @@ class ApiCase(unittest.TestCase):
 
 class TestModeles(unittest.TestCase):
     def test_noms_et_prix_verifies(self):
-        self.assertEqual(moteur.ANTHROPIC_MODEL, "auto")
+        self.assertEqual(moteur.ANTHROPIC_MODEL, "claude-sonnet-5")  # banc du 02/11 : défaut fixe
+        self.assertEqual(ecoute.parse([]).modele_claude, "claude-sonnet-5")
+        self.assertEqual(ecoute.parse([]).secours_openai, "gpt-4o-mini")
+        self.assertEqual(moteur.price_for(moteur.OPENAI_CHAT_PRICES, "gpt-4o-mini"), (0.15, 0.60))
+        self.assertEqual(moteur.display_name("gpt-4o-mini"), "GPT-4o mini")
         self.assertEqual(moteur.CLAUDE_SONNET, "claude-sonnet-5")
         self.assertEqual(moteur.CLAUDE_HAIKU, "claude-haiku-4-5-20251001")
         self.assertEqual(moteur.price_for(moteur.ANTHROPIC_PRICES, moteur.CLAUDE_HAIKU), (1.0, 5.0))
@@ -199,7 +208,7 @@ class TestClaude(ApiCase):
 
     def test_auto_sonnet_puis_haiku_si_la_mediane_est_lente(self):
         self.api.plan = [(200, claude_ok()[1], 0.25)]
-        tr = self.claude(slow=0.2)
+        tr = self.claude(model="auto", slow=0.2)
         for i in range(4):
             tr(f"Phrase {i}.")
         self.assertEqual(tr.model, "claude-sonnet-5")
@@ -215,7 +224,7 @@ class TestClaude(ApiCase):
 
     def test_auto_rapide_reste_sur_sonnet_et_modele_impose(self):
         self.api.plan = [claude_ok()]
-        tr = self.claude(slow=5.0)
+        tr = self.claude(model="auto", slow=5.0)
         for i in range(7):
             tr(f"Phrase {i}.")
         self.assertEqual(tr.model, "claude-sonnet-5")
@@ -225,9 +234,20 @@ class TestClaude(ApiCase):
         self.assertEqual(fixed.model, "claude-haiku-4-5-20251001")
         self.assertNotIn("output_config", json.loads(self.api.requests[-1]["body"]))
 
+    def test_defaut_fixe_sonnet_ne_bascule_jamais(self):
+        # Banc du 02/11 : Sonnet 5 (19,3/20) reste en place même lent ; Haiku 4.5 (18,8/20) seulement en « auto ».
+        self.api.plan = [(200, claude_ok()[1], 0.05)]
+        tr = self.claude(slow=0.0)
+        for i in range(6):
+            tr(f"Phrase {i}.")
+        self.assertFalse(tr.auto)
+        self.assertEqual(tr.model, "claude-sonnet-5")
+        self.assertEqual({json.loads(r["body"])["model"] for r in self.api.requests}, {"claude-sonnet-5"})
+        self.assertFalse([c for c in self.costs if c["type"] == "api_modele"])
+
     def test_sonnet_refuse_haiku_prend_la_suite(self):
         self.api.plan = [(404, {"error": {"type": "not_found_error"}}, 0), claude_ok("Hello.")]
-        tr = self.claude()
+        tr = self.claude(model="auto")
         self.assertEqual(tr("Un."), "LOCAL: Un.")
         self.assertEqual(tr.model, "claude-haiku-4-5-20251001")
         self.assertEqual(tr("Deux."), "Hello.")
@@ -267,6 +287,71 @@ class TestClaude(ApiCase):
         self.assertEqual(recap["appels_claude"], 1)
         self.assertTrue(recap["plafond_atteint"])
         self.assertEqual(recap["phrases_en_local"], 2)
+
+
+class TestSecoursGpt(ApiCase):
+    def chaine(self, model="gpt-4o-mini"):
+        gpt = moteur.OpenAIChatTranslator(FAKE_OPENAI, local_mt, self.budget, model=model,
+                                          url=self.api.base + "/v1/chat/completions")
+        return moteur.AnthropicTranslator(FAKE_ANTHROPIC, gpt, self.budget, url=self.api.base + "/v1/messages"), gpt
+
+    def test_claude_tombe_gpt_prend_la_phrase_avec_le_meme_contexte(self):
+        tr, gpt = self.chaine()
+        self.api.plan = [claude_ok(), (500, {"error": {"type": "api_error"}}, 0), gpt_ok("And sin."),
+                         claude_ok("Amen.")]
+        self.assertEqual(tr("Car Dieu a tant aimé le monde."), "For God so loved the world.")
+        self.assertEqual(tr("Et le péché."), "And sin.")
+        self.assertEqual([r["path"] for r in self.api.requests],
+                         ["/v1/messages", "/v1/messages", "/v1/chat/completions"])
+        req = self.api.requests[2]
+        h = {k.lower(): v for k, v in req["headers"].items()}
+        self.assertEqual(h["authorization"], "Bearer " + FAKE_OPENAI)
+        self.assertNotIn("x-api-key", h)
+        body = json.loads(req["body"])
+        self.assertEqual(body["model"], "gpt-4o-mini")
+        self.assertEqual(body["temperature"], 0)
+        self.assertNotIn("reasoning_effort", body)
+        self.assertEqual(body["messages"][0], {"role": "system", "content": tr.SYSTEM})
+        self.assertIn("FR: Car Dieu a tant aimé le monde.\nEN: For God so loved the world.",
+                      body["messages"][1]["content"])
+        self.assertIn("phrase faite par GPT-4o mini", tr.garde.notice)
+        self.assertEqual(tr("Amen."), "Amen.")
+        last = json.loads(self.api.requests[3]["body"])["messages"][0]["content"]
+        self.assertEqual(last.count("FR: Et le péché.\nEN: And sin."), 1)  # contexte partagé, sans doublon
+        self.assertEqual(self.budget.local, 0)
+        self.assertEqual(self.budget.recap()["appels_gpt"], 1)
+        gpt_cost = [c for c in self.costs if c.get("service") == "openai-traduction"]
+        self.assertEqual(gpt_cost[0]["modele"], "gpt-4o-mini")
+        self.assertAlmostEqual(gpt_cost[0]["cout_usd"], round((100 * 0.15 + 10 * 0.60) / 1e6, 6))
+        self.assertIn("GPT : 1 phrases", self.budget.recap_text())
+        self.assertNoKey(repr(tr), repr(gpt), self.costs, self.out.getvalue(), tr.garde.notice)
+
+    def test_les_deux_api_tombent_opus_mt_compte_une_seule_fois(self):
+        tr, gpt = self.chaine()
+        self.api.plan = [(500, {"error": {"type": "api_error"}}, 0)]
+        self.assertEqual(tr("Un."), "LOCAL: Un.")
+        self.assertEqual([r["path"] for r in self.api.requests], ["/v1/messages", "/v1/chat/completions"])
+        self.assertEqual(self.budget.local, 1)
+        self.assertIn("en local", gpt.garde.notice)
+        self.assertEqual(list(tr.history), [("Un.", "LOCAL: Un.")])
+        self.assertEqual(tr("Deux."), "LOCAL: Deux.")  # 2e panne de suite : pause d'une minute des deux côtés
+        self.assertEqual(tr("Trois."), "LOCAL: Trois.")
+        self.assertEqual(len(self.api.requests), 4)
+        self.assertIn("GPT-4o mini pendant 1 min", tr.garde.notice)
+
+    def test_gpt_a_raisonnement_sans_reflexion_et_reponse_illisible(self):
+        self.api.plan = [gpt_ok("Hello."), (200, {"choices": []}, 0)]
+        gpt = moteur.OpenAIChatTranslator(FAKE_OPENAI, local_mt, self.budget, model="gpt-6-luna",
+                                          url=self.api.base + "/v1/chat/completions")
+        self.assertEqual(gpt("Bonjour."), "Hello.")
+        body = json.loads(self.api.requests[0]["body"])
+        self.assertEqual(body["reasoning_effort"], "none")
+        self.assertNotIn("temperature", body)
+        self.assertEqual(body["max_completion_tokens"], 400)
+        self.assertEqual(gpt("Deux."), "LOCAL: Deux.")
+        self.assertIn("réponse illisible", gpt.garde.notice)
+        with self.assertRaises(ValueError):
+            moteur.OpenAIChatTranslator("", local_mt, self.budget)
 
 
 class TestTranscriptionOpenAI(ApiCase):
@@ -349,7 +434,8 @@ def service_with(env, argv, api):
         journal = os.path.join(tmp, "journal.jsonl")
         args = ecoute.parse(["--sans-relais", "--journal", journal,
                              "--url-anthropic", api.base + "/v1/messages",
-                             "--url-openai", api.base + "/v1/audio/transcriptions"] + argv)
+                             "--url-openai", api.base + "/v1/audio/transcriptions",
+                             "--url-openai-traduction", api.base + "/v1/chat/completions"] + argv)
         service = ecoute.Service(args)
         sent = []
         service.send = sent.append
@@ -373,7 +459,7 @@ class TestServiceSansFuite(unittest.TestCase):
         out = io.StringIO()
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(out), \
                 service_with(env, [], self.api) as (service, sent, journal):
-            self.assertEqual(len(service.paid), 2)
+            self.assertEqual(len(service.paid), 3)  # transcription, Claude, secours GPT
             # transcription puis traduction réussies, puis clé refusée qui « renvoie » la clé
             self.api.plan = [(200, {"text": "Car Dieu a tant aimé le monde."}, 0)]
             fr = service.engine.transcribe(np.zeros(moteur.SR, np.float32))
@@ -454,6 +540,28 @@ class TestServiceSansFuite(unittest.TestCase):
             self.assertEqual(service.paid, [])
             self.assertEqual(service.engine.translate("Bonjour."), "local: Bonjour.")
         self.assertEqual(self.api.requests, [])
+
+    def test_secours_gpt_cable_desactivable_et_seul_sans_cle_anthropic(self):
+        both = {"VERSEOBS_ECOUTE_ANTHROPIC_CLE": FAKE_ANTHROPIC, "VERSEOBS_ECOUTE_OPENAI_CLE": FAKE_OPENAI}
+        with contextlib.redirect_stdout(io.StringIO()) as out, service_with(both, [], self.api) as (service, sent, j):
+            kinds = sorted(type(c).__name__ for c in service.paid)
+            claude = service.engine.translate
+            self.assertIsInstance(claude.fallback, moteur.OpenAIChatTranslator)
+            self.assertIsInstance(claude.fallback.fallback, FakeLocalMt)
+            self.assertIs(claude.fallback.history, claude.history)
+            self.assertEqual(service.api_state()["translation"], "Claude Sonnet 5")
+        self.assertEqual(kinds, ["AnthropicTranslator", "OpenAIChatTranslator", "OpenAITranscriber"])
+        self.assertIn("traduction Claude Sonnet 5 (secours GPT-4o mini)", out.getvalue())
+        with contextlib.redirect_stdout(io.StringIO()), \
+                service_with(both, ["--secours-openai", "aucun"], self.api) as (service, sent, j):
+            self.assertIsInstance(service.engine.translate.fallback, FakeLocalMt)
+            self.assertNotIn("OpenAIChatTranslator", [type(c).__name__ for c in service.paid])
+        only = {"VERSEOBS_ECOUTE_OPENAI_CLE": FAKE_OPENAI}
+        with contextlib.redirect_stdout(io.StringIO()), service_with(only, [], self.api) as (service, sent, j):
+            self.api.plan = [gpt_ok("Hello.")]
+            self.assertEqual(service.engine.translate("Bonjour."), "Hello.")
+            self.assertEqual(service.api_state()["translation"], "GPT-4o mini")
+        self.assertEqual(self.api.requests[-1]["path"], "/v1/chat/completions")
 
     def test_openai_seulement_si_sa_cle_existe(self):
         env = {"VERSEOBS_ECOUTE_ANTHROPIC_CLE": FAKE_ANTHROPIC}

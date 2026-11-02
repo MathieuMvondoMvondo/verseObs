@@ -16,7 +16,9 @@ Autres usages :
 
 Clés d'API (facultatives, enregistrées par configurer-cles.cmd, jamais dans
 une page ni un journal) : VERSEOBS_ECOUTE_ANTHROPIC_CLE → traduction par
-Claude ; VERSEOBS_ECOUTE_OPENAI_CLE → transcription par OpenAI (gpt-transcribe).
+Claude Sonnet 5 ; VERSEOBS_ECOUTE_OPENAI_CLE → transcription par OpenAI
+(gpt-transcribe) et secours de la traduction (GPT-4o mini, seul traducteur
+payant s'il n'y a pas de clé Anthropic).
 Whisper et OPUS-MT restent chargés en secours et ne calculent rien tant que
 l'API répond. Sans clé, tout reste local. Plafond de dépense : aucun par
 défaut (--plafond-euros pour en fixer un).
@@ -125,19 +127,34 @@ class Service:
                 self._secrets.append(key)
                 translate = moteur.ApiTranslator(a.api_url, key, a.api_modele, fallback=local)
                 self.custom_api = a.api_modele
-            elif keys.get("anthropic"):
-                translate = moteur.AnthropicTranslator(
-                    keys["anthropic"], local, self.budget, model=a.modele_claude,
-                    url=a.url_anthropic, timeout=a.delai_api)
-                self.paid.append(translate)
+            else:
+                # Ordre des secours (banc du 02/11) : Claude Sonnet 5 → GPT-4o mini → OPUS-MT local.
+                secours = local
+                if keys.get("openai") and a.secours_openai != "aucun":
+                    secours = moteur.OpenAIChatTranslator(
+                        keys["openai"], local, self.budget, model=a.secours_openai,
+                        url=a.url_openai_traduction, timeout=a.delai_api)
+                if keys.get("anthropic"):
+                    translate = moteur.AnthropicTranslator(
+                        keys["anthropic"], secours, self.budget, model=a.modele_claude,
+                        url=a.url_anthropic, timeout=a.delai_api)
+                    self.paid.append(translate)
+                else:
+                    translate = secours
+                if secours is not local:
+                    self.paid.append(secours)
             keys = None
             if self.paid:
-                self.log("API : " + ", ".join(
-                    ("traduction " + ("Claude auto (Sonnet 5, Haiku 4.5 si lent)" if c.auto else
-                                      moteur.display_name(c.model)))
-                    if isinstance(c, moteur.AnthropicTranslator) else
-                    ("transcription " + moteur.display_name(c.model)) for c in self.paid)
-                    + " ; Whisper/OPUS-MT en secours." + (
+                parts = []
+                tr = next((c for c in self.paid if isinstance(c, moteur.AnthropicTranslator)), None)
+                if tr:
+                    sec = tr.fallback if isinstance(tr.fallback, moteur.AnthropicTranslator) else None
+                    parts.append("traduction " + ("Claude auto (Sonnet 5, Haiku 4.5 si lent)" if tr.auto else
+                                                  moteur.display_name(tr.model))
+                                 + (f" (secours {moteur.display_name(sec.model)})" if sec else ""))
+                parts += ["transcription " + moteur.display_name(c.model)
+                          for c in self.paid if isinstance(c, moteur.OpenAITranscriber)]
+                self.log("API : " + ", ".join(parts) + " ; Whisper/OPUS-MT en secours." + (
                         "" if self.budget.plafond is None else
                         f" Plafond de dépense : {moteur.euros(self.budget.plafond)}."))
             self.translator_name = translate.name
@@ -418,14 +435,18 @@ def parse(argv=None):
     p.add_argument("--euros-par-dollar", type=float, default=1.0,
                    help="conversion des prix en dollars (défaut 1 : 1 $ compté 1 €, estimation majorée)")
     p.add_argument("--modele-claude", default=moteur.ANTHROPIC_MODEL,
-                   help="auto (défaut : Sonnet 5, Haiku 4.5 si la médiane dépasse 1,5 s), "
-                        "claude-haiku-4-5 (le plus rapide) ou claude-sonnet-5")
+                   help="claude-sonnet-5 (défaut, mieux noté au banc du 02/11), claude-haiku-4-5 "
+                        "(plus rapide) ou auto (Sonnet 5, Haiku 4.5 si la médiane dépasse 1,5 s)")
+    p.add_argument("--secours-openai", default=moteur.OPENAI_SECOURS_MODEL,
+                   help="traduction de secours par OpenAI si Claude tombe (défaut gpt-4o-mini ; "
+                        "« aucun » : OPUS-MT directement) ; seule traduction payante sans clé Anthropic")
     p.add_argument("--modele-transcription", default=moteur.OPENAI_TRANSCRIBE_MODEL)
     p.add_argument("--delai-api", type=float, default=4.0, help="délai maximal d'une traduction par Claude (s)")
     p.add_argument("--delai-transcription", type=float, default=8.0,
                    help="délai maximal d'une transcription par OpenAI (s)")
     p.add_argument("--url-anthropic", default=moteur.ANTHROPIC_URL, help=argparse.SUPPRESS)
     p.add_argument("--url-openai", default=moteur.OPENAI_TRANSCRIBE_URL, help=argparse.SUPPRESS)
+    p.add_argument("--url-openai-traduction", default=moteur.OPENAI_CHAT_URL, help=argparse.SUPPRESS)
     return p.parse_args(argv)
 
 
