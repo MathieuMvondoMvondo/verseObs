@@ -609,7 +609,10 @@ class TestArretDuService(unittest.TestCase):
             def run(self, push, stop):
                 pass
 
-        with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()), \
+        # Windows (PC de la régie, 02/11) : le journal reste ouvert jusqu'à la fin du processus et
+        # TemporaryDirectory ne pouvait pas l'effacer (WinError 32), déjà avec la version du 01/11.
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp, \
+                contextlib.redirect_stdout(io.StringIO()), \
                 contextlib.redirect_stderr(io.StringIO()), \
                 mock.patch.object(moteur, "Transcriber", FakeLocalAsr), \
                 mock.patch.object(moteur, "Translator", FakeLocalMt), \
