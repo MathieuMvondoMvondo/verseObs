@@ -39,6 +39,9 @@ class VersetsTest(unittest.TestCase):
             ('Jean, chapitre 3, verset 16.', [(43, 3, 16, 16)]),
             ('Matthieu, au chapitre 5, verset 17.', [(40, 5, 17, 17)]),
             ('Première de Jean, chapitre 4, verset 8.', [(62, 4, 8, 8)]),
+            ('Jean au chapitre 3 et au verset 16', [(43,3,16,16)]),
+            ('au Psaume vingt-trois', [(19,23,0,0)]),
+            ('deuxième lettre aux Corinthiens chapitre trois', [(47,3,0,0)]),
         ]
         for text, expected in cases:
             with self.subTest(text=text):
@@ -54,6 +57,9 @@ class VersetsTest(unittest.TestCase):
                      'J’ai appelé Jacques deux fois.', 'On attend Jean deux minutes.',
                      'Donnez à Marc un peu de temps.', 'Dieu a donné à Jean un fils.',
                      'Jean 3 verset deux cents', 'Jean 3 verset cent quatre-vingt-dix',
+                     'J’ai appelé Jacques 2 fois.', 'On attend Jean 2 minutes.',
+                     'Jean 1 jour m’a dit', 'Jean 3 versets 16 jusqu’au 200',
+                     'Jean 3 verset 16 et 17 et 19', 'Jean 3 verset 16, non, 17.',
                      'Col 3:16 et une réunion à 19 heures']:
             if text.startswith('Col'):
                 self.assertEqual(self.refs(text), [(51, 3, 16, 16)])

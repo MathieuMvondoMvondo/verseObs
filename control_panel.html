@@ -456,22 +456,23 @@
             <div class="heard-heading">
               <h2 id="heard-title">Verset entendu</h2>
               <span id="heard-state" role="status" aria-live="polite">En attente</span>
-              <button id="heard-next" type="button" hidden></button>
-              <button id="heard-connect" type="button">Réglages de l’écoute</button>
+              <button id="heard-connect" type="button" aria-label="Réglages de l’écoute">Écoute</button>
             </div>
             <p id="heard-idle">Démarrez Écoute dans Connexions pour retrouver les versets.</p>
             <div id="heard-proposal" hidden>
               <div class="heard-reading" aria-live="polite" aria-atomic="true">
-                <h3 id="heard-reference"></h3>
-                <p id="heard-meta" title="Indice de correspondance, pas une probabilité de justesse."></p>
+                <div class="heard-reference-row"><h3 id="heard-reference"></h3><p id="heard-meta"></p></div>
                 <p id="heard-text"></p>
               </div>
-              <details id="heard-details"><summary>Parole reconnue et correspondance</summary><p id="heard-spoken"></p><p id="heard-confidence"></p></details>
-              <div class="heard-actions">
-                <button id="heard-load" type="button">Charger l’aperçu</button>
-                <button id="heard-dismiss" type="button">Écarter</button>
-                <p id="heard-explanation">Vérifiez le passage. Rien n’est diffusé automatiquement.</p>
+              <div class="heard-footer">
+                <div class="heard-actions">
+                  <button id="heard-load" type="button">Charger l’aperçu</button>
+                  <button id="heard-dismiss" type="button">Écarter</button>
+                  <button id="heard-next" type="button" hidden></button>
+                </div>
+                <details id="heard-details"><summary>Lire et vérifier</summary><p id="heard-full"></p><p id="heard-method"></p><p id="heard-spoken"></p><p id="heard-confidence"></p></details>
               </div>
+              <p id="heard-explanation">Aperçu uniquement · diffusion manuelle.</p>
             </div>
             <p id="heard-source" class="heard-source"></p>
           </section>

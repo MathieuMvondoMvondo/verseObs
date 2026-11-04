@@ -8,11 +8,11 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(f,label){for(let i=0;i<160;i++){if(f())return;await wait(25);}throw Error('Délai : '+label);}
 (async()=>{
  const server=createServer(18765);await new Promise(r=>server.listen(18765,'127.0.0.1',r));
- const base='http://127.0.0.1:18765';let dom,engine,admin,releaseFetch;const errors=[],commands=[];
+ const base='http://127.0.0.1:18765';let dom,engine,admin,releaseFetch,releaseSecond;const errors=[],commands=[];
  try{
   const vc=new VirtualConsole();vc.on('jsdomError',e=>errors.push(e.message));
   dom=await JSDOM.fromURL(base+'/control_panel.html',{resources:'usable',runScripts:'dangerously',pretendToBeVisual:true,virtualConsole:vc,beforeParse(w){
-   w.fetch=(url,opt)=>{const fetcher=()=>fetch(new URL(url,w.location.href),opt);if(String(url).includes('nbs.json'))return new Promise(r=>{releaseFetch=()=>r(fetcher());});return fetcher();};
+   w.fetch=(url,opt)=>{const fetcher=()=>fetch(new URL(url,w.location.href),opt);if(String(url).includes('sem.json'))return new Promise(r=>{releaseSecond=()=>r(fetcher());});if(String(url).includes('nbs.json'))return new Promise(r=>{releaseFetch=()=>r(fetcher());});return fetcher();};
    w.matchMedia=()=>({matches:false});w.scrollTo=()=>{};
    Object.defineProperty(w.HTMLElement.prototype,'innerText',{get(){return this.textContent;},set(v){this.textContent=v;},configurable:true});
    w.URL.createObjectURL=()=> 'blob:test';w.URL.revokeObjectURL=()=>{};
@@ -30,8 +30,20 @@ async function until(f,label){for(let i=0;i<160;i++){if(f())return;await wait(25
   assert.equal(d.getElementById('preview-ref').textContent,'Jean 3:16-18');
   assert.match(d.getElementById('preview-text').textContent,/déjà jugé/);
   console.log('ok   plage entièrement préparée, texte du dernier verset présent');
+  d.getElementById('btn-show').click();await until(()=>commands.some(x=>x.type==='show_verse'),'diffusion manuelle');
+  const secondary=d.getElementById('secondary-version');secondary.value='sem';secondary.dispatchEvent(new w.Event('change',{bubbles:true}));
+  d.getElementById('bilingual-toggle').click();await until(()=>!!releaseSecond,'seconde version retardée');
+  d.querySelector('.chapter-verse[data-verse="17"]').click();
+  say({verse:17,verseEnd:18});await until(()=>d.getElementById('heard-reference').textContent==='Jean 3:17-18','plage proposée pendant enchaînement');
+  d.getElementById('heard-load').click();await until(()=>d.getElementById('preview-ref').textContent==='Jean 3:17-18','plage préparée');
+  const beforeRelease=commands.filter(x=>x.type==='show_verse').length;
+  releaseSecond();await until(()=>!d.getElementById('btn-show').disabled,'version prête');await wait(250);
+  assert.equal(commands.filter(x=>x.type==='show_verse').length,beforeRelease,'aucune diffusion différée de la proposition');
+  d.getElementById('bilingual-toggle').click();
+  console.log('ok   enchaînement différé annulé avant de charger la proposition');
   say({version:'nbs',bookId:45,chapter:6,verse:23,verseEnd:23});
   await until(()=>d.getElementById('heard-reference').textContent==='Romains 6:23','NBS proposée');
+  assert.match(d.getElementById('heard-explanation').textContent,/NBS remplace votre/,'changement de version annoncé avant le clic');
   d.getElementById('heard-load').click();await until(()=>!!releaseFetch,'NBS en attente');
   const search=d.getElementById('search-input');search.value='Jean 1:1';search.dispatchEvent(new w.Event('input',{bubbles:true}));
   await until(()=>d.getElementById('preview-ref').textContent==='Jean 1:1','sélection manuelle plus récente');
@@ -50,7 +62,7 @@ async function until(f,label){for(let i=0;i<160;i++){if(f())return;await wait(25
   say();await wait(80);assert.equal(d.getElementById('heard-proposal').hidden,true,'ancienne écoute toujours refusée après acquittement');
   say({listenId:start.listenId});await until(()=>!d.getElementById('heard-proposal').hidden,'nouvelle écoute acceptée');
   console.log('ok   stop/start : acquittement obligatoire, ancienne génération rejetée');
-  assert.deepEqual(commands.filter(x=>['show_verse','show_text','hide'].includes(x.type)),[]);
+  assert.equal(commands.filter(x=>['show_verse','show_text','hide'].includes(x.type)).length,1,'uniquement la diffusion manuelle initiale');
   assert.deepEqual(errors,[]);
  }finally{if(dom)dom.window.close();if(engine)engine.terminate();if(admin)admin.terminate();await new Promise(r=>server.close(r));}
 })().catch(e=>{console.error(e);process.exitCode=1;});

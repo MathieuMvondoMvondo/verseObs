@@ -3,12 +3,33 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
 import os
 spec=importlib.util.spec_from_file_location('installer',Path(__file__).with_name('installer-versets.py'))
 m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 
 
 class InstallerTest(unittest.TestCase):
+    def test_partial_write_restores_every_destination(self):
+        with tempfile.TemporaryDirectory(dir=os.environ.get('TMPDIR')) as tmp:
+            root=Path(tmp);target=root/'VerseObs';pkg=root/'paquet'
+            (target/'tools').mkdir(parents=True);(pkg/'payload/tools').mkdir(parents=True)
+            entries=[];before={'control_panel.html':b'ORIGINAL-CONTROL','tools/server.js':b'ORIGINAL-SERVER'}
+            for relative,data in before.items():
+                (target/relative).write_bytes(data);after=b'NEW-'+data
+                (pkg/'payload'/relative).write_bytes(after)
+                entries.append(dict(path=relative,sha256=m.sha(after),accepted_before=[m.sha(data)]))
+            (pkg/'manifest.json').write_text(json.dumps(dict(commit='fixture-test',files=entries)))
+            write=Path.write_bytes
+            def interrupted(path,data):
+                if path.parent==target/'tools' and path.name.startswith('server.js') and data.startswith(b'NEW-'):
+                    write(path,data[:5]);raise OSError('Panne synthétique pendant écriture')
+                return write(path,data)
+            with mock.patch.object(Path,'write_bytes',interrupted):
+                with self.assertRaises(OSError):m.apply(pkg,target,True)
+            for relative,data in before.items():self.assertEqual((target/relative).read_bytes(),data)
+            self.assertEqual(list(target.rglob('*.tmp')),[])
+
     def test_inspect_apply_rollback_and_refuse_local_edit(self):
         with tempfile.TemporaryDirectory(dir=os.environ.get('TMPDIR')) as tmp:
             root=Path(tmp);target=root/'VerseObs';pkg=root/'paquet'

@@ -1,39 +1,36 @@
-/* Verset entendu — même matière que la régie, sans liseré ni animation. */
-.heard-card {
-  margin: 4px 0 22px;
-  padding: 17px 20px 13px;
-  border: 1px solid var(--cp-border);
-  border-radius: 8px;
-  background: var(--cp-bg-secondary);
-  color: var(--cp-text);
-}
-.heard-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; }
-.heard-card[data-live="true"] { height: 340px; overflow-y: auto; }
+/* Suggestion compacte : le passage préparé garde la place principale. */
+.heard-card { margin: 4px 0 18px; padding: 10px 14px; border: 1px solid var(--cp-border); border-radius: 8px; background: var(--cp-bg-secondary); color: var(--cp-text); }
+.heard-card[data-live="true"] { min-height: 174px; }
+.heard-heading { display: flex; align-items: center; gap: 8px 12px; }
 .heard-heading h2 { font-size: 14px; font-weight: 600; margin: 0; }
 #heard-state { font-size: 14px; color: var(--cp-text-muted); }
-#heard-connect { margin-left: auto; color: var(--cp-text-secondary); font-size: 14px; }
-.heard-card button { font-size: 14px; border: 1px solid var(--cp-border-light); border-radius: 6px; padding: 9px 13px; min-height: 38px; background: transparent; color: var(--cp-text); cursor: pointer; }
-#heard-connect { border: 0; padding: 0 2px; min-height: 32px; }
-#heard-idle { color: var(--cp-text-secondary); margin: 7px 0 3px; font-size: 14px; line-height: 1.6; }
-.heard-reading { margin-top: 13px; max-width: 920px; }
-#heard-reference { font: 600 20px/1.25 var(--cp-font); letter-spacing: -.3px; margin: 0 0 6px; }
-#heard-meta { margin: 0 0 12px; font-size: 14px; color: var(--cp-text-muted); }
-#heard-text { font: 400 17px/1.55 "VerseObs Lecture", Georgia, serif; margin: 0; max-height: 110px; overflow: auto; }
-#heard-details { margin: 12px 0; color: var(--cp-text-secondary); font-size: 14px; }
-#heard-details summary { cursor: pointer; padding: 4px 0; }
-#heard-spoken { line-height: 1.6; margin: 6px 0; }
-.heard-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 14px; }
+.heard-card button { font-size: 14px; border: 1px solid var(--cp-border-light); border-radius: 6px; padding: 7px 11px; min-height: 36px; background: transparent; color: var(--cp-text); cursor: pointer; }
+#heard-connect { border: 0; padding: 0; margin-left: auto; min-height: 24px; color: var(--cp-text-secondary); }
+#heard-idle { color: var(--cp-text-secondary); margin: 12px 0; font-size: 14px; line-height: 1.6; }
+.heard-reading { margin-top: 5px; min-width: 0; }
+.heard-reference-row { display: flex; align-items: baseline; gap: 10px; }
+#heard-reference { font: 600 19px/1.3 var(--cp-font); letter-spacing: -.3px; margin: 0; }
+#heard-meta { margin: 0 0 0 auto; font-size: 14px; color: var(--cp-text-muted); }
+#heard-text { font: 400 16px/1.5 "VerseObs Lecture", Georgia, serif; margin: 3px 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.heard-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 6px; }
+.heard-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 #heard-load { background: var(--take); color: var(--take-ink); border-color: var(--take); font-weight: 600; }
-#heard-load:hover { background: var(--take-hover); }
-#heard-explanation { color: var(--cp-text-secondary); font-size: 14px; margin: 0 0 0 6px; flex: 1 1 200px; line-height: 1.5; }
-.heard-source { color: var(--cp-text-muted); font-size: 14px; margin: 10px 0 0; }
+#heard-load:hover:not(:disabled) { background: var(--take-hover); }
+#heard-load:disabled { background: transparent; color: var(--cp-text-secondary); border-color: var(--cp-border-light); opacity: 1; cursor: default; font-weight: 400; }
+#heard-details { margin-left: auto; color: var(--cp-text-secondary); font-size: 14px; }
+#heard-details summary { cursor: pointer; padding: 7px 0; }
+#heard-details[open] { flex: 1 1 100%; order: 2; max-height: 280px; overflow-y: auto; }
+#heard-full { font: 400 17px/1.6 "VerseObs Lecture", Georgia, serif; color: var(--cp-text); margin: 6px 0; }
+#heard-spoken, #heard-confidence, #heard-method { line-height: 1.5; margin: 6px 0; }
+#heard-explanation { color: var(--cp-text-secondary); font-size: 14px; line-height: 1.4; margin: 5px 0 0; }
+.heard-source { color: var(--cp-text-muted); font-size: 14px; line-height: 1.4; margin: 5px 0 0; }
 .heard-source:empty { display: none; }
 @media (max-width: 600px) {
-  .heard-card { padding: 12px; margin-bottom: 14px; }
-  #heard-connect { margin-left: 0; }
-  .heard-card[data-live="true"] { height: 380px; }
-  #heard-text { font-size: 16px; max-height: 120px; }
-  #heard-reference { font-size: 20px; }
-  #heard-explanation { flex-basis: 100%; margin: 3px 0 0; }
-  .heard-card button { min-height: 44px; }
+  .heard-card { padding: 10px 12px; margin-bottom: 14px; }
+  .heard-card[data-live="true"] { min-height: 252px; }
+  .heard-heading { flex-wrap: wrap; gap: 4px 10px; }
+  #heard-connect { min-height: 28px; }
+  #heard-reference { font-size: 18px; }
+  .heard-card button { min-height: 42px; }
+  #heard-details { margin-left: 0; }
 }

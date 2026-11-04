@@ -36,6 +36,7 @@ try {
   send({type:'caption_engine',state});
   heartbeat=setInterval(()=>send({type:'caption_engine',state}),1000);
   await page.waitForFunction(()=>document.querySelector('#heard-state').textContent==='À l’écoute');
+  await sleep(3300); // capture après disparition du toast de démarrage
   const preparedTop=await page.locator('#preview-ref').evaluate(e=>e.getBoundingClientRect().top);
   const before=program().length;
   say();
@@ -64,6 +65,25 @@ try {
   assert.equal(program().length,afterManual);
   assert.match(await obs.locator('#verse-container').textContent(),/salaire du péché/);
   results.push('antenne déjà occupée : ni réception ni chargement ne la remplacent');
+  // Course réelle : une seconde traduction retardée ne doit pas diffuser
+  // la nouvelle plage préparée par Verset entendu à la place du clic précédent.
+  let delayed;
+  await page.route('**/sem.json',route=>{delayed=route;});
+  await page.locator('#bilingual-toggle').click();
+  await page.locator('#secondary-version').selectOption('sem');
+  for(let i=0;i<100&&!delayed;i++) await sleep(20);
+  assert.ok(delayed,'seconde version effectivement retenue');
+  await page.locator('.chapter-verse[data-verse="17"]').click();
+  say({bookId:43,chapter:3,verse:17,verseEnd:18});
+  await page.waitForFunction(()=>document.querySelector('#heard-reference').textContent==='Jean 3:17-18');
+  await page.locator('#heard-load').click();
+  await page.waitForFunction(()=>document.querySelector('#preview-ref').textContent==='Jean 3:17-18');
+  await delayed.continue();
+  await page.waitForFunction(()=>!document.querySelector('#btn-show').disabled);await sleep(300);
+  assert.equal(program().length,afterManual,'aucun SHOW différé de la proposition');
+  assert.match(await obs.locator('#verse-container').textContent(),/salaire du péché/);
+  await page.locator('#bilingual-toggle').click();
+  results.push('enchaînement + deuxième version retardée : la proposition reste en aperçu');
   await page.locator('#heard-dismiss').click();
   say({confidence:.6}); await sleep(100);
   assert.equal(await page.locator('#heard-proposal').isVisible(),false);
@@ -77,7 +97,11 @@ try {
   results.push('chapitre seul : annonce explicite, ouvre v.1 sans diffusion');
   for (const width of [920,600,360,320]) {
     await page.setViewportSize({width,height:900});
-    await page.locator('#heard-card').scrollIntoViewIfNeeded();
+    await page.locator('#heard-explanation').evaluate(e=>e.scrollIntoView({block:'center'}));
+    assert.equal(await page.locator('#heard-explanation').evaluate(e=>{
+      const r=e.getBoundingClientRect(),c=document.querySelector('#heard-card').getBoundingClientRect();
+      return r.top>=c.top && r.bottom<=c.bottom && r.top>=0 && r.bottom<=innerHeight && e.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));
+    }),true,'avertissement chapitre seul visible et non masqué à '+width);
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'pas de débordement à '+width);
     await page.screenshot({path:path.join(out,`carte-${width}.png`)});
   }

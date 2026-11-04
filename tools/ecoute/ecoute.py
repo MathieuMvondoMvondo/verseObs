@@ -220,6 +220,10 @@ class Service:
             self.verse_finder = LatestFinder(StreamFinder(Finder(index, chooser)), self.on_verse, self.verse_warning)
             self.verse_default_notice = (f'{len(index.versions) - len(index.quarantined)} versions disponibles.' +
                 (' Crampon exclu : numérotation incohérente.' if index.quarantined else ''))
+            if self.args.departage_versets and self.args.plafond_euros is not None:
+                notice = 'Départage modèle désactivé : plafond de dépense configuré.'
+                self.verse_default_notice += ' ' + notice
+                self.log(notice)
             if self.engine and self.engine.status == 'listening':
                 self.verse_finder.start()
         except Exception:

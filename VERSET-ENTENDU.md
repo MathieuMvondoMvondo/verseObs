@@ -4,7 +4,7 @@
 
 1. Dans **Connexions → Écoute**, choisir l’entrée audio et démarrer comme auparavant.
 2. Revenir dans **Bible**. La carte **Verset entendu** propose une référence et le texte local correspondant.
-3. Lire et vérifier le passage, puis **Charger l’aperçu**. La version retrouvée est conservée, pour ne pas changer sa numérotation.
+3. Ouvrir **Lire et vérifier** pour le texte complet, la parole reconnue et le score, puis **Charger l’aperçu**. La version retrouvée est conservée, pour ne pas changer implicitement sa numérotation. Si elle diffère de votre version de travail, la carte annonce ce remplacement avant le clic ; le sélecteur de version du Studio change avec le passage. Rechoisir votre version si vous souhaitez y revenir.
 4. Utiliser ensuite **Diffuser**, explicitement. Réception et chargement ne diffusent rien, même avec **Enchaîner à l’antenne** coché. **Écarter** ne touche pas à l’antenne.
 
 Un chapitre seul est annoncé comme tel : **Ouvrir le chapitre** prépare le verset 1, à choisir ensuite. Une carte expire après une minute ; arrêt ou déconnexion la retirent immédiatement. Une nouvelle proposition ne remplace pas un bouton ayant le focus. Rien n’est mémorisé pour être reproposé au redémarrage.
@@ -57,7 +57,7 @@ python installer-versets.py --cible "C:\chemin\VerseObs"
 python installer-versets.py --cible "C:\chemin\VerseObs" --appliquer --accord-math
 ```
 
-Le script sauvegarde chaque ancien fichier dans un dossier voisin `VerseObs-retour-versets-…`, applique le manifeste, puis relit les sommes de contrôle. En cas d’échec d’écriture, il restaure les fichiers déjà écrits. Conserver le dossier du paquet et le chemin de sauvegarde affiché.
+Le script sauvegarde chaque ancien fichier dans un dossier voisin `VerseObs-retour-versets-…`, applique le manifeste, puis relit les sommes de contrôle. En cas d’échec d’écriture, il restaure et relit les fichiers concernés, tentative courante comprise. Les écritures se font dans un temporaire voisin puis par remplacement atomique. Conserver le dossier du paquet et le chemin de sauvegarde affiché.
 
 5. Relancer manuellement les lanceurs existants. La préparation de l’index se fait en arrière-plan : Écoute peut déjà sous-titrer, mais aucune proposition biblique avant l’index prêt (voir Connexions). Dans OBS, recharger **le dock et la source navigateur, hors antenne**, pour recevoir le build 2.91 ; confirmer le retour de l’overlay avant toute diffusion. Un ancien overlay doit être actualisé explicitement.
 6. **Avant dimanche** : essai de 75 s avec la vraie entrée audio, vérification parole → proposition, aperçu sans antenne, diffusion manuelle, arrêt/reprise et arrêt du service. Mesurer sur ce PC la latence réelle et vérifier les clés absentes du journal. Ce test n’est pas remplacé par le rejeu fourni.

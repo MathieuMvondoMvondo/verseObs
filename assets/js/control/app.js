@@ -163,6 +163,7 @@
     heardVerse = new window.VerseObs.HeardVerse({
       channel: channel,
       load: _prepareHeard,
+      workingVersion: function () { return { id: currentBibleId, name: _currentVersionName() }; },
       openConnections: function () { _switchTab(5); },
     });
     _loadDefaultBible();
@@ -220,6 +221,8 @@
   // Charger exactement la version retrouvée, sans convertir sa versification.
   // Cette voie ne peut appeler ni SHOW, ni _pickVerse (qui sait enchaîner).
   function _prepareHeard(p, valid) {
+    _chainGeneration++;
+    clearTimeout(_chainTimer); _chainTimer = null;
     var request = ++_bibleRequest, revision = _previewRevision;
     return new Promise(function (resolve) {
       bibleLoader.loadBible(p.version, function (err, data) {
@@ -1589,7 +1592,7 @@
   // Verset précédent / suivant « enchaîné » (Math, 28/10, en direct) : si un
   // verset de la Bible est à l'antenne, le voisin y passe directement en un
   // clic ; sinon il est seulement préparé dans l'aperçu.
-  var _chainTimer = null;
+  var _chainTimer = null, _chainGeneration = 0;
   function _isOnAir(sel) {
     return !!(
       _onAirItem &&
@@ -1602,14 +1605,16 @@
   // Diffuse la sélection courante dès qu'elle est prête (deuxième version
   // comprise), tant qu'elle n'a pas changé entre-temps.
   function _airWhenReady() {
-    var target = navigation.getSelection();
+    var target = navigation.getSelection(), generation = ++_chainGeneration;
+    var version = currentBibleId, range = JSON.stringify(_pendingRange), bibleRequest = _bibleRequest;
     var tries = 0;
     if (_chainTimer) clearTimeout(_chainTimer);
     (function attempt() {
       _chainTimer = null;
       var now = navigation.getSelection();
       if (
-        now.bookId !== target.bookId ||
+        generation !== _chainGeneration || version !== currentBibleId || bibleRequest !== _bibleRequest ||
+        range !== JSON.stringify(_pendingRange) || now.bookId !== target.bookId ||
         now.chapter !== target.chapter ||
         now.verse !== target.verse ||
         _isOnAir(now)
@@ -1657,6 +1662,7 @@
   }
 
   function _hideVerse() {
+    _chainGeneration++; clearTimeout(_chainTimer); _chainTimer = null;
     _sendMessage(MSG.HIDE, {});
     _notify("Overlay masqué", "info");
     _onAirItem = null;

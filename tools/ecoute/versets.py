@@ -76,6 +76,8 @@ class ReferenceParser:
                         aliases[ordinal + ' ' + tail] = b['id']
                         for preposition in ('de', 'a', 'aux'):
                             aliases[ordinal + ' ' + preposition + ' ' + tail] = b['id']
+                        aliases[ordinal + ' lettre aux ' + tail] = b['id']
+                        aliases[ordinal + ' lettre de ' + tail] = b['id']
                         aliases[ordinal + ' epitre aux ' + tail] = b['id']
                         aliases[ordinal + ' epitre de ' + tail] = b['id']
         aliases.update({'psaume': 19, 'isaie': 23, 'acte': 44, 'actes des apotres': 44, 'cantique': 22})
@@ -85,7 +87,7 @@ class ReferenceParser:
         self.book_pattern = re.compile(r'(?<![a-z0-9])(' + names + r')(?![a-z])\.?')
         self.after = re.compile(r'^\s*(?:(?:[,;:]\s*)?(?:au\s+)?chapitre\s+)?(' + NUMBER + r')')
         self.verse = re.compile(r'^\s*(?:[,;:]\s*|\s+)(?:versets?\s*)?(' + NUMBER + r')')
-        self.marked_verse = re.compile(r'^\s*[,;:]?\s*(?:(?:a partir du|du|au)\s+)?versets?\s+(' + NUMBER + r')')
+        self.marked_verse = re.compile(r'^\s*[,;:]?\s*(?:et\s+)?(?:(?:a partir du|du|au)\s+)?versets?\s+(' + NUMBER + r')')
         self.range = re.compile(r'^\s*(?:-|a|au|jusqu au|et)\s*(?:versets?\s+)?(' + NUMBER + r')')
         self.before = re.compile(r'chapitre\s+(' + NUMBER + r')\s+(?:de|dans)\s*$')
 
@@ -132,8 +134,11 @@ class ReferenceParser:
             if not v and ch_match and not ch_match[1].isdigit() and 'chapitre' not in ch_match[0]:
                 # « Jean un jour » n'est pas Jean 1. Un livre explicitement
                 # numéroté (« premier Corinthiens treize ») reste déterministe.
-                if not re.match(r'^(?:[123]|premier|premiere|deuxieme|second|seconde|troisieme)\b', m[1]):
+                if book != 19 and not re.match(r'^(?:[123]|premier|premiere|deuxieme|second|seconde|troisieme)\b', m[1]):
                     continue
+            if not v and ch_match and not inverse and 'chapitre' not in ch_match[0]:
+                if rest[used:].strip() and not re.match(r'^\s*[,.;:!?]', rest[used:]):
+                    continue  # « Jean 2 minutes » : même abstention que « Jean deux minutes »
             ve = v
             if v:
                 rm = self.range.match(rest[used:])
@@ -144,6 +149,10 @@ class ReferenceParser:
                     used += rm.end()
                 elif re.match(r'^\s*[-:]|^\s+(?:a|au)\s+\d', rest[used:]):
                     continue
+            if re.match(r'^\s*(?:[-:]|(?:a|au|jusqu au|et)\b)\s*(?:versets?\s+)?(?:\d|' + NUMBER + r')', rest[used:]):
+                continue  # plage invalide ou liste supplémentaire : pas de préfixe trompeur
+            if re.match(r'^\s*[,;]\s*(?:non|plutot|pardon|je veux dire)\b', rest[used:]):
+                continue
             if re.match(r'^\s+(?:cents?|mille|vingts?|trente|quarante|cinquante|soixante|dix)\b', rest[used:]):
                 continue  # nombre hors limites partiellement reconnu
             consumed = m.end() + used

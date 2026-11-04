@@ -24,7 +24,8 @@
       if (current && !force && (busy || card.contains(document.activeElement))) {
         pending = p;
         el('heard-next').hidden = false;
-        el('heard-next').textContent = 'Autre passage : ' + p.reference;
+        el('heard-next').textContent = 'Autre passage';
+        el('heard-next').title = p.reference;
         return;
       }
       pending = null;
@@ -36,12 +37,18 @@
       el('heard-state').textContent = 'À vérifier';
       el('heard-reference').textContent = p.reference;
       el('heard-text').textContent = p.text;
+      el('heard-text').title = p.text;
+      el('heard-full').textContent = p.text;
       el('heard-spoken').textContent = '« ' + p.heard + ' »';
       el('heard-details').open = false;
       var method = p.method === 'reference' ? 'Référence dite' : p.method === 'model' ? 'Citation départagée' : 'Citation rapprochée';
-      el('heard-meta').textContent = p.version.toUpperCase() + ' · ' + method;
+      el('heard-meta').textContent = p.version.toUpperCase();
+      el('heard-method').textContent = method + ' · ' + p.version.toUpperCase();
       el('heard-confidence').textContent = 'Indice de correspondance : ' + Math.round(p.confidence * 100) + '/100. Ce n’est pas une probabilité de justesse.';
-      el('heard-explanation').textContent = !p.verse ? 'Chapitre seul · le chargement ouvrira le verset 1, à choisir ensuite.' : 'Vérifiez le passage. Rien n’est diffusé automatiquement.';
+      var working = options.workingVersion ? options.workingVersion() : null;
+      var change = working && working.id && working.id !== p.version;
+      el('heard-explanation').textContent = (!p.verse ? 'Chapitre seul · verset 1 préparé' : 'Aperçu uniquement') +
+        (change ? ' · ' + p.version.toUpperCase() + ' remplace votre ' + working.name + ' (sans conversion).' : ' · diffusion manuelle.');
       el('heard-load').disabled = false;
       el('heard-load').textContent = !p.verse ? 'Ouvrir le chapitre' : 'Charger l’aperçu';
       clearTimeout(timer);
@@ -79,7 +86,7 @@
         if (run !== generation) return;
         busy = false;
         prepared = !!ok;
-        el('heard-state').textContent = ok ? 'Dans l’aperçu' : 'Chargement annulé ou impossible';
+        el('heard-state').textContent = ok ? 'Dans l’aperçu' + (!selected.verse ? ' · v.1' : '') : 'Chargement annulé ou impossible';
         el('heard-load').textContent = ok ? 'Aperçu chargé' : 'Réessayer';
         el('heard-load').disabled = !!ok;
       }).catch(function () {

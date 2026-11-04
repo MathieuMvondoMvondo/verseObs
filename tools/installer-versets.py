@@ -10,6 +10,8 @@ import json
 from pathlib import Path
 import shutil
 import time
+import os
+import tempfile
 
 
 def sha(data):
@@ -26,6 +28,17 @@ def child(root, relative):
     if any(x.is_symlink() for x in [target,*target.parents] if x!=root.parent):
         raise ValueError('Lien symbolique interdit dans la cible')
     return target
+
+
+def atomic_write(dest,data):
+    fd,name=tempfile.mkstemp(prefix=dest.name+'.',suffix='.tmp',dir=dest.parent)
+    os.close(fd);temporary=Path(name)
+    try:
+        temporary.write_bytes(data)
+        if sha(temporary.read_bytes())!=sha(data):raise OSError('Écriture temporaire non vérifiée')
+        if dest.exists():os.chmod(temporary,dest.stat().st_mode & 0o777)
+        temporary.replace(dest)
+    finally:temporary.unlink(missing_ok=True)
 
 
 def apply(package,target,approved=False):
@@ -59,13 +72,16 @@ def apply(package,target,approved=False):
     try:
         for relative,data,before in plan:
             dest=child(target,relative);dest.parent.mkdir(parents=True,exist_ok=True)
-            dest.write_bytes(data);completed.append((relative,before))
+            completed.append((relative,before))
+            atomic_write(dest,data)
             if sha(dest.read_bytes())!=sha(data):raise OSError('Vérification échouée : '+relative)
     except Exception:
         for relative,before in reversed(completed):
             dest=child(target,relative)
             if before is None:dest.unlink(missing_ok=True)
-            else:dest.write_bytes(before)
+            else:
+                atomic_write(dest,before)
+                if sha(dest.read_bytes())!=sha(before):raise OSError('Restauration non vérifiée : '+relative)
         raise
     return {'mode':'installé, fichiers relus','backup':str(backup),'files':len(plan),'commit':manifest['commit']}
 
@@ -84,7 +100,7 @@ def rollback(backup,approved=False):
         for dest,before in plan:
             if before is None:dest.unlink()
             else:
-                dest.write_bytes(before)
+                atomic_write(dest,before)
                 if sha(dest.read_bytes())!=sha(before):raise OSError('Retour non vérifié')
     return {'mode':'retour effectué, fichiers relus' if approved else 'inspection du retour','target':str(target),'files':len(plan)}
 
