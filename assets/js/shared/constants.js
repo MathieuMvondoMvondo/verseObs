@@ -6,7 +6,7 @@ window.VerseObs = window.VerseObs || {};
  * new number makes it fetch the new ones. The Studio announces it with its
  * ping; an older OBS output reloads itself once, never on air (display/app.js).
  */
-window.VerseObs.BUILD = 2.9;
+window.VerseObs.BUILD = 2.91;
 
 window.VerseObs.MSG = {
   OUTPUT_STATE: "output_state",

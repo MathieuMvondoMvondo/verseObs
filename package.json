@@ -8,12 +8,13 @@
     "convert": "node tools/convert_scrollmapper.js && node tools/convert_getbible.js && node tools/convert_bolls.js",
     "build-data": "npm run download && npm run convert",
     "serve": "node tools/server.js",
-    "test": "node tests/run.js && node tests/studio.js && node tests/captions.js",
+    "test": "node tests/run.js && node tests/studio.js && node tests/captions.js && node tests/heard.js && node tests/heard-studio.js",
     "test:browser": "node tests/browser-motion.mjs && node tests/browser-studio.mjs && node tests/browser-dock.mjs",
     "start": "node tools/server.js",
     "check": "node tools/check.js",
     "build": "node tools/build.js",
     "test:captions-browser": "node tests/browser-captions.mjs",
+    "test:heard-browser": "node tests/browser-heard.mjs",
     "test:ecoute": "python -m unittest discover -s tools/ecoute -p \"test_*.py\""
   },
   "dependencies": {

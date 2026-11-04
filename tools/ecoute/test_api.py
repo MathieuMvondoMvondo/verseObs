@@ -450,7 +450,7 @@ def service_with(env, argv, api):
             if var not in env:
                 os.environ.pop(var, None)
         journal = os.path.join(tmp, "journal.jsonl")
-        args = ecoute.parse(["--sans-relais", "--journal", journal,
+        args = ecoute.parse(["--sans-versets", "--sans-relais", "--journal", journal,
                              "--url-anthropic", api.base + "/v1/messages",
                              "--url-openai", api.base + "/v1/audio/transcriptions",
                              "--url-openai-traduction", api.base + "/v1/chat/completions"] + argv)
@@ -520,7 +520,7 @@ class TestServiceSansFuite(unittest.TestCase):
                 mock.patch.object(moteur, "list_devices", lambda: []), \
                 mock.patch.object(ecoute, "translator_dir", lambda arg: tmp):
             os.environ.pop("VERSEOBS_ECOUTE_OPENAI_CLE", None)
-            args = ecoute.parse(["--sans-relais", "--url-anthropic", self.api.base + "/v1/messages"])
+            args = ecoute.parse(["--sans-versets", "--sans-relais", "--url-anthropic", self.api.base + "/v1/messages"])
             service = ecoute.Service(args)
             service.send = lambda m: None
             service.load()
@@ -683,7 +683,9 @@ class TestArretDuService(unittest.TestCase):
             for var in moteur.KEY_ENV.values():
                 os.environ.pop(var, None)
             t0 = time.time()
-            ecoute.main(["--fichier", "inutile.wav", "--sans-relais", "--demarrer", "--fin-auto",
+            # Ce test d'arrêt ne charge aucun modèle ni l'index : la concordance
+            # réelle et son arrêt sont couverts séparément dans test_versets*.
+            ecoute.main(["--sans-versets", "--fichier", "inutile.wav", "--sans-relais", "--demarrer", "--fin-auto",
                          "--journal", os.path.join(tmp, "j.jsonl")])
         self.assertLess(time.time() - t0, 30)
 

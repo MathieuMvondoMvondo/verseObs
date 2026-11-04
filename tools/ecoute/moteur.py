@@ -1174,8 +1174,10 @@ class Engine:
     """Source -> découpage -> transcription -> traduction -> légende publiée."""
 
     def __init__(self, transcribe, translate, on_caption, on_change=None, segmenter=None,
-                 catchup_max=24.0, max_delay=30.0, catchup=True, catchup_after=2.0):
+                 catchup_max=24.0, max_delay=30.0, catchup=True, catchup_after=2.0,
+                 on_transcript=None):
         self.transcribe, self.translate = transcribe, translate
+        self.on_transcript = on_transcript
         self.on_caption, self.on_change = on_caption, on_change or (lambda: None)
         self.make_segmenter = segmenter or (lambda: Segmenter())
         self.status, self.error, self.source_label = "idle", "", ""
@@ -1325,6 +1327,11 @@ class Engine:
         fr = self.transcribe(seg.audio)
         t_b = time.time()
         if not fr or stop.is_set():
+            return
+        if self.on_transcript:
+            self.on_transcript({'fr': fr, 'start': round(seg.wall_start * 1000),
+                                'end': round(seg.wall_end * 1000), 'asr': round(t_b - t_a, 3)})
+        if stop.is_set():
             return
         en = self.translate(fr)
         t_c = time.time()

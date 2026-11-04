@@ -99,6 +99,11 @@ class Service:
         self.custom_api = ""  # --api-url (API compatible OpenAI) : modèle déclaré au Studio
         self.recap = ""
         self._was_listening = False
+        self.listen_id = secrets.token_hex(12)
+        self.verse_finder = None
+        self.verse_notice = 'Recherche de versets en préparation.'
+        self.verse_default_notice = self.verse_notice
+        self.verse_notice_until = 0
 
     # -- chargement -------------------------------------------------------
     def load(self):
@@ -157,6 +162,7 @@ class Service:
                     translate = secours
                 if secours is not local:
                     self.paid.append(secours)
+            verse_key = keys.get('openai') if a.departage_versets else None
             keys = None
             if self.paid:
                 parts = []
@@ -178,7 +184,14 @@ class Service:
                 self.on_caption,
                 self.changed,
                 segmenter=lambda: moteur.Segmenter(min_pause=a.pause, max_len=a.max_phrase),
+                on_transcript=self.on_transcript,
             )
+            if a.sans_versets:
+                self.verse_default_notice = 'Recherche de versets désactivée.'
+            else:
+                # Le démarrage d'Écoute n'attend pas l'index : les sous-titres
+                # restent utilisables pendant sa préparation (~20 s sur le VPS).
+                threading.Thread(target=self.load_verses, args=(verse_key,), name='versets-chargement', daemon=True).start()
             if a.fichier:
                 self.file_source = moteur.FileSource(a.fichier, a.debut, a.duree)
             else:
@@ -198,8 +211,25 @@ class Service:
         if self.engine and (self.args.demarrer or self.pending_start is not None):
             self.start(self.pending_start if self.pending_start is not None else self.device)
 
+    def load_verses(self, key=None):
+        try:
+            from pathlib import Path
+            from versets import BibleIndex, Finder, LatestFinder, ModelChooser, StreamFinder
+            index = BibleIndex(Path(HERE).parents[1] / 'data')
+            chooser = ModelChooser(key, self.budget) if key else None
+            self.verse_finder = LatestFinder(StreamFinder(Finder(index, chooser)), self.on_verse, self.verse_warning)
+            self.verse_default_notice = (f'{len(index.versions) - len(index.quarantined)} versions disponibles.' +
+                (' Crampon exclu : numérotation incohérente.' if index.quarantined else ''))
+            if self.engine and self.engine.status == 'listening':
+                self.verse_finder.start()
+        except Exception:
+            self.verse_default_notice = 'Recherche de versets indisponible ; vérifiez les fichiers data/bibles.'
+        self.changed()
+
     # -- commandes ----------------------------------------------------------
-    def start(self, device=None):
+    def start(self, device=None, listen_id=None):
+        if listen_id:
+            self.listen_id = str(listen_id)[:80]
         if not self.ready.is_set():
             self.pending_start = device if device is not None else self.device
             return
@@ -219,9 +249,13 @@ class Service:
                 return
         self.started_once = True
         self.log("Écoute démarrée : " + getattr(source, "label", "?"))
+        if self.verse_finder:
+            self.verse_finder.start()
         self.engine.start(source)
 
     def stop(self):
+        if self.verse_finder:
+            self.verse_finder.stop()
         if self.engine:
             self.engine.stop()
             self.log("Écoute arrêtée.")
@@ -230,8 +264,9 @@ class Service:
         action = msg.get("action")
         if action == "start":
             device = msg.get("device")
-            self.start(device if isinstance(device, int) else None)
+            self.start(device if isinstance(device, int) else None, msg.get("listenId"))
         elif action == "stop":
+            self.listen_id = secrets.token_hex(12)
             self.stop()
 
     # -- état et publication ------------------------------------------------
@@ -260,6 +295,9 @@ class Service:
             "cpu": cpu,
             "ram": ram,
             "api": self.api_state(),
+            "listenId": self.listen_id,
+            "verses": self.verse_notice if time.monotonic() < self.verse_notice_until else self.verse_default_notice,
+            "verseReady": bool(self.verse_finder and self.verse_finder.thread.is_alive()),
         }
 
     def api_state(self):
@@ -308,6 +346,8 @@ class Service:
 
     def changed(self):
         listening = bool(self.engine and self.engine.status in ("listening", "stopping"))
+        if self.verse_finder and self.engine and self.engine.status != 'listening':
+            self.verse_finder.stop()
         if self._was_listening and not listening:
             self.finish_session()
         self._was_listening = listening
@@ -317,7 +357,29 @@ class Service:
         if self.args.fin_auto and self.started_once and st["status"] in ("idle", "error") and self.loop:
             self._in_loop(self.loop.call_later, 1.0, self.loop.stop)
 
+    def verse_warning(self, message):
+        self.verse_notice = message
+        self.verse_notice_until = time.monotonic() + 10
+        self.changed()
+
+    def on_transcript(self, event):
+        if self.verse_finder and self.engine and self.engine.status == 'listening':
+            try:
+                self.verse_finder.submit(dict(event, listenId=self.listen_id))
+            except Exception:
+                self.verse_notice = 'Recherche de versets indisponible ; les sous-titres continuent.'
+                self.verse_notice_until = time.monotonic() + 10
+
+    def on_verse(self, proposal):
+        if self.engine and self.engine.status == 'listening' and proposal.get('listenId') == self.listen_id:
+            self.write({'type': 'heard_verse', 'proposal': proposal})
+            self.send(self.message('heard_verse', proposal=proposal))
+
     def on_caption(self, c):
+        if 'gap' in c and self.verse_finder:
+            self.verse_finder.stop()
+            if self.engine and self.engine.status == 'listening':
+                self.verse_finder.start()
         self.write({"type": "caption", "t": time.time(), "caption": c})
         if self.paid and not self.journal and "latency" in c and c.get("unit", 1) == 1:
             # Latence de chaque phrase (sans son texte) : choisir le modèle après le culte.
@@ -419,6 +481,8 @@ def parse(argv=None):
     p.add_argument("--demarrer", action="store_true", help="démarrer l'écoute sans attendre le Studio")
     p.add_argument("--fin-auto", action="store_true", help="quitter à la fin du fichier")
     p.add_argument("--sans-relais", action="store_true", help="ne pas se relier à VerseObs (mesures)")
+    p.add_argument("--sans-versets", action="store_true", help="désactiver les propositions de versets")
+    p.add_argument("--departage-versets", action="store_true", help="autoriser GPT-6.1 Terra à départager les candidats ambigus (clé OpenAI existante, délai 1,5 s ; désactivé par défaut)")
     p.add_argument("--journal", help="fichier JSONL des légendes et états (mesures)")
     p.add_argument("--modele", default="small", help="modèle Whisper : base, small (défaut), medium…")
     p.add_argument(

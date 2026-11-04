@@ -22,6 +22,7 @@
     planImport,
     remoteLink,
     captionsLink,
+    heardVerse,
     favorites;
   var channel = null;
   // What the output is doing, as the Studio shows it (shared with the phone remote).
@@ -159,6 +160,11 @@
     });
     _initRemote();
     _initCaptions();
+    heardVerse = new window.VerseObs.HeardVerse({
+      channel: channel,
+      load: _prepareHeard,
+      openConnections: function () { _switchTab(5); },
+    });
     _loadDefaultBible();
   }
 
@@ -208,6 +214,31 @@
     captionsLink = new window.VerseObs.CaptionsLink({
       channel: channel,
       notify: _notify,
+    });
+  }
+
+  // Charger exactement la version retrouvée, sans convertir sa versification.
+  // Cette voie ne peut appeler ni SHOW, ni _pickVerse (qui sait enchaîner).
+  function _prepareHeard(p, valid) {
+    var request = ++_bibleRequest, revision = _previewRevision;
+    return new Promise(function (resolve) {
+      bibleLoader.loadBible(p.version, function (err, data) {
+        if (err || request !== _bibleRequest || revision !== _previewRevision || !valid()) return resolve(false);
+        var start = p.verse || 1, end = p.verseEnd || 1;
+        if (!bibleLoader.getRange(p.version, p.bookId, p.chapter, start, end)) return resolve(false);
+        currentBibleId = p.version;
+        currentBibleData = data;
+        dom.versionSelect.value = p.version;
+        _updateVersionIndicator(p.version);
+        navigation.populateBooks(data);
+        navigation.setSelection(p.bookId, p.chapter, start);
+        _setPendingRange({ bookId: String(p.bookId), chapter: p.chapter, verseStart: start, verseEnd: end });
+        if (planImport) planImport.refresh();
+        _switchTab(0);
+        _updatePreview();
+
+        resolve(true);
+      });
     });
   }
 
@@ -1342,6 +1373,7 @@
 
   function _updatePreview() {
     if (!currentBibleId) return;
+    _previewRevision++;
 
     var sel = navigation.getSelection();
     var verse = _activeDisplay();
@@ -1367,6 +1399,7 @@
         dom.previewRef.style.display = "none";
       }
     }
+    if (heardVerse) heardVerse.selectionChanged(verse && verse.reference, currentBibleId);
     _updateFavButton();
     bilingual.refresh();
     _sendPreview();
@@ -1654,6 +1687,7 @@
         if (window.VerseObs.Studio) window.VerseObs.Studio.setRelay(connected);
         if (remoteLink) remoteLink.setRelay(connected);
         if (captionsLink) captionsLink.setRelay(connected);
+        if (heardVerse) heardVerse.setRelay(connected);
       },
     });
     channel.onMessage(_handleMessage);
@@ -2536,7 +2570,7 @@
     }
   }
 
-  var _bibleRequest = 0;
+  var _bibleRequest = 0, _previewRevision = 0;
   function _loadBible(id) {
     _updateVersionIndicator(id);
     _setLoading(true);

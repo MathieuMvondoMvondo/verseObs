@@ -1,0 +1,86 @@
+{
+  "mode": "Transcriptions gpt-transcribe enregistrées au banc du 02/11 ; audio original",
+  "clips": [
+    {
+      "clip": "V1jrg_sS2tQ",
+      "start": 38,
+      "end": 59,
+      "phrases": [
+        {
+          "fr": "Que la mort est la conséquence du péché.",
+          "start": 38.08,
+          "end": 40.92,
+          "asr_s": 0.59
+        },
+        {
+          "fr": "Il nous dit ça, comment ? Il nous dit ça dans Romains 6, 23. Il dit : Car le salaire du péché...",
+          "start": 41.24,
+          "end": 46.57,
+          "asr_s": 0.664
+        },
+        {
+          "fr": "C'est la mort. Amen. Le salaire du péché, c'est quoi ?",
+          "start": 46.99,
+          "end": 49.92,
+          "asr_s": 0.647
+        },
+        {
+          "fr": "Le salaire du péché, c'est la mort, mais le don gratuit de Dieu, c'est la vie éternelle en Jésus-Christ notre Seigneur. Amen.",
+          "start": 51.01,
+          "end": 57.69,
+          "asr_s": 0.736
+        }
+      ]
+    },
+    {
+      "clip": "jwY55s-CoWU",
+      "start": 9,
+      "end": 28,
+      "phrases": [
+        {
+          "fr": "Pasteur Maud, vous savez que j'aime bien lire les textes.",
+          "start": 9.41,
+          "end": 12.47,
+          "asr_s": 0.643
+        },
+        {
+          "fr": "Donc deux textes. Le premier est dans Genèse 4.",
+          "start": 14.42,
+          "end": 18.54,
+          "asr_s": 0.671
+        },
+        {
+          "fr": "Genèse 4 à partir du verset 1, mais je vais surtout m'accentuer sur le verset 6 et 7.",
+          "start": 19.97,
+          "end": 25.24,
+          "asr_s": 0.75
+        }
+      ]
+    },
+    {
+      "clip": "V1jrg_sS2tQ",
+      "start": 169,
+      "end": 188,
+      "phrases": [
+        {
+          "fr": "C'est-à-dire, c'est comment qu'on chute, le processus même de la chute.",
+          "start": 172.12,
+          "end": 175.54,
+          "asr_s": 0.679
+        },
+        {
+          "fr": "Le processus qui t'emmène à la mort.",
+          "start": 175.8,
+          "end": 178.67,
+          "asr_s": 0.652
+        },
+        {
+          "fr": "Amen. Et il dit quoi ? Il dit : mais chacun est tenté.",
+          "start": 179.73,
+          "end": 183.78,
+          "asr_s": 0.585
+        }
+      ]
+    }
+  ]
+}

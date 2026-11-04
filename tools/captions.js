@@ -18,6 +18,7 @@
 const http = require("node:http");
 const crypto = require("node:crypto");
 const { WebSocketServer, WebSocket } = require("ws");
+const { heardProposal } = require('./heard');
 
 const CAPTION_FILES =
   /^\/(sous-titres\.html|assets\/css\/sous-titres\.css|assets\/js\/sous-titres\/sous-titres\.js|assets\/icons\/[a-z0-9-]+\.svg)$/;
@@ -71,6 +72,9 @@ function engineState(state) {
   return {
     status: STATUSES.has(s.status) ? s.status : "idle",
     error: clean(s.error, 200),
+    verses: clean(s.verses, 200),
+    verseReady: s.verseReady !== false,
+    listenId: typeof s.listenId === 'string' && /^[a-zA-Z0-9_-]{1,80}$/.test(s.listenId) ? s.listenId : null,
     source: clean(s.source, 80),
     file: s.file === true,
     model: clean(s.model, 60),
@@ -485,6 +489,10 @@ function createCaptions(port, options, relayClients, helpers) {
     publish();
   }
 
+  let heardStopped = false, heardRun = null, awaitingHeardRun = null;
+  function clearHeard() {
+    toRelay({ type: 'heard_clear', id: id(), ts: Date.now(), session: boot });
+  }
   /** Relay messages about captions. Returns true when handled here. */
   function fromRelay(ws, msg) {
     if (msg.type === "caption_engine") {
@@ -496,6 +504,12 @@ function createCaptions(port, options, relayClients, helpers) {
         first = engine !== ws;
       engine = ws;
       info = engineState(msg.state);
+      if (first) { awaitingHeardRun = null; heardRun = info.listenId; heardStopped = !heardRun; }
+      if (info.status === 'listening' && info.listenId &&
+          (info.listenId === awaitingHeardRun || (!awaitingHeardRun && before !== 'listening'))) {
+        heardRun = info.listenId; awaitingHeardRun = null; heardStopped = false; clearHeard();
+      }
+      if (first || (before === 'listening' && info.status !== 'listening')) clearHeard();
       // Leaving « listening » (stop, error) withdraws OBS: the operator ticks again.
       if (onAir && before === "listening" && info.status !== "listening")
         onAir = false;
@@ -504,6 +518,13 @@ function createCaptions(port, options, relayClients, helpers) {
         toViewers(viewerState());
       return true;
     }
+    if (msg.type === 'heard_verse') {
+      if (ws !== engine || !info || info.status !== 'listening' || heardStopped || !heardRun || msg.proposal?.listenId !== heardRun) return true;
+      const proposal = heardProposal(msg.proposal);
+      if (proposal) toRelay({ type: 'heard_verse', id: id(), ts: Date.now(), session: boot, proposal }, ws);
+      return true;
+    }
+    if (msg.type === 'heard_clear') return true;
     if (msg.type === "caption") {
       if (ws !== engine) return true; // only the listening service writes
       const message = captionLine(msg.caption);
@@ -539,6 +560,10 @@ function createCaptions(port, options, relayClients, helpers) {
       const action = msg.action;
       if (action === "status") toRelay(status(), null);
       else if (action === "start" || action === "stop") {
+        heardStopped = true;
+        heardRun = null;
+        awaitingHeardRun = id(); // réouverture seulement après acquittement du service
+        clearHeard();
         if (engine && engine.readyState === WebSocket.OPEN)
           engine.send(
             JSON.stringify({
@@ -546,6 +571,7 @@ function createCaptions(port, options, relayClients, helpers) {
               id: id(),
               ts: Date.now(),
               action,
+              listenId: awaitingHeardRun,
               device: Number.isInteger(msg.device) ? msg.device : null,
             }),
           );
@@ -569,6 +595,7 @@ function createCaptions(port, options, relayClients, helpers) {
     if (ws !== engine) return;
     engine = null;
     info = null;
+    clearHeard();
     onAir = false; // a lost service never leaves old lines on air
     publish();
     toViewers(viewerState());

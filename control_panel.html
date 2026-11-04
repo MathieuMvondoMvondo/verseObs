@@ -9,8 +9,9 @@
       content="Votre studio de diffusion biblique. Préparez, organisez et diffusez vos passages dans OBS."
     />
     <title>VerseObs — Studio</title>
-    <link rel="stylesheet" href="assets/css/control.css?v=2.9" />
-    <link rel="stylesheet" href="assets/css/studio.css?v=2.9" />
+    <link rel="stylesheet" href="assets/css/control.css?v=2.91" />
+    <link rel="stylesheet" href="assets/css/studio.css?v=2.91" />
+    <link rel="stylesheet" href="assets/css/heard.css?v=2.91" />
   </head>
   <body data-tab="0">
     <a class="skip-link" href="#search-input">Aller à la recherche</a>
@@ -279,7 +280,7 @@
           <iframe
             class="cp-preview-frame"
             id="preview-frame"
-            src="browser_source.html?preview=1&v=2.9"
+            src="browser_source.html?preview=1&v=2.91"
             title="Aperçu du passage préparé"
             tabindex="-1"
           ></iframe>
@@ -367,7 +368,7 @@
           <iframe
             class="cp-preview-frame"
             id="program-frame"
-            src="browser_source.html?monitor=1&v=2.9"
+            src="browser_source.html?monitor=1&v=2.91"
             title="Retour des commandes de diffusion"
             tabindex="-1"
           ></iframe>
@@ -451,6 +452,29 @@
             role="status"
             hidden
           ></p>
+          <section id="heard-card" class="heard-card" aria-labelledby="heard-title">
+            <div class="heard-heading">
+              <h2 id="heard-title">Verset entendu</h2>
+              <span id="heard-state" role="status" aria-live="polite">En attente</span>
+              <button id="heard-next" type="button" hidden></button>
+              <button id="heard-connect" type="button">Réglages de l’écoute</button>
+            </div>
+            <p id="heard-idle">Démarrez Écoute dans Connexions pour retrouver les versets.</p>
+            <div id="heard-proposal" hidden>
+              <div class="heard-reading" aria-live="polite" aria-atomic="true">
+                <h3 id="heard-reference"></h3>
+                <p id="heard-meta" title="Indice de correspondance, pas une probabilité de justesse."></p>
+                <p id="heard-text"></p>
+              </div>
+              <details id="heard-details"><summary>Parole reconnue et correspondance</summary><p id="heard-spoken"></p><p id="heard-confidence"></p></details>
+              <div class="heard-actions">
+                <button id="heard-load" type="button">Charger l’aperçu</button>
+                <button id="heard-dismiss" type="button">Écarter</button>
+                <p id="heard-explanation">Vérifiez le passage. Rien n’est diffusé automatiquement.</p>
+              </div>
+            </div>
+            <p id="heard-source" class="heard-source"></p>
+          </section>
           <div class="bible-workspace">
             <section class="scripture-panel">
               <div class="section-heading">
@@ -1218,7 +1242,7 @@
               <iframe
                 class="cp-preview-frame"
                 id="settings-preview-frame"
-                src="browser_source.html?preview=1&v=2.9"
+                src="browser_source.html?preview=1&v=2.91"
                 title="Aperçu en direct de l'overlay"
                 tabindex="-1"
                 aria-hidden="true"
@@ -1875,6 +1899,7 @@
               <p class="captions-engine" id="captions-engine" aria-live="polite">
                 Service d’écoute non détecté.
               </p>
+              <p id="captions-verses" class="captions-engine"></p>
               <label for="captions-device">ENTRÉE AUDIO</label>
               <div class="captions-row">
                 <select id="captions-device"></select>
@@ -2162,27 +2187,28 @@
     ></div>
 
     <!-- Scripts: shared first, then control modules, then app -->
-    <script src="assets/js/shared/constants.js?v=2.9"></script>
-    <script src="assets/js/shared/books.js?v=2.9"></script>
-    <script src="assets/js/shared/html.js?v=2.9"></script>
-    <script src="assets/js/shared/secondary.js?v=2.9"></script>
-    <script src="assets/js/shared/passage.js?v=2.9"></script>
-    <script src="assets/js/shared/channel.js?v=2.9"></script>
-    <script src="assets/js/shared/qrcode.js?v=2.9"></script>
-    <script src="assets/js/control/bible-loader.js?v=2.9"></script>
-    <script src="assets/js/control/search.js?v=2.9"></script>
-    <script src="assets/js/control/plan.js?v=2.9"></script>
-    <script src="assets/js/control/navigation.js?v=2.9"></script>
-    <script src="assets/js/control/settings.js?v=2.9"></script>
-    <script src="assets/js/control/history.js?v=2.9"></script>
-    <script src="assets/js/control/favorites.js?v=2.9"></script>
-    <script src="assets/js/control/freetext.js?v=2.9"></script>
-    <script src="assets/js/control/queue.js?v=2.9"></script>
-    <script src="assets/js/control/backup.js?v=2.9"></script>
-    <script src="assets/js/control/studio.js?v=2.9"></script>
-    <script src="assets/js/control/bilingual.js?v=2.9"></script>
-    <script src="assets/js/control/remote-link.js?v=2.9"></script>
-    <script src="assets/js/control/captions-link.js?v=2.9"></script>
-    <script src="assets/js/control/app.js?v=2.9"></script>
+    <script src="assets/js/shared/constants.js?v=2.91"></script>
+    <script src="assets/js/shared/books.js?v=2.91"></script>
+    <script src="assets/js/shared/html.js?v=2.91"></script>
+    <script src="assets/js/shared/secondary.js?v=2.91"></script>
+    <script src="assets/js/shared/passage.js?v=2.91"></script>
+    <script src="assets/js/shared/channel.js?v=2.91"></script>
+    <script src="assets/js/shared/qrcode.js?v=2.91"></script>
+    <script src="assets/js/control/bible-loader.js?v=2.91"></script>
+    <script src="assets/js/control/search.js?v=2.91"></script>
+    <script src="assets/js/control/plan.js?v=2.91"></script>
+    <script src="assets/js/control/navigation.js?v=2.91"></script>
+    <script src="assets/js/control/settings.js?v=2.91"></script>
+    <script src="assets/js/control/history.js?v=2.91"></script>
+    <script src="assets/js/control/favorites.js?v=2.91"></script>
+    <script src="assets/js/control/freetext.js?v=2.91"></script>
+    <script src="assets/js/control/queue.js?v=2.91"></script>
+    <script src="assets/js/control/backup.js?v=2.91"></script>
+    <script src="assets/js/control/studio.js?v=2.91"></script>
+    <script src="assets/js/control/bilingual.js?v=2.91"></script>
+    <script src="assets/js/control/remote-link.js?v=2.91"></script>
+    <script src="assets/js/control/captions-link.js?v=2.91"></script>
+    <script src="assets/js/control/heard-verse.js?v=2.91"></script>
+    <script src="assets/js/control/app.js?v=2.91"></script>
   </body>
 </html>
