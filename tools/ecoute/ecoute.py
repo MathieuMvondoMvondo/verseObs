@@ -40,6 +40,7 @@ from urllib.parse import urlsplit
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import moteur  # noqa: E402
+from relais_sortant import RelayOutbox  # noqa: E402
 
 TRANSLATOR_REPO = "michaelfeil/ct2fast-opus-mt-fr-en"
 TRANSLATOR_FILES = ["config.json", "model.bin", "shared_vocabulary.txt", "source.spm", "target.spm"]
@@ -390,8 +391,8 @@ class Service:
             return False
 
     def send(self, msg):
-        if self.outbox is not None:
-            self._in_loop(self.outbox.put_nowait, self.clean_message(msg))
+        if self.outbox is not None and self.loop and not self.loop.is_closed():
+            self.outbox.put_nowait(self.clean_message(msg))
 
     def clean_message(self, obj):
         # Masquer avant toute troncature et à la frontière de publication.
@@ -513,6 +514,8 @@ class Service:
         print(moteur.mask_secrets(text, *self._secrets), flush=True)
 
     def relay_health(self, connected):
+        if self.outbox is not None:
+            self.outbox.set_connected(connected)
         now = time.monotonic()
         if not connected and self._relay_lost_at is None:
             self._relay_lost_at = now
@@ -568,6 +571,7 @@ class Service:
                     finally:
                         sender.cancel()
                         self.relay_health(False)
+                        await asyncio.gather(sender, return_exceptions=True)
             except Exception as exc:
                 self.relay_health(False)
                 if not warned:
@@ -577,7 +581,7 @@ class Service:
 
     async def main(self):
         self.loop = asyncio.get_running_loop()
-        self.outbox = asyncio.Queue(maxsize=0)
+        self.outbox = RelayOutbox(self.loop)
         threading.Thread(target=self.load, name="ecoute-chargement", daemon=True).start()
         tasks = [asyncio.create_task(self.heartbeat())]
         if not self.args.sans_relais:

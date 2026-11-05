@@ -564,9 +564,12 @@ class VoiceEngine:
                     # Aucune écriture native sous le verrou partagé. Un seul fil
                     # matériel, 1,5 s max ; panne durable => verrouillage de la voix.
                     def write_block():
-                        if cancel.is_set() or generation != self._generation:
-                            raise _Cancelled()
-                        played[0] = True  # le bloc courant peut déjà être audible
+                        with self._cv:
+                            if cancel.is_set() or generation != self._generation:
+                                raise _Cancelled()
+                            if not played[0] and time.monotonic() - born > self.max_delay:
+                                raise _Cancelled()  # le travailleur compte le saut une seule fois
+                            played[0] = True  # le bloc courant peut déjà être audible
                         sink.write(data, self.volume)
                     self._audio.call(write_block)
             except Exception as exc:

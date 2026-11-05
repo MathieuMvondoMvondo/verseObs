@@ -22,7 +22,7 @@ def include(p):
         return len(q.parts)==3 and not q.name.startswith('test_') and q.suffix in ('.py','.txt','.cmd','.command','.md')
     return False
 files=sorted(p for p in tracked if p and include(p))
-for required in root_files | {'tools/distribution/installer.py','tools/distribution/lancer.cjs','tools/distribution/voix.tsv','tools/ecoute/ecoute.py','tools/ecoute/voix.py','tools/ecoute/requirements-voix.txt','tools/heard.js'}:
+for required in root_files | {'tools/distribution/installer.py','tools/distribution/lancer.cjs','tools/distribution/voix.tsv','tools/ecoute/ecoute.py','tools/ecoute/voix.py','tools/ecoute/sortie_voix.py','tools/ecoute/relais_sortant.py','tools/ecoute/requirements-voix.txt','tools/heard.js'}:
     if required not in files:raise SystemExit('Fichier manquant : '+required)
 manifest={'commit':sha,'build':'2.93','files':{p:hashlib.sha256((ROOT/p).read_bytes()).hexdigest() for p in files}}
 results=[]

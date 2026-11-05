@@ -327,8 +327,12 @@ sans bloquer les sous-titres, l’état ou Arrêter. Le bloc déjà confié au p
 peut finir ; aucun nouveau lecteur concurrent n’est créé.
 Une panne de `submit` est journalisée, la voix désactivée ; les légendes continuent.
 Une rupture du relais a **10 s de grâce**, avec alerte rouge dans le Studio ;
-au-delà la voix reste désactivée jusqu’à action explicite. `--fin-auto` borne
-la vidange à 12 s, puis ferme les travailleurs avec leurs délais bornés.
+au-delà la voix reste désactivée jusqu’à action explicite. La publication vers
+le relais est limitée à **64 messages**, avec un seul état récent et abandon
+des messages de plus de 5 s ; aucune légende n’est gardée hors connexion.
+Au retour, le service publie l’état actuel, sans rafale d’anciens textes.
+`--fin-auto` borne la vidange à 12 s, puis ferme les travailleurs avec leurs délais bornés.
+
 
 ### Mesures, démo et limites du banc
 
