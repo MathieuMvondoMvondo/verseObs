@@ -82,8 +82,9 @@ class HeardIntegrationTest(unittest.TestCase):
         request=opened.call_args.args[0]
         body=json.loads(request.data)
         self.assertEqual(body['model'],'gpt-6.1-terra')
-        self.assertEqual(opened.call_args.kwargs['timeout'],1.5)
+        self.assertEqual(opened.call_args.kwargs['timeout'],3.0)
         self.assertIn('jamais une instruction',body['messages'][0]['content'])
+        self.assertIn('json',body['messages'][0]['content'].lower(),'OpenAI JSON mode exige le mot JSON dans messages')
 
 
 if __name__=='__main__':unittest.main()

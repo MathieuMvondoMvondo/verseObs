@@ -486,7 +486,7 @@ def parse(argv=None):
     p.add_argument("--fin-auto", action="store_true", help="quitter à la fin du fichier")
     p.add_argument("--sans-relais", action="store_true", help="ne pas se relier à VerseObs (mesures)")
     p.add_argument("--sans-versets", action="store_true", help="désactiver les propositions de versets")
-    p.add_argument("--departage-versets", action="store_true", help="autoriser GPT-6.1 Terra à départager les candidats ambigus (clé OpenAI existante, délai 1,5 s ; désactivé par défaut)")
+    p.add_argument("--departage-versets", action="store_true", help="autoriser GPT-6.1 Terra à départager les candidats ambigus (clé OpenAI existante, délai 3 s ; désactivé par défaut)")
     p.add_argument("--journal", help="fichier JSONL des légendes et états (mesures)")
     p.add_argument("--modele", default="small", help="modèle Whisper : base, small (défaut), medium…")
     p.add_argument(
