@@ -112,6 +112,170 @@ ou `effacer-cles.cmd` (retire les deux clés du PC). Si la traduction est lente 
 18,8/20), ou `--traduction claude --modele-claude auto` (Sonnet 5, puis Haiku 4.5
 si la médiane dépasse 1,5 s).
 
+## Voix anglaise
+
+**Facultative et désactivée au départ.** Dans Studio › Connexions › **Sous-titres
+anglais**, choisir d’abord une **sortie audio**, puis cocher **Voix anglaise**.
+Seuls les segments anglais **finals** sont prononcés, jamais les partiels. Le
+choix de voix OpenAI, le volume, Pause/Reprendre et l’état (fournisseur,
+retard, délai texte → voix, segments sautés) sont dans la même carte. La voix
+est synthétique : le dire aux auditeurs. Le QR code ne transporte toujours
+que les sous-titres, pas le son.
+
+### Brancher sans larsen
+
+- **Dans la salle** : sortie de carte son distincte vers des casques, ou un
+  émetteur de traduction distribué aux anglophones. Ne pas renvoyer ce canal
+  dans le mix français capté par Écoute.
+- **Dans OBS** : choisir une sortie virtuelle ou une carte son séparée, puis
+  ajouter sa capture comme **source audio distincte**. La source navigateur
+  des sous-titres reste muette. Choisir séparément les pistes et le monitoring
+  OBS ; ne pas capter deux fois la même sortie.
+- **Jamais sur les haut-parleurs de la salle** : larsen et boucle de
+  retraduction possibles. Aucun périphérique par défaut n’est sélectionné
+  implicitement. Rebrancher une carte son nécessite de relancer Écoute pour
+  rafraîchir ses numéros ; vérifier le nom avant d’activer.
+
+Pause abandonne la phrase en cours et la file ; Reprendre lit les nouvelles
+phrases, pas celles passées pendant la pause. Arrêter l’écoute coupe aussi la
+voix. Une perte de connexion au relais désactive la voix : la réactiver dans
+le Studio après reconnexion. Le microphone n’est jamais arrêté par le lecteur
+vocal (flux sounddevice privé, pas de `sd.stop()` global).
+
+La file rattrape à **×1,12** dès 3 s de retard/attente estimée. Au-delà de
+**8 s** (`--retard-voix`), les plus anciens segments sont abandonnés et un
+compteur/une notice le signalent ; une phrase déjà commencée peut être coupée
+s’il y a du retard derrière elle. Il n’y a jamais deux voix en même temps.
+Ce choix privilégie le direct, pas l’exhaustivité d’une traduction différée.
+
+### Fournisseur OpenAI et coût
+
+Avec `VERSEOBS_ECOUTE_OPENAI_CLE`, le défaut est **gpt-realtime-2.1-mini** via
+WebSocket (transport HTTP Upgrade), voix **marin** ; **cedar** est également
+recommandée. Consigne : anglais naturel, calme et chaleureux, ton de
+prédication, lecture sans commentaire ajouté. Chaque segment utilise une
+session neuve, sans historique ni outil. Seul le texte anglais final est
+ajouté par cette fonction aux données envoyées à OpenAI. La clé reste dans
+le processus Python : ni page, ni relais, ni journal. `OPENAI_API_KEY` n’est
+jamais consultée. Le service n’envoie aucune requête vocale tant que
+l’interrupteur n’est pas activé et une sortie choisie.
+
+**Choix vérifié dans la documentation officielle le 05/11/2026** :
+[Text to speech](https://developers.openai.com/api/docs/guides/text-to-speech)
+recommande désormais ce modèle en remplacement de `gpt-4o-mini-tts`, déprécié
+le 06/10/2026, retrait annoncé le 06/01/2027. L’ancien `/v1/audio/speech`
+reste une option explicite `--voix-api speech`, testée contre une fausse API
+HTTP, mais **ce n’est pas le défaut**. Aucune bascule payante vers un autre
+modèle en cas de panne : le secours est local.
+
+Premier son attendu sous **1,2 s** (`--delai-voix`) ; erreur, refus ou délai
+API → secours local et notice, puis suspension de l’API voix pendant 60 s.
+Si un début a déjà été joué, on ne répète pas toute la phrase en local : la
+suite est abandonnée et signalée. Les comptes rendus de coûts attendent la
+fin de la voix. Avec un `--plafond-euros` explicite, **la voix reste locale**
+pour ne pas contourner le plafond avec une requête audio au coût inconnu.
+
+Tarif du modèle actuel : [page officielle de tarifs](https://developers.openai.com/api/docs/pricing),
+**20 $ / million de jetons audio sortants**, **0,60 $ / million** de jetons
+texte entrants, **2,40 $ / million** sortants. La
+[documentation de facturation Realtime](https://developers.openai.com/api/docs/guides/voice-latency-cost?voice-api=realtime)
+indique un jeton audio assistant par **50 ms**. Donc 60 minutes de voix
+produite coûtent environ **1,44 $ d’audio**. Avec l’hypothèse du banc de
+780 segments par heure, 100 jetons de consigne + 19 de texte par segment et
+19 jetons de texte sortants, cela donne **environ 1,53 $ / heure de prédication**
+si la voix parle pendant toute l’heure ; **0,81 $** si elle parle 30 minutes.
+C’est le **surcoût voix**, hors transcription/traduction, taxes et variations
+de jetons/raisonnement. Ce n’est ni une facture observée ni une garantie.
+Les champs `usage` reçus alimentent le journal, sinon une provision est
+marquée estimée. **Aucun appel payant n’a été réalisé pour ce développement.**
+Le local ne facture aucune API.
+
+### Préparer le secours hors ligne avant dimanche
+
+Choix retenu : **Piper 1.4.2, en_US-ljspeech-medium** (voix féminine anglaise,
+22 050 Hz), plutôt que les voix système généralement moins naturelles.
+Les [roues officielles](https://pypi.org/project/piper-tts/1.4.2/#files) couvrent
+Windows x64, macOS Intel/Apple Silicon et Linux. Le moteur est GPL-3.0-or-later ;
+la [fiche du modèle](https://huggingface.co/rhasspy/piper-voices/blob/main/en/en_US/ljspeech/medium/MODEL_CARD)
+indique un corpus du domaine public. Les modèles/binaires ne sont pas inclus
+dans le dépôt. La variante *high* a été écartée au banc : trop lente pour
+ce VPS. Le modèle Lessac a été écarté pour éviter sa licence de corpus plus
+restrictive. Pour redistribuer un paquet contenant Piper, conserver sa
+licence et ses obligations GPL.
+
+Depuis le dossier `tools/ecoute`, avec le Python du service (installation
+préparatoire seulement, nécessite Internet) :
+
+```powershell
+# Windows PowerShell : dépendances facultatives de voix.
+.\.venv\Scripts\python.exe -m pip install -r requirements-voix.txt
+# Windows PowerShell : modèle et son fichier JSON, téléchargés avant le culte.
+.\.venv\Scripts\python.exe -m piper.download_voices --download-dir modeles en_US-ljspeech-medium
+```
+
+```sh
+# macOS : même environnement Python que le service.
+.venv/bin/python -m pip install -r requirements-voix.txt
+# macOS : préparer le modèle avant de passer hors ligne.
+.venv/bin/python -m piper.download_voices --download-dir modeles en_US-ljspeech-medium
+```
+
+Le service préchauffe Piper **sans jouer de son** avant d’annoncer « prêt ».
+Aucun modèle n’est téléchargé à l’exécution du culte. Si le modèle Piper
+n’est pas présent, Windows utilise **SAPI** avec une voix anglaise installée ;
+macOS utilise **Samantha** via `say`. Ces voies natives créent un WAV
+temporaire, lu uniquement par sounddevice sur la sortie choisie, puis
+supprimé ; elles ne parlent jamais directement sur la sortie système.
+Installer les ressources anglaises du système à l’avance. Si aucun repli
+n’est disponible, les sous-titres continuent et la voix signale l’échec.
+`--tout-local` force le local pour transcription, traduction **et voix**.
+
+Options (même Python, `ecoute.py` ou lanceur existant) :
+
+| Option | Effet |
+|---|---|
+| `--liste-sorties` | lister les sorties sounddevice, puis quitter |
+| `--voix --sortie 7` | activer explicitement sur la sortie 7 (numéro à vérifier) |
+| `--voix-nom cedar` | voix OpenAI ; le local garde sa voix préinstallée |
+| `--volume-voix 0.5` | volume entre 0 et 1 |
+| `--voix-modele-local /chemin/voix.onnx` | modèle Piper déjà installé, avec `.onnx.json` adjacent |
+| `--tout-local --voix --sortie 7` | essai hors ligne sans aucune API |
+
+### Mesures, démo et limites du banc
+
+Banc `tools/ecoute/banc_voix.py`, données archivées du culte du **11/10/2026**
+(Pst Joyce Manfoundou), sans traduction supplémentaire ni appel payant :
+
+- Faux serveur HTTP Upgrade/Realtime, 12 segments, délai injecté 80 ms :
+  texte final publié → premier bloc audio **0,115 s médiane**, **0,144 s p90**,
+  **0,145 s maximum**. Ancien `/speech` HTTP factice : 0,176 / 0,219 / 0,220 s.
+  L’objectif ≤ 1,5 s est vérifié **sur les serveurs factices**, pas sur Internet.
+- Piper local réel : préchauffage **10,023 s** ; 16 segments après chauffe,
+  premier PCM **0,505 s médiane**, **1,869 s p90**, **2,182 s maximum**.
+  Le local réel n’est donc pas garanti sous 1,5 s ; il dépend du CPU et du texte.
+- Sounddevice/PortAudio réellement exercé sur **sortie ALSA virtuelle choisie**
+  du VPS : 0,290 s jusqu’au premier bloc, aucun segment sauté. Ce n’est pas
+  une carte son Windows/macOS ni une mesure acoustique dans un casque.
+- La mesure part de la publication du texte par le service, pas d’une
+  photodiode sur l’écran. Le délai du relais/rendu et le tampon matériel
+  restent à mesurer à la régie. Le compteur de démarrage ajoute la latence
+  annoncée par PortAudio lorsqu’une sortie matérielle est utilisée.
+
+Démo locale : `artifacts/voix/culte-1110-anglais-piper.wav`, **72,969 s**,
+mono 22 050 Hz. La fixture versionnée `tests/fixtures/voix-culte-1110.json`
+contient la provenance, le hash de l’archive et les traductions préexistantes
+(montage chronologique, pas une re-traduction). Mesures et journaux sont dans
+`artifacts/voix/`; le WAV doit être copié avec les artefacts lors de l’intégration.
+
+**Avant un usage public** : écouter le WAV, installer/préparer Piper sur la
+machine cible, tester un extrait au casque avec OBS, le routage anti-larsen,
+la coupure réseau, Pause/Reprendre et les retards. Windows/SAPI et macOS/say
+ont des tests de contrat, mais n’ont pas été exécutés ici sur ces systèmes.
+La qualité réelle de la voix OpenAI et le respect mot-à-mot du modèle Realtime
+restent à auditionner ; une consigne de lecture n’est pas une garantie
+contre une omission/reformulation. Ne pas présenter cette branche comme une
+validation acoustique en salle ou une fidélité théologique garantie.
+
 ## Réglages utiles (`lancer-ecoute.cmd` accepte les mêmes options)
 
 | Option | Effet |

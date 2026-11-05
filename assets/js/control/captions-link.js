@@ -143,6 +143,39 @@
         );
       cappedSeen = !!api.capped;
 
+      var voice = (st && st.voice) || {},
+        output = el("captions-voice-output"),
+        names = el("captions-voice-name"),
+        outputKey = JSON.stringify(voice.outputs || []),
+        namesKey = JSON.stringify(voice.voices || []);
+      if (output.dataset.key !== outputKey) {
+        output.dataset.key = outputKey;
+        output.replaceChildren();
+        option(output, "", "Choisir une sortie casque / OBS séparée");
+        (voice.outputs || []).forEach(function (d) { option(output, String(d.index), d.name); });
+      }
+      output.value = voice.output == null ? "" : String(voice.output);
+      if (names.dataset.key !== namesKey) {
+        names.dataset.key = namesKey;
+        names.replaceChildren();
+        (voice.voices || []).forEach(function (name) { option(names, name, name); });
+      }
+      names.value = voice.voice || "marin";
+      output.disabled = names.disabled = !engine;
+      el("captions-voice-enabled").checked = !!voice.enabled;
+      el("captions-voice-enabled").disabled = !engine || voice.output == null;
+      el("captions-voice-pause").disabled = !engine || !voice.enabled;
+      el("captions-voice-pause").textContent = voice.paused ? "Reprendre la voix" : "Pause voix";
+      el("captions-voice-volume").disabled = !engine;
+      if (document.activeElement !== el("captions-voice-volume"))
+        el("captions-voice-volume").value = Math.round((voice.volume == null ? .7 : voice.volume) * 100);
+      el("captions-voice-state").textContent =
+        (!voice.enabled ? "Voix désactivée." : voice.paused ? "Voix en pause. Reprise au direct, sans les phrases passées." :
+          (voice.provider || "En attente d’une phrase finale") + " · retard " + seconds(voice.delay || 0) +
+          " · texte → voix " + seconds(voice.latency) + (voice.speed > 1 ? " · rattrapage ×" + voice.speed : "")) +
+        (voice.skipped ? " · " + voice.skipped + " segment(s) sauté(s)." : "") +
+        (voice.notice ? " " + voice.notice : "");
+
       var error = (st && st.error) || share.error || "";
       el("captions-error").hidden = !error;
       el("captions-error").textContent = error;
@@ -216,6 +249,21 @@
     });
     el("captions-stop").addEventListener("click", function () {
       send("stop");
+    });
+    el("captions-voice-enabled").addEventListener("change", function (e) {
+      if (!send("voice", { enabled: e.target.checked, paused: false })) e.target.checked = false;
+    });
+    el("captions-voice-output").addEventListener("change", function (e) {
+      send("voice", { output: e.target.value === "" ? null : Number(e.target.value) });
+    });
+    el("captions-voice-name").addEventListener("change", function (e) {
+      send("voice", { voice: e.target.value });
+    });
+    el("captions-voice-volume").addEventListener("change", function (e) {
+      send("voice", { volume: Number(e.target.value) / 100 });
+    });
+    el("captions-voice-pause").addEventListener("click", function () {
+      send("voice", { paused: !(status && status.state && status.state.voice && status.state.voice.paused) });
     });
     el("captions-share").addEventListener("click", function () {
       if (send("share")) {

@@ -1912,6 +1912,20 @@
                 </button>
               </div>
               <p class="captions-api" id="captions-api" hidden></p>
+              <div class="captions-obs captions-voice">
+                <label class="captions-check" for="captions-voice-enabled"><input
+                  type="checkbox" id="captions-voice-enabled" />Voix anglaise</label>
+                <p>Voix de synthèse, facultative. Casques / émetteur pour les anglophones,
+                  ou source audio séparée dans OBS. Jamais les haut-parleurs de la salle : risque de larsen.</p>
+                <label for="captions-voice-output">SORTIE AUDIO</label>
+                <div class="captions-row"><select id="captions-voice-output"></select></div>
+                <label for="captions-voice-name">VOIX OPENAI (API PAYANTE)</label>
+                <div class="captions-row"><select id="captions-voice-name"></select>
+                  <button class="captions-secondary" id="captions-voice-pause" type="button">Pause voix</button></div>
+                <label for="captions-voice-volume">VOLUME</label>
+                <input type="range" id="captions-voice-volume" min="0" max="100" step="1" value="70" />
+                <p id="captions-voice-state" aria-live="polite">Voix désactivée.</p>
+              </div>
               <dl class="captions-metrics">
                 <div><dt>Latence</dt><dd id="captions-latency">—</dd></div>
                 <div><dt>Retard</dt><dd id="captions-backlog">—</dd></div>

@@ -89,6 +89,9 @@ class Service:
         except Exception:
             self.proc = None
         self.engine = None
+        self.voice_engine = None
+        self._voice_listen_token = None
+        self._journal_lock = threading.RLock()
         self.translator_name = ""
         self.asr_name = "whisper-" + args.modele + "-int8"
         # API payantes (facultatives) : garde-fou, clients, récapitulatif.
@@ -163,6 +166,28 @@ class Service:
                 if secours is not local:
                     self.paid.append(secours)
             verse_key = keys.get('openai') if a.departage_versets else None
+            import voix
+            try:
+                outputs = voix.list_outputs()
+            except Exception:
+                outputs = []
+            local_voice = voix.LocalTTS(a.voix_modele_local)
+            voice_warning = ''
+            try:
+                if hasattr(local_voice, 'prepare'):
+                    local_voice.prepare()
+            except Exception as exc:
+                voice_warning = 'Voix locale non prête : ' + moteur.mask_secrets(str(exc), *self._secrets)
+            self.voice_engine = voix.VoiceEngine(
+                local_voice,
+                (voix.OpenAITTS if a.voix_api == 'speech' else voix.RealtimeTTS)(keys['openai'],
+                               url=a.url_openai_voix or (voix.URL if a.voix_api == 'speech' else voix.REALTIME_URL), timeout=a.delai_voix,
+                               budget=self.budget) if keys.get('openai') else None,
+                outputs=outputs, on_change=self.changed, journal=self.write_cost,
+                secrets=self._secrets, max_delay=a.retard_voix)
+            self.voice_engine.notice = voice_warning
+            self.voice_engine.configure(enabled=a.voix, output=a.sortie,
+                                        voice=a.voix_nom, volume=a.volume_voix)
             keys = None
             if self.paid:
                 parts = []
@@ -232,6 +257,8 @@ class Service:
 
     # -- commandes ----------------------------------------------------------
     def start(self, device=None, listen_id=None):
+        if self.engine and self.engine.status in ('listening', 'stopping'):
+            return
         if listen_id:
             self.listen_id = str(listen_id)[:80]
         if not self.ready.is_set():
@@ -252,12 +279,20 @@ class Service:
                 self.changed()
                 return
         self.started_once = True
+        self._voice_listen_token = secrets.token_hex(12)
+        token = self._voice_listen_token
+        if self.voice_engine:
+            self.voice_engine.begin_session(token)
+        self.engine.on_caption = lambda c: self.on_caption(c, token)
         self.log("Écoute démarrée : " + getattr(source, "label", "?"))
         if self.verse_finder:
             self.verse_finder.start()
         self.engine.start(source)
 
     def stop(self):
+        self._voice_listen_token = None
+        if self.voice_engine:
+            self.voice_engine.stop()
         if self.verse_finder:
             self.verse_finder.stop()
         if self.engine:
@@ -272,6 +307,9 @@ class Service:
         elif action == "stop":
             self.listen_id = secrets.token_hex(12)
             self.stop()
+        elif action == "voice" and self.voice_engine:
+            self.voice_engine.configure(**{k: msg[k] for k in
+                ('enabled', 'paused', 'output', 'voice', 'volume') if k in msg})
 
     # -- état et publication ------------------------------------------------
     def state(self):
@@ -299,6 +337,7 @@ class Service:
             "cpu": cpu,
             "ram": ram,
             "api": self.api_state(),
+            "voice": self.voice_engine.state() if self.voice_engine else {},
             "listenId": self.listen_id,
             "verses": self.verse_notice if time.monotonic() < self.verse_notice_until else self.verse_default_notice,
             "verseReady": bool(self.verse_finder and self.verse_finder.thread.is_alive()),
@@ -346,19 +385,33 @@ class Service:
 
     def send(self, msg):
         if self.outbox is not None:
-            self._in_loop(self.outbox.put_nowait, msg)
+            self._in_loop(self.outbox.put_nowait, self.clean_message(msg))
+
+    def clean_message(self, obj):
+        # Masquer avant toute troncature et à la frontière de publication.
+        if isinstance(obj, str):
+            return moteur.mask_secrets(obj, *self._secrets)
+        if isinstance(obj, dict):
+            return {k: self.clean_message(v) for k, v in obj.items()}
+        if isinstance(obj, (list, tuple)):
+            return [self.clean_message(v) for v in obj]
+        return obj
 
     def changed(self):
-        listening = bool(self.engine and self.engine.status in ("listening", "stopping"))
+        listening = bool((self.engine and self.engine.status in ("listening", "stopping")) or
+                         (self.voice_engine and not self.voice_engine.idle()))
         if self.verse_finder and self.engine and self.engine.status != 'listening':
             self.verse_finder.stop()
         if self._was_listening and not listening:
             self.finish_session()
         self._was_listening = listening
         st = self.state()
+        if st['status'] == 'error' and self.voice_engine:
+            self.voice_engine.stop()
         self.write({"type": "state", "t": time.time(), "state": st})
         self.send(self.message("caption_engine", state=st))
-        if self.args.fin_auto and self.started_once and st["status"] in ("idle", "error") and self.loop:
+        if (self.args.fin_auto and self.started_once and st["status"] in ("idle", "error") and self.loop
+                and (not self.voice_engine or self.voice_engine.idle())):
             self._in_loop(self.loop.call_later, 1.0, self.loop.stop)
 
     def verse_warning(self, message):
@@ -379,7 +432,11 @@ class Service:
             self.write({'type': 'heard_verse', 'proposal': proposal})
             self.send(self.message('heard_verse', proposal=proposal))
 
-    def on_caption(self, c):
+    def on_caption(self, c, voice_token=None):
+        token = self._voice_listen_token if voice_token is None else voice_token
+        if voice_token is not None and voice_token != self._voice_listen_token:
+            return
+        c = self.clean_message(c)
         if 'gap' in c and self.verse_finder:
             self.verse_finder.stop()
             if self.engine and self.engine.status == 'listening':
@@ -397,14 +454,21 @@ class Service:
         else:
             print(f"[{c['latency']:4.1f} s] {c['en']}", flush=True)
         self.send(self.message("caption", caption=c))
+        if self.voice_engine and self.engine and self.engine.status == 'listening':
+            self.voice_engine.submit(c, session=token)
 
     def write(self, obj):
         if self.journal:
-            self.journal.write(json.dumps(obj, ensure_ascii=False) + "\n")
-            self.journal.flush()
+            with self._journal_lock:
+                self.journal.write(json.dumps(self.clean_message(obj), ensure_ascii=False) + "\n")
+                self.journal.flush()
 
     def write_cost(self, obj):
         """Appels d'API (coût estimé, latences) : dans --journal s'il existe, sinon journaux/api-<date>.jsonl."""
+        with self._journal_lock:
+            self._write_cost(obj)
+
+    def _write_cost(self, obj):
         if self.journal:
             return self.write(obj)
         try:
@@ -413,13 +477,13 @@ class Service:
                 os.makedirs(folder, exist_ok=True)
                 name = time.strftime("api-%Y%m%d-%H%M%S.jsonl")
                 self.cost_journal = open(os.path.join(folder, name), "a", encoding="utf-8")
-            self.cost_journal.write(json.dumps(obj, ensure_ascii=False) + "\n")
+            self.cost_journal.write(json.dumps(self.clean_message(obj), ensure_ascii=False) + "\n")
             self.cost_journal.flush()
         except OSError:
             pass
 
     def log(self, text):
-        print(text, flush=True)
+        print(moteur.mask_secrets(text, *self._secrets), flush=True)
 
     # -- boucle -------------------------------------------------------------
     async def heartbeat(self):
@@ -457,7 +521,11 @@ class Service:
                                 self.command(msg)
                     finally:
                         sender.cancel()
+                        if self.voice_engine:
+                            self.voice_engine.configure(enabled=False)
             except Exception as exc:
+                if self.voice_engine:
+                    self.voice_engine.configure(enabled=False)
                 if not warned:
                     self.log(f"VerseObs injoignable ({exc.__class__.__name__}) : nouvel essai toutes les 2 s.")
                     warned = True
@@ -511,7 +579,19 @@ def parse(argv=None):
     p.add_argument("--api-modele", default="gpt-4o-mini")
     p.add_argument("--priorite-basse", action="store_true")
     p.add_argument("--tout-local", action="store_true",
-                   help="ignorer les clés d'API pour cette séance : Whisper et OPUS-MT seulement")
+                   help="ignorer les clés d'API pour cette séance : transcription, traduction et voix locales")
+    import voix
+    p.add_argument("--voix", action="store_true", help="activer la voix anglaise (sortie explicite obligatoire)")
+    p.add_argument("--sortie", type=int, help="numéro de sortie casque/OBS ; jamais la sortie implicite")
+    p.add_argument("--liste-sorties", action="store_true", help="lister les sorties audio et quitter")
+    p.add_argument("--voix-nom", choices=voix.VOICES, default="marin")
+    p.add_argument("--volume-voix", type=float, default=.7)
+    p.add_argument("--voix-modele-local", help="chemin du modèle Piper .onnx déjà téléchargé")
+    p.add_argument("--delai-voix", type=float, default=1.2, help="délai du premier son API avant repli (s)")
+    p.add_argument("--retard-voix", type=float, default=8, help="âge maximal des segments en attente (s)")
+    p.add_argument("--voix-api", choices=("realtime", "speech"), default="realtime",
+                   help="realtime recommandé ; speech ancien TTS, retrait annoncé le 06/01/2027")
+    p.add_argument("--url-openai-voix", default=None, help=argparse.SUPPRESS)
     p.add_argument("--plafond-euros", type=float, default=None,
                    help="dépense estimée maximale par séance (aucune par défaut) ; au-delà, tout en local")
     p.add_argument("--euros-par-dollar", type=float, default=1.0,
@@ -544,6 +624,11 @@ def main(argv=None):
         except Exception:
             pass
     args = parse(argv)
+    if args.liste_sorties:
+        import voix
+        for d in voix.list_outputs():
+            print(f"{d['index']:>3}  {d['name']}  ({d['api']})")
+        return
     if args.liste:
         for d in moteur.list_devices():
             print(f"{d['index']:>3}  {d['name']}  ({d['api']})")
@@ -563,9 +648,14 @@ def main(argv=None):
         pass
     finally:
         if service.engine:
-            service.engine.stop()
+            service.engine.stop(wait=True)
+        if service.voice_engine:
+            service.voice_engine.close()
         if service._was_listening:
             service.finish_session()
+        for journal in (service.journal, service.cost_journal):
+            if journal:
+                journal.close()
 
 
 if __name__ == "__main__":
