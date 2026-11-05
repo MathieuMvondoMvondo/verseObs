@@ -43,14 +43,45 @@ class Portable(unittest.TestCase):
         (self.root/'tools/distribution/runtimes.tsv').write_text('kind|target|folder|url|sha256\nnode|darwin-arm64|node-test|https://nodejs.org/dist/fixture|'+sha+'\n')
         calls=[]
         def run(args,**kwargs):calls.append((args,kwargs));return subprocess.CompletedProcess(args,0)
-        with patch.object(DIST,'download',side_effect=lambda url,dest:shutil.copy(archive,dest)),patch.object(DIST.subprocess,'run',side_effect=run):
+        with patch.object(DIST,'download',side_effect=lambda url,dest:shutil.copy(archive,dest)),patch.object(DIST.subprocess,'run',side_effect=run),patch.object(DIST,'install_voice') as voice:
             DIST.install(self.root,'darwin-arm64')
+        voice.assert_called_once()
+        self.assertEqual(voice.call_args.args[:2],(self.root,'darwin-arm64'))
         self.assertTrue((self.root/'.runtime/pret.json').exists())
         self.assertIn('--only-binary=:all:',calls[2][0])
         self.assertEqual(calls[1][0][0],DIST.sys.executable)
         self.assertIn('--ignore-scripts',calls[0][0])
         self.assertIn('--tout-local',calls[3][0])
+        self.assertIn('v.prepare()',calls[4][0][-1])
         self.assertTrue(all(c[1]['env']['HF_HOME'].startswith(str(self.root)) for c in calls))
+    def test_voix_installee_et_verifiee_avant_pip(self):
+        tools=self.root/'tools/distribution';tools.mkdir(parents=True)
+        content=b'composant voix verifie'
+        sha=hashlib.sha256(content).hexdigest()
+        names=['piper_tts-1.4.2-cp39-abi3-win_amd64.whl','en_US-ljspeech-medium.onnx','en_US-ljspeech-medium.onnx.json','MODEL_CARD']
+        manifest='kind|target|filename|url|sha256\n'+''.join(
+            f"{'piper' if i==0 else 'model'}|{'win32-x64' if i==0 else 'all'}|{name}|https://fixture/{name}|{sha}\n" for i,name in enumerate(names))
+        (tools/'voix.tsv').write_text(manifest)
+        calls=[]
+        def run(args,**kwargs):
+            self.assertTrue(all((self.root/'tools/ecoute/modeles'/name).read_bytes()==content for name in names[1:]))
+            wheel=Path(args[-1]);self.assertEqual(wheel.read_bytes(),content)
+            calls.append(args)
+        with patch.object(DIST,'download',side_effect=lambda url,p:p.write_bytes(content)):
+            DIST.install_voice(self.root,'win32-x64',Path('python-fixture'),run)
+        self.assertEqual(len(calls),1)
+        self.assertIn('--only-binary=:all:',calls[0])
+        self.assertEqual(json.loads((self.root/'.runtime/voix-verifiee.json').read_text())['files'][names[1]],sha)
+        for altered in names:
+            with self.subTest(altered=altered):
+                calls.clear()
+                def download(url,path):path.write_bytes(b'altere' if url.endswith('/'+altered) else content)
+                with patch.object(DIST,'download',side_effect=download):
+                    with self.assertRaisesRegex(ValueError,'empreinte'):
+                        DIST.install_voice(self.root,'win32-x64',Path('python-fixture'),run)
+                self.assertEqual(calls,[])
+                self.assertFalse((self.root/'.runtime/voix-verifiee.json').exists())
+
     def test_urls_et_empreintes_epinglees(self):
         rows=DIST.read_manifest(ROOT/'tools/distribution/runtimes.tsv')
         self.assertEqual(len(rows),6)

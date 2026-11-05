@@ -13,7 +13,7 @@ if subprocess.run(['git','diff','--quiet','HEAD'],cwd=ROOT).returncode:
 sha=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
 tracked=subprocess.check_output(['git','ls-files','-z'],cwd=ROOT).decode().split('\0')
 root_files={'control_panel.html','browser_source.html','remote.html','sous-titres.html','package.json','package-lock.json'}
-distribution={'installer.py','installer-mac.sh','lancer.cjs','windows.ps1','integrite.ps1','runtimes.tsv'}
+distribution={'installer.py','installer-mac.sh','lancer.cjs','windows.ps1','integrite.ps1','runtimes.tsv','voix.tsv'}
 def include(p):
     if p in root_files or p.startswith(('assets/','data/')) or p in ('tools/server.js','tools/captions.js','tools/heard.js'):return True
     if p.startswith('tools/distribution/'):return Path(p).name in distribution
@@ -22,7 +22,7 @@ def include(p):
         return len(q.parts)==3 and not q.name.startswith('test_') and q.suffix in ('.py','.txt','.cmd','.command','.md')
     return False
 files=sorted(p for p in tracked if p and include(p))
-for required in root_files | {'tools/distribution/installer.py','tools/distribution/lancer.cjs','tools/ecoute/ecoute.py','tools/heard.js'}:
+for required in root_files | {'tools/distribution/installer.py','tools/distribution/lancer.cjs','tools/distribution/voix.tsv','tools/ecoute/ecoute.py','tools/ecoute/voix.py','tools/ecoute/requirements-voix.txt','tools/heard.js'}:
     if required not in files:raise SystemExit('Fichier manquant : '+required)
 manifest={'commit':sha,'build':'2.93','files':{p:hashlib.sha256((ROOT/p).read_bytes()).hexdigest() for p in files}}
 results=[]

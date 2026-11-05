@@ -73,6 +73,7 @@ async function until(f, label) {
     }
     assert.equal((await command("bible_prepare",{...selection,verseStart:35,verseEnd:40})).reason,"invalid_selection");
     assert.equal((await command("show_verse",selection)).reason,"forbidden");
+    assert.equal((await command("voice",selection,{enabled:true,output:7,outputName:"Salle"})).reason,"forbidden");
     const version=d.getElementById("version-select");version.value="nbs";
     version.dispatchEvent(new dom.window.Event("change",{bubbles:true}));
     await until(()=>!version.disabled,"NBS chargée");

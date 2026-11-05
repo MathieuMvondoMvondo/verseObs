@@ -22,8 +22,8 @@ for system in ('MAC','WINDOWS'):
     mac=system=='MAC';suffix='.command' if mac else '.cmd'
     steps=[
       ('Télécharger et ouvrir', 'Téléchargez le zip '+('Mac' if mac else 'Windows')+'. '+('Double-cliquez sur le zip.' if mac else 'Clic droit sur le zip, puis « Extraire tout ».')+' Gardez le dossier VerseObs dans Documents. Ne lancez rien directement depuis le zip.'),
-      ('Installer — une seule fois','Double-cliquez sur <b>Installer VerseObs'+suffix+'</b>. Internet est nécessaire. L’installation vérifie ses téléchargements et prépare l’écoute. Laissez-la finir : aucun mot de passe administrateur, Python ou Node à chercher.'),
-      ('Lancer pour la séance','Double-cliquez sur <b>Lancer VerseObs'+suffix+'</b>'+(' (ou VerseObs sur le Bureau)' if not mac else '')+'. Le Studio s’ouvre dans votre navigateur. Dans <b>Connexions › Sous-titres anglais</b>, choisissez le micro et cliquez sur <b>Démarrer l’écoute</b>.')]
+      ('Installer — une seule fois','Double-cliquez sur <b>Installer VerseObs'+suffix+'</b>. Internet est nécessaire. L’installation vérifie ses téléchargements et prépare l’écoute et la voix anglaise locale Piper. Laissez-la finir : aucun mot de passe administrateur, Python ou Node à chercher.'),
+      ('Lancer pour la séance','Double-cliquez sur <b>Lancer VerseObs'+suffix+'</b>'+(' (ou VerseObs sur le Bureau)' if not mac else '')+'. Laissez la fenêtre ouverte. Dans <b>Connexions › Sous-titres anglais</b>, choisissez le micro puis <b>Démarrer l’écoute</b>. Pour la voix, choisissez le casque avant de l’activer ; jamais les haut-parleurs de salle.')]
     style=ParagraphStyle('body',fontName='Guide',fontSize=10.5,leading=16,textColor=HexColor('#17292a'))
     y=H-144
     for i,(title,body) in enumerate(steps,1):

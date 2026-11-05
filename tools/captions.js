@@ -99,6 +99,7 @@ function engineState(state) {
     cpu: num(s.cpu, 100),
     ram: num(s.ram, 1e6),
     api: apiState(s.api),
+    voice: voiceState(s.voice),
   };
 }
 /** Paid APIs as the Studio shows them: model names and fallback, never a cost or a key. */
@@ -110,6 +111,39 @@ function apiState(api) {
     capped: a.capped === true,
     notice: clean(a.notice, 200),
   };
+}
+/** Liste blanche voix : aucun chemin, en-tête, URL d'API ou secret. */
+function voiceState(value) {
+  const v = obj(value);
+  return {
+    enabled: v.enabled === true,
+    paused: v.paused === true,
+    output: Number.isInteger(v.output) && v.output >= 0 ? v.output : null,
+    outputName: clean(v.outputName, 80),
+    relayNotice: clean(v.relayNotice, 200),
+    outputs: (Array.isArray(v.outputs) ? v.outputs : []).filter(d => d && Number.isInteger(d.index) && d.index >= 0)
+      .slice(0, 40).map(d => ({ index: d.index, name: clean(d.name, 80), api: clean(d.api, 40) })),
+    voices: (Array.isArray(v.voices) ? v.voices : []).filter(v => typeof v === 'string' && /^[a-z]{1,20}$/.test(v)).slice(0, 20),
+    voice: clean(v.voice, 20),
+    volume: num(v.volume, 1) ?? .7,
+    provider: clean(v.provider, 80),
+    notice: clean(v.notice, 200),
+    delay: num(v.delay, 3600) || 0,
+    latency: num(v.latency, 3600),
+    skipped: num(v.skipped, 1e6) || 0,
+    speed: num(v.speed, 2) || 1,
+  };
+}
+function voiceCommand(msg) {
+  const out = {};
+  for (const k of ['enabled', 'paused']) if (typeof msg[k] === 'boolean') out[k] = msg[k];
+  if (msg.output === null || (Number.isInteger(msg.output) && msg.output >= 0 && msg.output < 10000)) {
+    out.output = msg.output;
+    out.outputName = clean(msg.outputName, 80);
+  }
+  if (typeof msg.voice === 'string' && /^[a-z]{1,20}$/.test(msg.voice)) out.voice = msg.voice;
+  if (num(msg.volume, 1) !== null) out.volume = num(msg.volume, 1);
+  return out;
 }
 /** Split a long text at word boundaries: nothing is dropped. */
 function splitText(text, max) {
@@ -575,6 +609,10 @@ function createCaptions(port, options, relayClients, helpers) {
               device: Number.isInteger(msg.device) ? msg.device : null,
             }),
           );
+      } else if (action === 'voice') {
+        if (engine && engine.readyState === WebSocket.OPEN)
+          engine.send(JSON.stringify({ type: 'caption_command', id: id(), ts: Date.now(),
+            action: 'voice', ...voiceCommand(msg) }));
       } else if (action === "share") share();
       else if (action === "unshare") unshare();
       else if (action === "revoke") revoke();

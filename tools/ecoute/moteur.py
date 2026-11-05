@@ -1211,6 +1211,7 @@ class Engine:
             self.source_label = getattr(source, "label", "")
             q: queue.Queue = queue.Queue(maxsize=1200)  # 2 min de blocs de 0,1 s au plus
             stop = self._stop
+            emit = self.on_caption  # destinataire figé pour cette écoute
 
             def put(item):
                 while True:
@@ -1254,7 +1255,7 @@ class Engine:
                             lost, self._lost = self._lost, 0.0
                         if lost:  # file saturée : la perte est annoncée comme un saut
                             self.skipped += lost
-                            self.on_caption({"gap": round(lost, 1)})
+                            emit({"gap": round(lost, 1)})
                         if not items:
                             break
                         # Retard = attente du plus vieux bloc : la durée du dernier appel.
@@ -1264,12 +1265,12 @@ class Engine:
                             lost = sum(len(c) for c, _ in items) / SR + len(seg.buf) / SR
                             self.skipped += lost
                             seg.reset()
-                            self.on_caption({"gap": round(lost, 1)})
+                            emit({"gap": round(lost, 1)})
                             continue
                         if not self.catchup:  # une phrase par appel (comparaison)
                             for chunk, wall in items:
                                 for s in seg.feed(chunk, wall):
-                                    self._process(s, stop)
+                                    self._process(s, stop, emit)
                             continue
                         # En retard (plus de 2 s d'attente, ou plus d'une phrase en réserve) :
                         # tout ce qui attend part en un seul appel, 24 s au plus.
@@ -1283,13 +1284,13 @@ class Engine:
                         if behind:
                             s = seg.take(self.catchup_max)
                             if s:
-                                self._process(s, stop)
+                                self._process(s, stop, emit)
                         else:
                             for s in seg.feed(np.zeros(0, np.float32), items[-1][1]):
-                                self._process(s, stop)
+                                self._process(s, stop, emit)
                     if not stop.is_set():  # fin naturelle d'un fichier
                         for s in seg.flush():
-                            self._process(s, stop)
+                            self._process(s, stop, emit)
                 except Exception as exc:  # modèle, traduction ou publication en panne
                     self.error = "Moteur : " + (str(exc) or exc.__class__.__name__)[:160]
                     stop.set()  # la capture s'arrête aussi : rien ne s'accumule
@@ -1320,7 +1321,7 @@ class Engine:
         for t in self._threads:
             t.join()
 
-    def _process(self, seg: Segment, stop: threading.Event):
+    def _process(self, seg: Segment, stop: threading.Event, on_caption=None):
         if stop.is_set():
             return
         t_a = time.time()
@@ -1344,11 +1345,12 @@ class Engine:
             if stop.is_set():
                 return
             self.seq += 1
-            self.on_caption(
+            (on_caption or self.on_caption)(
                 {
                     "seq": self.seq,
                     "fr": fr,
                     "en": unit,
+                    "final": True,
                     "unit": i + 1,
                     "units": len(units),
                     "start": round(seg.wall_start * 1000),

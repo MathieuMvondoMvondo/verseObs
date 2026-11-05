@@ -37,13 +37,38 @@ def extract(archive,dest):
 
 
 def download(url,path):
-    if not url.startswith(('https://nodejs.org/dist/','https://github.com/astral-sh/python-build-standalone/releases/download/')):
+    if not url.startswith(('https://nodejs.org/dist/','https://github.com/astral-sh/python-build-standalone/releases/download/',
+                           'https://files.pythonhosted.org/packages/','https://huggingface.co/rhasspy/piper-voices/resolve/')):
         raise ValueError('Source de téléchargement non autorisée')
     # Le Python autonome dispose de pip et de son magasin de certificats, sans Xcode.
     from pip._vendor import certifi
     context=ssl.create_default_context(cafile=certifi.where())
     with urllib.request.urlopen(url,context=context,timeout=90) as response,open(path,'wb') as out:
         shutil.copyfileobj(response,out,1024*1024)
+
+
+def install_voice(root,target,python,run):
+    """Vérifier roue Piper, ONNX, JSON et licence avant toute installation."""
+    runtime=root/'.runtime';runtime.mkdir(parents=True,exist_ok=True)
+    receipt=runtime/'voix-verifiee.json';receipt.unlink(missing_ok=True)
+    rows=read_manifest(root/'tools/distribution/voix.tsv')
+    wheel=next(r for r in rows if r['kind']=='piper' and r['target']==target)
+    selected=[wheel]+[r for r in rows if r['kind']=='model' and r['target']=='all']
+    staging=runtime/'voix-telechargee';staging.mkdir(exist_ok=True)
+    models=root/'tools/ecoute/modeles'
+    if models.is_symlink() or staging.is_symlink():raise ValueError('Le dossier des voix ne doit pas être un lien.')
+    try:
+        for row in selected:
+            if Path(row['filename']).name!=row['filename']:raise ValueError('Nom de fichier voix incorrect')
+            path=staging/row['filename']
+            if path.is_symlink():raise ValueError('Le fichier voix ne doit pas être un lien.')
+            download(row['url'],path);verify(path,row['sha256'])
+        models.mkdir(parents=True,exist_ok=True)
+        for row in selected[1:]:os.replace(staging/row['filename'],models/row['filename'])
+        run([python,'-m','pip','install','--only-binary=:all:',staging/wheel['filename']])
+        receipt.write_text(json.dumps({'target':target,'piper':'1.4.2','files':{r['filename']:r['sha256'] for r in selected}}),encoding='utf-8')
+    finally:
+        shutil.rmtree(staging)
 
 
 def install(root,target):
@@ -80,8 +105,10 @@ def install(root,target):
         run([sys.executable,'-m','venv','--clear',venv])
         python=venv/('Scripts/python.exe' if windows else 'bin/python')
         run([python,'-m','pip','install','--only-binary=:all:','-r','requirements.txt'],cwd=ecoute)
-        report(5,'Téléchargement des voix et modèles — patienter, environ 650 Mo…')
+        report(5,'Téléchargement de Piper et des modèles — patienter, environ 720 Mo…')
+        install_voice(root,target,python,run)
         run([python,'ecoute.py','--preparer','--tout-local'],cwd=ecoute)
+        run([python,'-c','from voix import LocalTTS; v=LocalTTS(); assert v.path.is_file(); v.prepare(); print("Voix Piper prête, sans lecture sonore.")'],cwd=ecoute)
         ready.write_text(json.dumps({'target':target,'node_sha256':row['sha256'],'python':sys.version.split()[0]}),encoding='utf-8')
         report(6,'VerseObs est prêt. Fermez cette fenêtre, puis ouvrez « Lancer VerseObs ».')
 

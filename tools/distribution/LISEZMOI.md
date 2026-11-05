@@ -28,9 +28,15 @@ Mac amorce Python avec curl/shasum/tar fournis par macOS, jamais python3 systèm
 (ni Xcode). Windows utilise PowerShell, Get-FileHash et tar fournis par Windows
 10/11 x64 récent. L’installateur partagé ne demande que des roues Python binaires :
 il n’essaie pas de compiler. Node/Python, modèles et journaux restent sous
-Application/.runtime ; l’environnement Écoute est sous tools/ecoute/.venv.
+Application/.runtime ; l’environnement Écoute est sous tools/ecoute/.venv
+et la voix anglaise sous tools/ecoute/modeles.
 Les dépendances Python et npm passent par leurs registres HTTPS ; les empreintes
-épinglées concernent les runtimes, pas l’ensemble des modèles distants.
+épinglées concernent les runtimes, la roue Piper 1.4.2 pour la cible, son
+modèle en_US-ljspeech-medium, le JSON et MODEL_CARD (`voix.tsv`). Elles sont
+vérifiées avant pip/chargement ; une altération interrompt l’installation.
+Les dépendances transitives et les modèles ASR/MT ne sont pas tous épinglés.
+Piper est préchauffé sans son avant « prêt ». Réinstaller met aussi à jour
+websockets>=15 ; les bénévoles n’ont aucune commande supplémentaire à saisir.
 
 Les anciens installer.cmd et lancer-ecoute.cmd sont inchangés. Les clés Mac
 restent facultatives, saisies masquées par configurer-cles-mac.command et gardées

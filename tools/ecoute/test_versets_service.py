@@ -72,7 +72,10 @@ class HeardServiceWireTest(unittest.TestCase):
         seen=[]
         task=asyncio.create_task(service.main())
         try:
-            async with connect(service.args.relais,origin='http://127.0.0.1:18771') as client:
+            # Le banc attend l'index avant de lire ; une vraie page consomme
+            # déjà les états. Borner plus haut évite de bloquer les pongs derrière
+            # 16 états pendant les 65 s de préparation tolérées par ce test.
+            async with connect(service.args.relais,origin='http://127.0.0.1:18771',max_queue=128) as client:
                 deadline=time.monotonic()+65
                 while not service.verse_finder or not service.ready.is_set():
                     if time.monotonic()>deadline:self.fail('index/service non prêts')

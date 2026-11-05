@@ -40,6 +40,13 @@ for index,item in enumerate(records):
             for name in z.namelist():assert (Path(folder)/name).resolve().is_relative_to(Path(folder).resolve())
             z.extractall(folder)
         app=Path(folder)/'VerseObs/Application'
+        manifest=json.loads((app/'manifest-livraison.json').read_text(encoding='utf-8'))
+        assert manifest['commit']==item['commit'] and manifest['build']=='2.93'
+        for name,sha in manifest['files'].items():
+            assert hashlib.sha256((app/name).read_bytes()).hexdigest()==sha,name
+        for name in ['tools/heard.js','tools/ecoute/voix.py','tools/ecoute/requirements-voix.txt','tools/distribution/voix.tsv']:
+            assert name in manifest['files'],name
+        subprocess.run(['python3','-m','compileall','-q',str(app/'tools/ecoute'),str(app/'tools/distribution')],check=True)
         installed=subprocess.run(['npm','ci','--omit=dev','--ignore-scripts','--no-audit','--no-fund'],cwd=app,capture_output=True,text=True,timeout=120)
         if installed.returncode:
             results.append({'system':item['system'],'code':installed.returncode,'phase':'npm','output':installed.stdout+installed.stderr});continue
