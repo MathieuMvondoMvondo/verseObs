@@ -13,6 +13,7 @@ mkdir -p .runtime
 mkdir .runtime/installation.lock 2>/dev/null || { printf '%s\n' 'Une installation est déjà en cours.' >&2; exit 1; }
 cleanup() { rm -rf .runtime/python-nouveau; rm -f .runtime/python.archive; rmdir .runtime/installation.lock; }
 trap cleanup EXIT
+[[ ! -e .runtime/session.lock ]] || { printf '%s\n' 'Fermez VerseObs avant de réinstaller.' >&2; exit 1; }
 printf '%s\n' 'VERSEOBS — installation automatique' 'Gardez cette fenêtre ouverte. Aucune commande à saisir.' "[#-----] Téléchargement de l’écoute autonome…"
 URL='' SHA=''
 while IFS='|' read -r kind target _folder url sha; do

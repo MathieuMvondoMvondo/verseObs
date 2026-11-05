@@ -22,6 +22,15 @@ Aucun push, aucune publication ni installation PC. Identité du canonique non co
 
 Revue du premier périmètre : Astra et Sol REQUEST_CHANGES (test bilingue sélectionné avant affichage ; caches sous-titres encore à 1). Corrections ciblées appliquées. Leurs retours ergonomiques non bloquants restent hors correction. La nouvelle distribution sans prérequis a été demandée APRÈS le gel ; elle n’est pas couverte par cette relecture.
 
+## Corrections fondées après le complément de revue
+- [x] Astra REQUEST_CHANGES : `tools/heard.js` absent des deux zips. Reproduit depuis chaque archive avec ses dépendances npm propres ; ajout à la liste blanche et aux fichiers obligatoires.
+- [x] Panne enfant + stdin parent ouvert : CLI maintenant quitté avec code 1 après nettoyage ; tests de vrais processus pour panne, EOF et ARRETER.
+- [x] Contrôle des deux zips extraits ajouté, sans binaire cible ni micro : lancement, ressources HTTP et arrêt.
+- [x] Guide Windows : chemin du réglage Microphone pour applications de bureau, Windows 10/11 ; PDF régénéré.
+- [x] Garde supplémentaire fondée : sonde prouvant qu’un lancement était accepté pendant une installation ; refus des deux marqueurs d’installation et recontrôle après acquisition des verrous.
+- [ ] Nouvelle exécution de npm/check, essais ciblés, régénération et exécution des deux zips du SHA final.
+- [ ] Suite browser-studio à rejouer : timeout intermittent déjà documenté de browser-onglet.mjs:362 (le premier passage avait 72/72 ; les suites suivantes ont été exécutées séparément et sont vertes).
+
 ## Preuves du nouveau périmètre (avant gel final)
 - Six archives Node/Python officielles réellement téléchargées ; les six SHA-256 épinglés concordent (`artifacts/v293/archives/verification.json`). Binaires cibles jamais exécutés sur Linux.
 - Roues Python résolues sans compilation pour macOS arm64, macOS x64 et Windows x64 (Python 3.12).

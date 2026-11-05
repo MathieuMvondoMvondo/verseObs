@@ -7,6 +7,13 @@ const {start}=require('../tools/distribution/lancer.cjs');
   const file=path.join(root,'ecoute-factice.cjs');
   fs.writeFileSync(file,"process.stdin.setEncoding('utf8');process.stdin.on('data',s=>{if(s.includes('ARRETER'))process.exit(0)});process.stdin.on('end',()=>process.exit(0));");
   try {
+    fs.mkdirSync(path.join(root,'.runtime'));
+    for(const lock of ['installation.lock','installation.windows.lock']) {
+      fs.writeFileSync(path.join(root,'.runtime',lock),'installation factice');
+      await assert.rejects(start({root,port:18788,childCommand:process.execPath,childArgs:[file],openBrowser:()=>{}}),/installation est en cours/);
+      assert.equal(fs.existsSync(path.join(root,'.runtime/session.lock')),false);
+      fs.unlinkSync(path.join(root,'.runtime',lock));
+    }
     let url;
     const app=await start({root,port:18788,childCommand:process.execPath,childArgs:[file],openBrowser:u=>{url=u;}});
     assert.equal((await fetch(url)).status,200);

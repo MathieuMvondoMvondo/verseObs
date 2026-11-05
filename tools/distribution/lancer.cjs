@@ -32,6 +32,8 @@ async function start(options={}) {
     return stopping;
   };
   try {
+    if(['installation.lock','installation.windows.lock'].some(name=>fs.existsSync(path.join(runtime,name))))
+      throw Error('Une installation est en cours. Attendez sa fin avant de lancer VerseObs.');
     let port=options.port || 8080;
     for(let attempt=0;attempt<20;attempt++,port++) {
       server=createServer(port);
@@ -53,7 +55,7 @@ async function start(options={}) {
     });
     child.stdin.on('error',()=>{});
     await new Promise((resolve,reject)=>{child.once('spawn',resolve);child.once('error',reject);});
-    child.on('exit',()=>{if(!stopping){process.exitCode=1;stop().catch(e=>console.error(e.message));}});
+    child.on('exit',()=>{if(!stopping){process.exitCode=1;stop().then(()=>{if(options.onUnexpectedExit)options.onUnexpectedExit();}).catch(e=>{console.error(e.message);if(options.onUnexpectedExit)options.onUnexpectedExit();});}});
     console.log('VerseObs est ouvert. Fermez cette fenêtre pour tout arrêter.');
     if(options.openBrowser)await options.openBrowser(url);
     else {
@@ -64,13 +66,14 @@ async function start(options={}) {
     return {url,stop,child,server};
   } catch(e) {await stop();throw e;}
 }
-module.exports={start};
-if(require.main===module) {
-  start().then(app=>{
-    const finish=()=>app.stop().then(()=>process.exit(0)).catch(()=>process.exit(1));
+function runCLI(options={},args=process.argv.slice(2)) {
+  start({...options,onUnexpectedExit:()=>process.exit(1)}).then(app=>{
+    const finish=()=>app.stop().then(()=>process.exit(Number(process.exitCode)||0)).catch(()=>process.exit(1));
     ['SIGHUP','SIGINT','SIGTERM'].forEach(signal=>process.on(signal,finish));
-    if(process.argv.includes('--stdin')) {
+    if(args.includes('--stdin')) {
       process.stdin.setEncoding('utf8');process.stdin.on('data',s=>{if(s.includes('ARRETER'))finish();});process.stdin.on('end',finish);process.stdin.resume();
     }
   }).catch(error=>{console.error('VerseObs ne peut pas démarrer : '+error.message);process.exitCode=1;});
 }
+module.exports={start,runCLI};
+if(require.main===module)runCLI();

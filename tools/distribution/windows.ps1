@@ -41,6 +41,7 @@ try {
         # CreateNew est exclusif, contrairement à CreateDirectory.
         $LockPath=Join-Path $Runtime 'installation.windows.lock'
         $Lock=[IO.File]::Open($LockPath,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+        if (Test-Path (Join-Path $Runtime 'session.lock')) { throw 'Fermez VerseObs avant de réinstaller.' }
         if ($env:PROCESSOR_ARCHITECTURE -notin @('AMD64','x86')) { throw 'Ce paquet est prévu pour Windows x64.' }
         if (![Environment]::Is64BitOperatingSystem) { throw 'Ce paquet est prévu pour Windows x64.' }
         $Row=Import-Csv (Join-Path $PSScriptRoot 'runtimes.tsv') -Delimiter '|' | Where-Object { $_.kind -eq 'python' -and $_.target -eq 'win32-x64' }

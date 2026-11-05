@@ -8,7 +8,7 @@
     "convert": "node tools/convert_scrollmapper.js && node tools/convert_getbible.js && node tools/convert_bolls.js",
     "build-data": "npm run download && npm run convert",
     "serve": "node tools/server.js",
-    "test": "node tests/run.js && node tests/studio.js && node tests/captions.js && node tests/heard.js && node tests/heard-studio.js && node tests/heard-loading.js && node tests/remote-picker.js && node tests/remote-bible.js && node tests/distribution-launch.js",
+    "test": "node tests/run.js && node tests/studio.js && node tests/captions.js && node tests/heard.js && node tests/heard-studio.js && node tests/heard-loading.js && node tests/remote-picker.js && node tests/remote-bible.js && node tests/distribution-launch.js && node tests/distribution-cli.js",
     "test:browser": "node tests/browser-motion.mjs && node tests/browser-studio.mjs && node tests/browser-dock.mjs",
     "start": "node tools/server.js",
     "check": "node --check tools/distribution/lancer.cjs && node tools/check.js",

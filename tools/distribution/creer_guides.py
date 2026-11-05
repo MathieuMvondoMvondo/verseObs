@@ -40,7 +40,7 @@ for system in ('MAC','WINDOWS'):
             p=c.beginPath();p.moveTo(x-8,y-42);p.lineTo(x+10,y-30);p.lineTo(x-8,y-18);p.close();c.drawPath(p,stroke=1)
         paragraph=Paragraph(body,style);_,h=paragraph.wrap(W-146,95);paragraph.drawOn(c,96,y-48-h)
         y-=144
-    security=('La première fois : clic droit sur le fichier › Ouvrir. Si macOS le demande : Réglages Système › Confidentialité et sécurité › Ouvrir quand même. Autorisez le Microphone pour Terminal. Ne désactivez pas la sécurité du Mac.' if mac else 'Si SmartScreen apparaît : Informations complémentaires › Exécuter quand même, après vérification de la provenance du zip. Autorisez le microphone si Windows le demande. Sur un ordinateur géré qui bloque cette option, contactez son responsable.')
+    security=('La première fois : clic droit sur le fichier › Ouvrir. Si macOS le demande : Réglages Système › Confidentialité et sécurité › Ouvrir quand même. Autorisez le Microphone pour Terminal. Ne désactivez pas la sécurité du Mac.' if mac else 'Si SmartScreen apparaît : Informations complémentaires › Exécuter quand même, après vérification de la provenance du zip. Micro bloqué : Paramètres › Confidentialité et sécurité (Windows 11) ou Confidentialité (Windows 10) › Microphone › Autoriser les applications de bureau à accéder à votre microphone. Relancez VerseObs. Sur un poste géré, contactez son responsable si cette option est bloquée.')
     p=Paragraph('<b>Lors de la première ouverture</b><br/>'+security,style);_,h=p.wrap(W-80,110);p.drawOn(c,40,y-5-h)
     y-=h+25
     end=('Gardez la fenêtre VerseObs ouverte. La fermer arrête le serveur et l’écoute.' if mac else 'Gardez la petite fenêtre VerseObs ouverte. « Arrêter VerseObs » ou sa croix arrête le serveur et l’écoute.')
