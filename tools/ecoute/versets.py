@@ -104,15 +104,13 @@ class ReferenceParser:
         # Une hésitation/correction ne dépend pas des virgules choisies par l'ASR.
         plain = re.sub(r'^[\s.,;:!?]+', '', tail)
         labels = r'(?:(?:le|la|les|au|du|versets?|chapitre|numero)\s+)*'
-        hesitations = r'(?:(?:non|pardon|plutot|je veux dire|ou(?: bien)?)\b[\s,;:.]*)+'
-        prefix = r'^(?:(?:je crois|je pense|enfin)\b[\s,;:.]*)?'
-        if re.match(prefix + hesitations + labels + numeric, plain):
-            return True
-        if re.match(r'^ou\b\s*$', plain):
+        # Une alternative reste incertaine avec un livre répété, un modificateur
+        # quelconque après « ou », ou une fin de phrase coupée : ne pas attendre un nombre.
+        if re.match(r'^(?:ou|non|pardon|plutot|je veux dire|je crois|je pense|enfin|c est a dire|disons)\b', plain):
             return True
         if re.match(r'^(?:et|a|au|jusqu au)\s+' + labels + numeric, plain):
             return True
-        if re.match(r'^(?:ans|personnes|minutes|heures|euros|remarques)\b', plain):
+        if re.match(r'^(?:ans|personnes|minutes|heures|euros|remarques|fois|jours|mois|siecles|hommes|femmes|disciples)\b', plain):
             return True
         if re.match(r'^\s*[,;]\s*' + numeric, tail):
             return True  # liste supplémentaire, pas une plage continue
@@ -199,7 +197,7 @@ class ReferenceParser:
                 return [], True  # nombre hors limites partiellement reconnu
             consumed = m.end() + used
             # Dates, nombres trop grands, suffixes décimaux : ne pas tronquer.
-            if re.match(r'^(?:\d|[.:]\d)', rest[used:]):
+            if re.match(r'^\s*(?:\d|[.:]\d)', rest[used:]):
                 return [], True
             if not self.index.valid('lsg', book, chapter, v, ve):
                 return [], True
@@ -320,21 +318,31 @@ class BibleIndex:
 
 
 def polarity_compatible(heard, canonical):
-    """Comparer la négation autour des mots réellement alignés.
+    """Comparer la négation de tous les mots de contenu partagés.
 
     « ne peut produire » et « ne peut pas produire » ont la même polarité.
     Les mots d'une autre clause ne contaminent pas un fragment identique.
     Portée bornée à deux mots de contenu : ce n'est pas une analyse sémantique.
     """
-    markers = {'ne', 'n', 'pas', 'point', 'jamais', 'ni', 'rien', 'personne', 'aucun', 'aucune'}
+    markers = {'ne', 'n', 'non', 'pas', 'point', 'jamais', 'ni', 'rien', 'personne', 'aucun', 'aucune'}
     boundaries = {'.',',',';',':','!','?','…','mais','car'}
     articles = {'le','un','des','les','ces','mes','tes','ses','nos','vos','leurs'}
+    auxiliaries = {'suis','es','sommes','etes','sois','soit','soyons','soyez','soient','serais','serait','seraient'}
+    belief = {'crois','croit','croyons','croyez','croient','pense','penses','pensons','pensez','pensent'}
     def annotated(text):
         words = re.findall(r'[a-z]+|[.,;:!?…]', fold(text))
         negative = set()
         for i,w in enumerate(words):
             if w not in markers or (w in {'pas','point','personne'} and i and words[i-1] in articles):
                 continue
+            # Réfutation autonome immédiate : « ... ivres. Pas du tout ! ».
+            if w == 'pas' and words[i:i+3] == ['pas','du','tout'] and i and words[i-1] in {'.','!','?','…'} and (i+3 == len(words) or words[i+3] in boundaries):
+                for j in range(i-1,-1,-1):
+                    if tokens(words[j]) and words[j] not in markers:
+                        negative.add(j);break
+                continue
+            # « Ne croyez pas que ... » porte aussi sur le prédicat subordonné.
+            intro = words[i+1] if w in {'ne','n'} and i+3 < len(words) and words[i+1] in belief and words[i+2:i+4] == ['pas','que'] else None
             # « pas/point » complète le même « ne », sans décaler sa portée.
             prefix = []
             for before in reversed(words[max(0,i-6):i]):
@@ -349,15 +357,23 @@ def polarity_compatible(heard, canonical):
                 if words[j] in boundaries: break
                 if words[j] not in markers and tokens(words[j]):
                     negative.add(j)
-                    marked += 1
+                    if words[j] not in auxiliaries and words[j] != intro:marked += 1
                     if marked == 2: break
         return words,negative
     a,an = annotated(heard); b,bn = annotated(canonical)
-    for block in SequenceMatcher(None,a,b,autojunk=False).get_matching_blocks():
-        for j in range(block.size):
-            ai,bi = block.a+j,block.b+j
-            if tokens(a[ai]) and a[ai] not in markers and ((ai in an) != (bi in bn)):
-                return False
+    # Contrôler tous les mots qui fondent le classement, pas des mots-outils
+    # répétés qui pourraient masquer « patiente / pleine / bonté ».
+    def content(words):
+        return [(token,i) for i,word in enumerate(words) if word not in markers for token in tokens(word)]
+    ac,bc = content(a),content(b)
+    states = defaultdict(set)
+    for token,i in bc:states[token].add(i in bn)
+    # Un mot décisif omis par un alignement monotone ne peut esquiver la garde.
+    for token,i in ac:
+        if token in states and (i in an) not in states[token]:return False
+    # Un lexème présent avec les deux polarités dans le même verset ne suffit
+    # pas à prouver une inversion : ne pas choisir arbitrairement sa première
+    # occurrence. Tous les autres mots de contenu restent contrôlés ci-dessus.
     return True
 
 
@@ -402,7 +418,7 @@ class Finder:
                 if type(idx) is int and 0 <= idx < len(ranked) and type(conf) in (int, float) and .98 <= conf <= 1:
                     # Le modèle ne rend jamais le texte/la référence publiés.
                     # Son score est une décision de seuil, pas une probabilité calibrée.
-                    if bare_name_fragment(text, ranked[idx]['text']):
+                    if bare_name_fragment(text, ranked[idx]['text']) or not polarity_compatible(text, ranked[idx]['text']):
                         return None
                     return dict(ranked[idx], method='model', confidence=conf)
             except Exception:

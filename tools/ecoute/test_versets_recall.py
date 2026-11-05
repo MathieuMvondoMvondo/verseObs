@@ -94,6 +94,46 @@ class RecallTest(unittest.TestCase):
         for text in ['De quoi ? De Saraï à Sarah.', 'Saraï et Sarah.', 'sarai, sarah']:
             self.assertIsNone(f.find(text),text)
         self.assertTrue(called,'le refus ne dépend pas de la prudence du modèle')
+    def test_closed_alternatives_and_legitimate_sequences(self):
+        calls=[]
+        f=Finder(self.index,disambiguate=lambda *args:calls.append(args))
+        for text in ['Jean 3 verset 16 ou Jean 3 verset 17.', 'Jean 3:16 ou bien Romains 6:23.', 'Jean 3 verset 16 ou bien']:
+            self.assertIsNone(f.find(text),text)
+        suffixes=['ou Jean 3 verset 17.', 'ou bien Romains 6:23.', 'ou bien', 'ou alors 17.', 'ou sinon 17.', 'ou encore 17.', 'ou peut-être 17.', 'enfin, verset 17.', "c'est-à-dire 17.", 'disons 17.', '17.']
+        for suffix in suffixes:
+            with self.subTest(suffix=suffix):self.assertIsNone(f.find('Jean 3 verset 16 '+suffix))
+        self.assertEqual(calls,[])
+        for text in ['Jean 3:16 puis Romains 6:23.', 'Jean 3 verset 16, puis Romains 6 verset 23.']:
+            result=f.find(text)
+            self.assertIsNotNone(result,text)
+            self.assertEqual((result['bookId'],result['chapter'],result['verse']),(45,6,23))
+    def test_closed_charity_content_alignment(self):
+        f=Finder(self.index)
+        for text in ["La charité n’est pas patiente, elle n’est pas pleine de bonté.", "La charité n'est pas patiente; elle n'est pas pleine de bonté."]:
+            self.assertIsNone(f.find(text),text)
+        self.assertIsNotNone(f.find('La charité est patiente, elle est pleine de bonté.'))
+        self.assertIsNotNone(f.find(self.index.texts[('lsg',46,13,4)]))
+    def test_closed_model_cannot_bypass_polarity(self):
+        calls=[]
+        text='Il dit que le salaire du péché, ce n’est pas la mort.'
+        def choose(heard,candidates):
+            calls.append(candidates)
+            for i,c in enumerate(candidates):
+                if (c['bookId'],c['chapter'],c['verse'])==(45,6,23):
+                    return {'index':i,'confidence':.99}
+        result=Finder(self.index,disambiguate=choose).find(text)
+        self.assertEqual(len(calls),1)
+        candidate=next(c for c in calls[0] if (c['bookId'],c['chapter'],c['verse'])==(45,6,23))
+        self.assertFalse(polarity_compatible(text,candidate['text']))
+        self.assertIsNone(result)
+    def test_closed_negative_scope_preserves_paraphrases(self):
+        matt=self.index.texts[('lsg',40,5,17)]
+        acts=self.index.texts[('sem',44,2,15)]
+        for text in ["Quand Jésus dit qu'il n'est pas venu abolir la loi mais de l'accomplir, on n'imagine pas à quel point.", "Il est venu accomplir la loi."]:
+            self.assertTrue(polarity_compatible(text,matt),text)
+        self.assertFalse(polarity_compatible('Jésus est venu abolir la loi.',matt))
+        self.assertTrue(polarity_compatible('Ces hommes-là que vous voyez, ils ne sont pas ivres, ils ne sont pas fous.',acts))
+        self.assertFalse(polarity_compatible('Ces hommes sont ivres.',acts))
     def test_spoken_number_labels(self):
         p=ReferenceParser(self.index)
         for text in ['Jean chapitre numéro trois verset numéro seize','Jean chapitre trois, au seizième verset','Jean chapitre trois verset seizième']:
