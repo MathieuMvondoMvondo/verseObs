@@ -87,6 +87,27 @@ class VersetsTest(unittest.TestCase):
         f.feed({'fr':'Jean 21.', 'end':23000})
         self.assertIsNone(f.feed({'fr':'Six à huit personnes sont venues.', 'end':24000}))
 
+    def test_uncertain_reference_never_falls_back_to_lexical(self):
+        finder=Finder(self.index)
+        cases=[
+            'Jean 3 verset 16. Non, le verset 17.',
+            'Jean 3 verset 16 ou 17.', 'Jean 3 verset 16 ou dix-sept.',
+            'Jean 3 versets 16 à', 'Jean 3 versets 16 et', 'Jean 3 versets 16 jusqu’au',
+            'Jean 3 versets 16, 18 et 20.', 'Jean 3 versets 16 à 18 et 20.',
+            'Jean 3 verset 16 non 17.', 'Jean 3 verset 16 pardon le verset 17.',
+            'Jean 3 verset 16 ; plutôt le verset dix-sept.',
+            'Jean 3, deux remarques avant de lire.', 'Jean 3, 2 remarques avant de lire.',
+            'Dans Jean 3, un homme vient parler à Jésus.',
+            'Dans Jean 3, 1 homme vient parler à Jésus.',
+            'Jean 3 verset 16 ou 17. Car Dieu a tant aimé le monde qu’il a donné son Fils unique.',
+        ]
+        for text in cases:
+            with self.subTest(text=text):
+                self.assertEqual(self.refs(text),[])
+                self.assertIsNone(finder.find(text),'pas de repli lexical après référence incertaine')
+        for text in ['Jean 3, seize.', 'Jean 3:16 Car Dieu a tant aimé le monde.', 'Jean 3 verset 16 et ensuite nous lirons Romains 6:23.']:
+            self.assertIsNotNone(finder.find(text),text)
+
     def test_heard_keeps_original_punctuation_and_accents(self):
         text='Il nous dit ça : Jean, chapitre trois, verset seize.'
         self.assertEqual(self.parser.parse(text)[0]['heard'],text)

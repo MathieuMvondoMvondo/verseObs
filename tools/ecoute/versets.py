@@ -91,7 +91,29 @@ class ReferenceParser:
         self.range = re.compile(r'^\s*(?:-|a|au|jusqu au|et)\s*(?:versets?\s+)?(' + NUMBER + r')')
         self.before = re.compile(r'chapitre\s+(' + NUMBER + r')\s+(?:de|dans)\s*$')
 
+    @staticmethod
+    def _uncertain_tail(tail, unmarked):
+        numeric = r'(?:\d+|' + NUMBER + r')'
+        # Une hésitation/correction ne dépend pas des virgules choisies par l'ASR.
+        plain = re.sub(r'^[\s.,;:!?]+', '', tail)
+        correction = r'^(?:non|pardon|plutot|je veux dire)\b\s*[,;:]?\s*(?:(?:le|au)\s+)?(?:versets?\s+)?'
+        if re.match(correction + numeric, plain):
+            return True
+        if re.match(r'^ou\b\s*(?:$|' + numeric + r')', plain):
+            return True
+        if re.match(r'^\s*[,;]\s*' + numeric, tail):
+            return True  # liste supplémentaire, pas une plage continue
+        if re.match(r'^(?:-|(?:a|au|jusqu au|et)\b)\s*(?:versets?\s*)?(?:$|[.,;!?])', plain):
+            return True  # plage commencée mais phrase coupée avant sa fin
+        # « Jean 3, deux remarques » n'est pas Jean 3:2. Une forme sans
+        # « verset » ni deux-points doit se terminer avant de reprendre la prose.
+        return bool(unmarked and tail.strip() and not re.match(r'^\s*[.,;!?]', tail))
+
     def parse(self, text):
+        return self.inspect(text)[0]
+
+    def inspect(self, text):
+        """(références, abstention forcée), sans état mutable partagé avec Finder."""
         original = text[:2000]
         text = speech_fold(text[:2000])
         out, consumed = [], -1
@@ -112,7 +134,7 @@ class ReferenceParser:
             if m[1] not in self.full_names and len(m[1]) <= 3 and not inverse:
                 if not re.match(r'^\s*(?:\d|chapitre\b)', rest):
                     continue
-            v, ve, used = 0, 0, 0
+            v, ve, used, unmarked = 0, 0, 0, False
             if inverse:
                 chapter = NUMBERS[inverse[1]]
             elif ch_match:
@@ -123,14 +145,18 @@ class ReferenceParser:
                 if not single or self.index.chapter_count(book) != 1:
                     continue
                 chapter, v, used = 1, NUMBERS[single[1]], single.end()
+                if not v:
+                    return [], True
             if not v:
-                vm = self.marked_verse.match(rest[used:]) or self.verse.match(rest[used:])
+                marked = self.marked_verse.match(rest[used:])
+                vm = marked or self.verse.match(rest[used:])
                 if vm:
+                    unmarked = not marked and ":" not in vm[0]
                     v, used = NUMBERS[vm[1]], used + vm.end()
                     if not v:
-                        continue
+                        return [], True
                 elif re.match(r'^\s*[,;:]?\s*(?:versets?|[:])', rest[used:]):
-                    continue  # numéro absent ou hors syntaxe, pas de repli sur le chapitre
+                    return [], True  # pas de repli lexical après une référence explicitement invalide
             if not v and ch_match and not ch_match[1].isdigit() and 'chapitre' not in ch_match[0]:
                 # « Jean un jour » n'est pas Jean 1. Un livre explicitement
                 # numéroté (« premier Corinthiens treize ») reste déterministe.
@@ -145,24 +171,24 @@ class ReferenceParser:
                 if rm:
                     ve = NUMBERS[rm[1]]
                     if re.match(r'^\s*et\b', rest[used:]) and ve != v + 1:
-                        continue  # liste non contiguë : ne pas inventer les versets intermédiaires
+                        return [], True  # liste non contiguë : ne pas inventer les versets intermédiaires
                     used += rm.end()
                 elif re.match(r'^\s*[-:]|^\s+(?:a|au)\s+\d', rest[used:]):
-                    continue
+                    return [], True
+                if self._uncertain_tail(rest[used:], unmarked):
+                    return [], True
             if re.match(r'^\s*(?:[-:]|(?:a|au|jusqu au|et)\b)\s*(?:versets?\s+)?(?:\d|' + NUMBER + r')', rest[used:]):
-                continue  # plage invalide ou liste supplémentaire : pas de préfixe trompeur
-            if re.match(r'^\s*[,;]\s*(?:non|plutot|pardon|je veux dire)\b', rest[used:]):
-                continue
+                return [], True  # plage invalide ou liste supplémentaire
             if re.match(r'^\s+(?:cents?|mille|vingts?|trente|quarante|cinquante|soixante|dix)\b', rest[used:]):
-                continue  # nombre hors limites partiellement reconnu
+                return [], True  # nombre hors limites partiellement reconnu
             consumed = m.end() + used
             # Dates, nombres trop grands, suffixes décimaux : ne pas tronquer.
             if re.match(r'^(?:\d|[.:]\d)', rest[used:]):
-                continue
+                return [], True
             if not self.index.valid('lsg', book, chapter, v, ve):
-                continue
+                return [], True
             out.append(self.index.proposal('lsg', book, chapter, v, ve, 'reference', 1.0, original))
-        return out
+        return out, False
 
 
 STOP = set('le la les de des du un une et a au aux en est sont que qui qu il ils elle elles on nous vous je tu me te se ce cet cette ces pour par dans sur avec ne pas plus comme mais ou donc car d l s c j n m t y'.split())
@@ -280,7 +306,9 @@ class Finder:
         self.index, self.parser, self.disambiguate = index, ReferenceParser(index), disambiguate
 
     def find(self, text):
-        refs = self.parser.parse(text)
+        refs, uncertain = self.parser.inspect(text)
+        if uncertain:
+            return None
         if refs:
             return refs[-1]  # dernière référence explicitement dite dans cette phrase
         # La concordance ne génère jamais de référence hors de l'index local.

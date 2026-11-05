@@ -5,8 +5,9 @@
   V.HeardVerse = function (options) {
     var el = function (id) { return document.getElementById(id); };
     var card = el('heard-card'), current = null, relay = false, live = false, session = '', busy = false;
-    var timer = null, generation = 0, pending = null, prepared = false;
+    var timer = null, generation = 0, pending = null, prepared = false, announcedVersion = null;
     function clear(message) {
+      if (busy && options.cancelLoad) options.cancelLoad();
       generation++;
       current = null; busy = false; prepared = false;
       pending = null;
@@ -16,6 +17,16 @@
       el('heard-idle').hidden = false;
       el('heard-idle').textContent = message || (live ? 'À l’écoute · les passages reconnus apparaîtront ici.' : 'Recherche de versets en attente.');
       el('heard-state').textContent = live ? 'À l’écoute' : 'En attente';
+    }
+    function refreshExplanation() {
+      if (!current) return false;
+      var working = options.workingVersion ? options.workingVersion() : null;
+      var id = working && working.id || null, changed = announcedVersion !== id;
+      announcedVersion = id;
+      var change = id && id !== current.version;
+      el('heard-explanation').textContent = (!current.verse ? 'Chapitre seul · verset 1 préparé' : 'Aperçu uniquement') +
+        (change ? ' · ' + current.version.toUpperCase() + ' remplace votre ' + working.name + ' (sans conversion).' : ' · diffusion manuelle.');
+      return changed;
     }
     function show(p, force) {
       if (!p || !live || !relay || !Number.isFinite(p.confidence) || p.confidence < .9 || p.confidence > 1 ||
@@ -45,10 +56,7 @@
       el('heard-meta').textContent = p.version.toUpperCase();
       el('heard-method').textContent = method + ' · ' + p.version.toUpperCase();
       el('heard-confidence').textContent = 'Indice de correspondance : ' + Math.round(p.confidence * 100) + '/100. Ce n’est pas une probabilité de justesse.';
-      var working = options.workingVersion ? options.workingVersion() : null;
-      var change = working && working.id && working.id !== p.version;
-      el('heard-explanation').textContent = (!p.verse ? 'Chapitre seul · verset 1 préparé' : 'Aperçu uniquement') +
-        (change ? ' · ' + p.version.toUpperCase() + ' remplace votre ' + working.name + ' (sans conversion).' : ' · diffusion manuelle.');
+      refreshExplanation();
       el('heard-load').disabled = false;
       el('heard-load').textContent = !p.verse ? 'Ouvrir le chapitre' : 'Charger l’aperçu';
       clearTimeout(timer);
@@ -79,8 +87,13 @@
     });
     el('heard-load').addEventListener('click', function () {
       if (!current || busy) return;
+      if (refreshExplanation()) {
+        el('heard-state').textContent = 'Version à vérifier';
+        return; // le premier clic actualise l'annonce périmée, le suivant confirme
+      }
       var selected = current, run = generation;
       busy = true;
+      el('heard-state').textContent = 'Chargement…';
       el('heard-load').disabled = true;
       Promise.resolve(options.load(selected, function () { return run === generation && relay && live; })).then(function (ok) {
         if (run !== generation) return;
@@ -101,7 +114,9 @@
     card.addEventListener('focusout', function () {
       setTimeout(function () { if (pending && !busy && !card.contains(document.activeElement)) show(pending); }, 0);
     });
+    this.workingVersionChanged = refreshExplanation;
     this.selectionChanged = function (reference, version) {
+      refreshExplanation();
       if (prepared && current && (version !== current.version || reference !== (current.verse ? current.reference : current.reference + ':1'))) {
         prepared = false;
         el('heard-state').textContent = 'À vérifier';

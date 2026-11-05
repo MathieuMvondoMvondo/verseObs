@@ -7,6 +7,7 @@ import subprocess
 import time
 ROOT=Path(__file__).resolve().parents[1]
 out=ROOT/'artifacts/verset/verification';out.mkdir(parents=True,exist_ok=True)
+for old in ['results.json','source-unchanged.json']:(out/old).unlink(missing_ok=True)
 env=dict(os.environ);env.pop('PYTHONPATH',None)
 # Cet interpréteur sélectionne les tests Python, pas l'audio réel de browser-captions.
 env.pop('ECOUTE_PYTHON',None);env.pop('STUDIO_ONLY',None)

@@ -163,7 +163,8 @@
     heardVerse = new window.VerseObs.HeardVerse({
       channel: channel,
       load: _prepareHeard,
-      workingVersion: function () { return { id: currentBibleId, name: _currentVersionName() }; },
+      workingVersion: function () { return { id: dom.versionSelect.value || currentBibleId, name: _currentVersionName() }; },
+      cancelLoad: _cancelHeardPreparation,
       openConnections: function () { _switchTab(5); },
     });
     _loadDefaultBible();
@@ -224,9 +225,18 @@
     _chainGeneration++;
     clearTimeout(_chainTimer); _chainTimer = null;
     var request = ++_bibleRequest, revision = _previewRevision;
+    _heardRequest = request;
+    _setLoading(true);
     return new Promise(function (resolve) {
       bibleLoader.loadBible(p.version, function (err, data) {
-        if (err || request !== _bibleRequest || revision !== _previewRevision || !valid()) return resolve(false);
+        if (_heardRequest === request) _heardRequest = null;
+        if (request !== _bibleRequest) return resolve(false); // un autre chargement en possède le verrou
+        _setLoading(false);
+        if (err || revision !== _previewRevision || !valid()) {
+          dom.versionSelect.value = currentBibleId;
+          if (heardVerse) heardVerse.workingVersionChanged();
+          return resolve(false);
+        }
         var start = p.verse || 1, end = p.verseEnd || 1;
         if (!bibleLoader.getRange(p.version, p.bookId, p.chapter, start, end)) return resolve(false);
         currentBibleId = p.version;
@@ -243,6 +253,15 @@
         resolve(true);
       });
     });
+  }
+
+  function _cancelHeardPreparation() {
+    if (_heardRequest !== null && _heardRequest === _bibleRequest) {
+      _bibleRequest++;
+      _setLoading(false);
+      dom.versionSelect.value = currentBibleId;
+    }
+    _heardRequest = null;
   }
 
   // ---- DOM caching ----
@@ -2576,8 +2595,9 @@
     }
   }
 
-  var _bibleRequest = 0, _previewRevision = 0;
+  var _bibleRequest = 0, _previewRevision = 0, _heardRequest = null;
   function _loadBible(id) {
+    if (heardVerse) heardVerse.workingVersionChanged();
     _updateVersionIndicator(id);
     _setLoading(true);
 
@@ -2599,6 +2619,7 @@
         console.warn("VerseObs: Could not load Bible:", id, err);
         _notify("Impossible de charger cette version", "error");
         if (currentBibleId) dom.versionSelect.value = currentBibleId;
+        if (heardVerse) heardVerse.workingVersionChanged();
         return;
       }
 

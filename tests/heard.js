@@ -16,7 +16,8 @@ const w = dom.window;
 w.VerseObs = {};
 w.eval(fs.readFileSync(path.join(__dirname, '../assets/js/control/heard-verse.js'), 'utf8'));
 const callbacks = [], loaded = [], sent = [];
-const link = new w.VerseObs.HeardVerse({channel:{onMessage: cb=>callbacks.push(cb),send: x=>sent.push(x)},load: x=>{loaded.push(x);return Promise.resolve(true);},openConnections:()=>{}});
+let working = {id:'lsg',name:'Louis Segond'};
+const link = new w.VerseObs.HeardVerse({workingVersion:()=>working,channel:{onMessage: cb=>callbacks.push(cb),send: x=>sent.push(x)},load: x=>{loaded.push(x);return Promise.resolve(true);},openConnections:()=>{}});
 function receive(x){callbacks.forEach(cb=>cb(x));}
 link.setRelay(true);
 receive({type:'caption_status',engine:true,state:{status:'listening'},session:'one'});
@@ -40,6 +41,12 @@ assert.equal(w.document.getElementById('heard-proposal').hidden,true);
 receive({type:'heard_verse',proposal:{...p,ready:Date.now()-61000},session:'one'});
 assert.equal(w.document.getElementById('heard-proposal').hidden,true);
 receive({type:'heard_verse',proposal:p,session:'one',ts:Date.now()});
+working={id:'nbs',name:'Nouvelle Bible Segond'}; // changement avant notification
+w.document.getElementById('heard-load').click();
+assert.equal(loaded.length,1,'un clic ne peut accepter une annonce périmée');
+assert.match(w.document.getElementById('heard-explanation').textContent,/LSG remplace votre Nouvelle Bible Segond/);
+w.document.getElementById('heard-load').click();
+assert.equal(loaded.length,2,'second clic après annonce actualisée');
 link.setRelay(false);
 assert.equal(w.document.getElementById('heard-proposal').hidden,true);
 dom.window.close();

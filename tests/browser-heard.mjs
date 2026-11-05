@@ -106,6 +106,28 @@ try {
     await page.screenshot({path:path.join(out,`carte-${width}.png`)});
   }
   results.push('920/600/360/320 px : carte lisible, pas de débordement horizontal');
+  // Une requête primaire lente est remplacée par la carte, sans verrou orphelin.
+  await page.setViewportSize({width:1280,height:1000});
+  let primary;
+  await page.route('**/nbs.json',route=>{primary=route;});
+  await page.locator('#version-select').focus();say();
+  await page.waitForFunction(()=>document.querySelector('#heard-reference').textContent==='Romains 6:23');
+  await page.locator('#version-select').selectOption('nbs');
+  for(let i=0;i<100&&!primary;i++)await sleep(20);
+  assert.ok(primary);
+  assert.match(await page.locator('#heard-explanation').textContent(),/LSG remplace votre Nouvelle Bible Segond/);
+  await page.locator('#heard-load').click();
+  await page.waitForFunction(()=>!document.querySelector('#version-select').disabled);
+  assert.equal(await page.locator('#version-select').inputValue(),'lsg');
+  await primary.continue();await sleep(150);await page.unroute('**/nbs.json');
+  assert.equal(await page.locator('#version-select').isEnabled(),true);
+  await page.locator('#version-select').selectOption('nbs');
+  await page.waitForFunction(()=>!document.querySelector('#version-select').disabled);
+  assert.match(await page.locator('#heard-explanation').textContent(),/LSG remplace votre Nouvelle Bible Segond/);
+  await page.locator('#heard-load').click();
+  await page.waitForFunction(()=>document.querySelector('#version-select').value==='lsg');
+  assert.equal(program().length,afterManual);
+  results.push('versions concurrentes : sélecteur libéré, avertissement actualisé, aucune diffusion');
   // Arrêt au relais : une réponse déjà partie ne doit pas refaire apparaître la carte.
   const admin=new WebSocket(`ws://127.0.0.1:${port}/verseobs-relay`,{headers:{Origin:base}});
   await new Promise(r=>admin.once('open',r));

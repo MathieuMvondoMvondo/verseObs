@@ -11,6 +11,7 @@ const require=createRequire(import.meta.url);
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const {createServer}=require('./server');
 const sceneNumber=Number(process.env.DEMO_SCENE||0);
+const revision=spawnSync('git',['rev-parse','HEAD'],{cwd:ROOT,encoding:'utf8'});assert.equal(revision.status,0);const commit=revision.stdout.trim();
 const out=path.join(ROOT,'artifacts/verset/demo-'+sceneNumber);fs.mkdirSync(out,{recursive:true});
 const data=JSON.parse(fs.readFileSync(path.join(ROOT,'tests/fixtures/heard-demo.json'))).clips[sceneNumber];
 const audioRoot=process.env.DEMO_AUDIO_ROOT;
@@ -84,7 +85,7 @@ try{
   const extract=spawnSync('ffmpeg',['-v','error','-y','-ss',String(t),'-i',video,'-frames:v','1',path.join(out,'mp4-'+name+'.png')],{encoding:'utf8'});
   assert.equal(extract.status,0,extract.stderr);
  }
- fs.writeFileSync(path.join(out,'mesures.json'),JSON.stringify({sceneNumber,mode:'audio original + ASR enregistrée ; recherche actuelle, aperçu seul ; captures horodatées',source:audio,span:[data.start,data.end],reference:actualRef,delays_from_recorded_audio_end:delays,video_first_proposal_s:firstFrame,proof_times_seconds:proofTimes,timeline,events,errors,commands:commandLog.map(x=>x.type)},null,2));
+ fs.writeFileSync(path.join(out,'mesures.json'),JSON.stringify({commit,sceneNumber,mode:'audio original + ASR enregistrée ; recherche actuelle, aperçu seul ; captures horodatées',source:audio,span:[data.start,data.end],reference:actualRef,delays_from_recorded_audio_end:delays,video_first_proposal_s:firstFrame,proof_times_seconds:proofTimes,timeline,events,errors,commands:commandLog.map(x=>x.type)},null,2));
  fs.rmSync(frames,{recursive:true});
  console.log(JSON.stringify({sceneNumber,reference:actualRef,delays,firstFrame,proofTimes,path:video}));
 }finally{clearInterval(beat);python.kill();ws.terminate();await ctx.close();await browser.close();await new Promise(r=>server.close(r));}
