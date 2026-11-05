@@ -2,6 +2,8 @@
 
 ## Ce que l’opérateur fait
 
+Pour le rappel accru mesuré ci-dessous, lancer Écoute avec **`tools\ecoute\lancer-ecoute.cmd --departage-versets`** (clé OpenAI existante). Sans cette option, seule la recherche locale conservatrice fonctionne. Cette option ajoute des appels payants ; elle est désactivée si un plafond euros est configuré. Aucun changement de clé ni nouvelle dépendance.
+
 1. Dans **Connexions → Écoute**, choisir l’entrée audio et démarrer comme auparavant.
 2. Revenir dans **Bible**. La carte **Verset entendu** propose une référence et le texte local correspondant.
 3. Ouvrir **Lire et vérifier** pour le texte complet, la parole reconnue et le score, puis **Charger l’aperçu**. La version retrouvée est conservée, pour ne pas changer implicitement sa numérotation. Si elle diffère de votre version de travail, la carte annonce ce remplacement avant le clic ; le sélecteur de version du Studio change avec le passage. Rechoisir votre version si vous souhaitez y revenir.
@@ -11,18 +13,29 @@ Un chapitre seul est annoncé comme tel : **Ouvrir le chapitre** prépare le ver
 
 ## Reconnaissance et limites
 
-- Références françaises : noms complets/abrégés, ordinaux, nombres en lettres jusqu’à 176, chapitre avant le livre, verset et plage. Exemple : « au chapitre trois de Jean, verset seize ».
+- Références françaises : noms complets/abrégés, ordinaux, nombres en lettres jusqu’à 176, chapitre avant le livre, verset et plage. Exemples : « au chapitre trois de Jean, verset seize », « Jean chapitre numéro trois, au seizième verset ». Une plage scindée « Matthieu 7, 15. / À vingt. » est reprise seulement dans les 8 s, sans autre prose.
 - Citations : mots locaux normalisés (accents, pluriels), index inversé et ordre des mots ; abstention sur les fragments trop courts ou les candidats proches. Deux phrases contiguës peuvent se compléter, jamais un contexte ancien indéfini.
 - L’**indice /100 est un score de correspondance, pas une probabilité**. « Référence dite » signifie que la référence prononcée est reconnue, pas que le prédicateur ne peut pas se tromper.
 - Les 12 fichiers sont chargés et contrôlés. **Crampon est en quarantaine** : son fichier attribue des textes aux mauvais livres (notamment Jean 3:16 à l’identifiant Philippiens). Les **11 autres versions** sont admissibles. Les fichiers bibliques originaux n’ont pas été modifiés. Évitez aussi Crampon dans le sélecteur manuel : son corpus préexistant demeure incohérent ; cette livraison ne le répare pas arbitrairement.
-- **Les paraphrases et citations courtes sont souvent manquées.** Ce candidat privilégie l’absence de fausse proposition plutôt que le rappel. Il ne remplace ni la recherche manuelle ni la vigilance de l’opérateur.
+- **Des paraphrases et citations courtes restent manquées.** Le modèle peut confirmer un candidat local au seuil 0,98 ; il ne crée pas le texte proposé. Le contexte de départage est limité à la phrase précédente récente, jamais à un suivi long de chapitre. Ce candidat privilégie l’abstention plutôt que l’augmentation du rappel à tout prix. Il ne remplace ni la recherche manuelle ni la vigilance de l’opérateur.
 - La transcription et la traduction déjà choisies restent **gpt-transcribe / GPT-6.1 Terra**, avec leurs replis existants. La recherche commence après transcription, sans attendre la traduction.
-- Option `--departage-versets` : GPT-6.1 Terra ne départage que des candidats lexicaux proches. Il ne peut produire ni référence ni texte libres ; erreur/délai/schema invalide → abstention. L’option est **désactivée par défaut**, transport testé avec réponse simulée, pas validée sur un culte. Appel limité à un toutes les 3 s, délai socket 1,5 s, coût estimé majoré 0,008 $ par tentative. Si `--plafond-euros` est configuré, ce départage facultatif reste désactivé pour ne pas concurrencer la transcription/traduction dans le plafond. Les appels déjà partis ne sont pas annulables côté fournisseur ; une réponse tardive est ignorée.
+- Option `--departage-versets` : GPT-6.1 Terra confirme ou départage une liste privée de candidats lexicaux, incluant des paraphrases et fragments distinctifs. Il ne peut produire ni référence ni texte libres ; erreur/délai/schema invalide → abstention. L’option est **désactivée par défaut**, transport simulé testé et vrais appels mesurés sur les transcriptions ci-dessous, mais pas encore en direct microphone. Appel limité à un toutes les 3 s, délai socket 3 s, coût estimé majoré 0,008 $ par tentative. Si `--plafond-euros` est configuré, ce départage facultatif reste désactivé pour ne pas concurrencer la transcription/traduction dans le plafond. Les appels déjà partis ne sont pas annulables côté fournisseur ; une réponse tardive est ignorée.
 - `--sans-versets` garde Écoute et ses sous-titres sans recherche biblique.
 
 ## Mesures et démonstration
 
-Le banc `tools/ecoute/banc_versets.py` reprend **344 phrases réellement transcrites** lors du banc du 02/11, quatre prédications, dont le culte du 11/10. Les annotations sont dans `tests/fixtures/heard-gold.json`. Une abstention sur une phrase annotée est comptée comme un faux négatif. Les répétitions sont des occasions distinctes ; le score par phrase est calculé avant l’anti-doublon de la carte. Le corpus est un **banc de développement non aveugle**, pas une validation indépendante.
+Le banc `tools/ecoute/banc_versets.py` reprend **344 phrases réellement transcrites** lors du banc du 02/11, quatre prédications, dont le culte du 11/10. Les annotations sont dans `tests/fixtures/heard-gold.json`. Une abstention sur une phrase annotée est comptée comme un faux négatif. Les répétitions sont des occasions distinctes ; le score par phrase est calculé avant l’anti-doublon de la carte. Le corpus principal est un **banc de développement non aveugle**.
+
+| Banc, avec `--departage-versets` | Phrases / positives | Bonnes / fausses propositions | Rappel | Précision observée |
+|---|---:|---:|---:|---:|
+| Développement, 4 extraits gpt-transcribe | 344 / 110 | 68 / 0 | 61,82 % | 100 % |
+| Extrait réservé, après gel du moteur | 50 / 30 | 18 / 0 | 60 % | 100 % |
+
+Le départ conservateur était à 42/110 (38,18 %). Les 68 manquées ont été classées avant correction : 34 paraphrases/variations, 20 fragments très courts, 9 citations noyées/courtes, 4 références de suite sans contexte court, 1 parallèle ambigu. Le banc de développement final comporte 193 appels réels, dont 1 délai dépassé (abstention). **Zéro fausse proposition observée n’est pas une garantie d’infaillibilité.**
+
+L’extrait réservé est V1jrg_sS2tQ, 5320–5720 s, hors de la fenêtre de développement 4496,16–4912,98 s. Fenêtres fixes de 8 s ; sous-titres automatiques YouTube, **pas la même ASR**. Texte ouvert seulement après gel `f6a9c0e`, annotations écrites avant la première exécution, aucun réglage ultérieur du moteur sur ces résultats. 30 appels réels, aucune erreur API. Ce petit banc d’un même orateur mesure un transfert limité, pas une validation générale indépendante.
+
+Délais mesurés sur développement : recherche des propositions modèle médiane **1,771 s** ; somme ASR historique + pause supposée 0,5 s + recherche médiane **1,282 s** pour toutes les propositions et **2,942 s** pour les seules propositions modèle (p95 toutes propositions **3,086 s**). Aveugle : recherche des propositions médiane **1,372 s**, aucune mesure ASR disponible. Rejeu hors temps réel, débit modèle limité sur les horodatages enregistrés ; les pertes de file et l’anti-doublon du direct ne sont pas inclus dans ces rappels.
 
 La recherche locale est chronométrée. Le délai ASR historique du PC et la pause VAD hypothétique de 0,5 s sont séparés : leur somme **n’est pas une nouvelle mesure microphone en régie**. Le rejeu vidéo utilise l’audio d’origine et la transcription enregistrée aux instants correspondants, avec la recherche actuelle et le vrai Studio. Aucun résultat biblique n’est préfabriqué pour la vidéo.
 
@@ -60,7 +73,7 @@ python installer-versets.py --cible "C:\chemin\VerseObs" --appliquer --accord-ma
 Le script sauvegarde chaque ancien fichier dans un dossier voisin `VerseObs-retour-versets-…`, applique le manifeste, puis relit les sommes de contrôle. En cas d’échec d’écriture, il restaure et relit les fichiers concernés, tentative courante comprise. Les écritures se font dans un temporaire voisin puis par remplacement atomique. Conserver le dossier du paquet et le chemin de sauvegarde affiché.
 
 5. Relancer manuellement les lanceurs existants. La préparation de l’index se fait en arrière-plan : Écoute peut déjà sous-titrer, mais aucune proposition biblique avant l’index prêt (voir Connexions). Dans OBS, recharger **le dock et la source navigateur, hors antenne**, pour recevoir le build 2.91 ; confirmer le retour de l’overlay avant toute diffusion. Un ancien overlay doit être actualisé explicitement.
-6. **Avant dimanche** : essai de 75 s avec la vraie entrée audio, vérification parole → proposition, aperçu sans antenne, diffusion manuelle, arrêt/reprise et arrêt du service. Mesurer sur ce PC la latence réelle et vérifier les clés absentes du journal. Ce test n’est pas remplacé par le rejeu fourni.
+6. **Après accord explicite de Math, avant dimanche** : essai de 75 s avec la vraie entrée audio, vérification parole → proposition, aperçu sans antenne, diffusion manuelle, arrêt/reprise et arrêt du service. Mesurer sur ce PC la latence réelle et vérifier les clés absentes du journal. Ce test n’est pas remplacé par le rejeu fourni.
 
 ## Retour arrière préparé
 
