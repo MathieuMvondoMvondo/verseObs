@@ -53,7 +53,7 @@
       el('heard-spoken').textContent = '« ' + p.heard + ' »';
       el('heard-details').open = false;
       var method = p.method === 'reference' ? 'Référence dite' : p.method === 'model' ? 'Citation départagée' : 'Citation rapprochée';
-      el('heard-meta').textContent = p.version.toUpperCase();
+      el('heard-meta').textContent = (p.method === 'reference' ? 'Réf. dite' : p.method === 'model' ? 'Départagée' : 'Citation') + ' · ' + p.version.toUpperCase();
       el('heard-method').textContent = method + ' · ' + p.version.toUpperCase();
       el('heard-confidence').textContent = 'Indice de correspondance : ' + Math.round(p.confidence * 100) + '/100. Ce n’est pas une probabilité de justesse.';
       refreshExplanation();
@@ -70,7 +70,7 @@
         card.dataset.live = String(live);
         var notice = msg.state && msg.state.verses || '';
         el('captions-verses').textContent = notice;
-        el('heard-source').textContent = /indisponible|abandonn|sautée|impossible/.test(notice) ? notice : '';
+        el('heard-source').textContent = /indisponible|abandonn|sautée|impossible|plafond|désactivé/.test(notice) ? notice : '';
         if (wasLive !== live) clear();
         if (msg.engine && msg.state && msg.state.verseReady === false) {
           el('heard-idle').textContent = notice;

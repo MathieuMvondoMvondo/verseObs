@@ -42,6 +42,9 @@ try {
   say();
   await page.waitForFunction(()=>document.querySelector('#heard-reference').textContent==='Romains 6:23');
   assert.match(await page.locator('#heard-text').textContent(),/salaire du péché/);
+  const textLayout=await page.locator('#heard-text').evaluate(e=>({height:e.getBoundingClientRect().height,line:parseFloat(getComputedStyle(e).lineHeight),clamp:getComputedStyle(e).webkitLineClamp}));
+  assert.equal(textLayout.clamp,'2','deux lignes de lecture avant chargement');
+  assert.ok(textLayout.height>textLayout.line,'le passage de Romains doit être lisible sur deux lignes');
   assert.equal(await page.locator('#preview-ref').textContent(),'Jean 3:16');
   assert.equal(program().length,before);
   assert.equal(await obs.locator('.verse-card.visible').count(),0);

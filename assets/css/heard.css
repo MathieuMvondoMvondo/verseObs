@@ -1,17 +1,17 @@
 /* Suggestion compacte : le passage préparé garde la place principale. */
 .heard-card { margin: 4px 0 18px; padding: 10px 14px; border: 1px solid var(--cp-border); border-radius: 8px; background: var(--cp-bg-secondary); color: var(--cp-text); }
-.heard-card[data-live="true"] { min-height: 174px; }
+.heard-card[data-live="true"] { min-height: 198px; }
 .heard-heading { display: flex; align-items: center; gap: 8px 12px; }
 .heard-heading h2 { font-size: 14px; font-weight: 600; margin: 0; }
-#heard-state { font-size: 14px; color: var(--cp-text-muted); }
+#heard-state { font-size: 14px; font-weight: 600; color: var(--cp-text); }
 .heard-card button { font-size: 14px; border: 1px solid var(--cp-border-light); border-radius: 6px; padding: 7px 11px; min-height: 36px; background: transparent; color: var(--cp-text); cursor: pointer; }
 #heard-connect { border: 0; padding: 0; margin-left: auto; min-height: 24px; color: var(--cp-text-secondary); }
 #heard-idle { color: var(--cp-text-secondary); margin: 12px 0; font-size: 14px; line-height: 1.6; }
 .heard-reading { margin-top: 5px; min-width: 0; }
-.heard-reference-row { display: flex; align-items: baseline; gap: 10px; }
+.heard-reference-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 10px; }
 #heard-reference { font: 600 19px/1.3 var(--cp-font); letter-spacing: -.3px; margin: 0; }
 #heard-meta { margin: 0 0 0 auto; font-size: 14px; color: var(--cp-text-muted); }
-#heard-text { font: 400 16px/1.5 "VerseObs Lecture", Georgia, serif; margin: 3px 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#heard-text { font: 400 16px/1.5 "VerseObs Lecture", Georgia, serif; margin: 3px 0 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; overflow: hidden; }
 .heard-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 6px; }
 .heard-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 #heard-load { background: var(--take); color: var(--take-ink); border-color: var(--take); font-weight: 600; }
@@ -27,7 +27,7 @@
 .heard-source:empty { display: none; }
 @media (max-width: 600px) {
   .heard-card { padding: 10px 12px; margin-bottom: 14px; }
-  .heard-card[data-live="true"] { min-height: 252px; }
+  .heard-card[data-live="true"] { min-height: 276px; }
   .heard-heading { flex-wrap: wrap; gap: 4px 10px; }
   #heard-connect { min-height: 28px; }
   #heard-reference { font-size: 18px; }

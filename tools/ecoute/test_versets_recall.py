@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 import unittest
 sys.path.insert(0,str(Path(__file__).parent))
-from versets import BibleIndex, Finder, StreamFinder, ReferenceParser
+from versets import BibleIndex, Finder, StreamFinder, ReferenceParser, polarity_compatible
 
 ROOT=Path(__file__).resolve().parents[2]
 class RecallTest(unittest.TestCase):
@@ -61,6 +61,39 @@ class RecallTest(unittest.TestCase):
         rows=self.index.rank('Mais au-dedans, ce sont des loups féroces.',relaxed=True)
         self.assertTrue(any((r['bookId'],r['chapter'],r['verse'])==(40,7,15) for r in rows))
         self.assertIsNone(Finder(self.index).find('Mais au-dedans, ce sont des loups féroces.'))
+    def test_review_oral_alternatives_fail_closed(self):
+        calls=[]
+        f=Finder(self.index,disambiguate=lambda *_:calls.append(True))
+        for text in ['Jean 3 ou 4. Car Dieu a tant aimé le monde qu’il a donné son Fils unique.', 'Jean 3, non 4.', 'Jean 3 verset 16 ou verset 17.', 'Jean chapitre trois verset seize, pardon, chapitre quatre verset dix-sept.', 'Jean chapitre trois ou quatre.', 'Jean chapitre trois, non quatre, verset seize.', 'Jean 3 versets 16 et le verset 18.', 'Jean 3 verset 16 ou bien 17.', 'Jean 3 verset 16, je crois, ou 17.', 'Jean 3 verset 16 à 18 ans.', 'Jean 3 verset 16 non plutôt 17.']:
+            with self.subTest(text=text):self.assertIsNone(f.find(text))
+        self.assertFalse(calls,'aucun départage après référence incertaine')
+        for text in ['Dans les Actes 5 verset 1.', 'Dans les Actes chapitre 5.', 'Le livre des Juges chapitre 6.']:
+            self.assertIsNotNone(f.find(text),text)
+    def test_polarity_imperative_and_literal_counterparts(self):
+        for marker in ['point','rien','pas','jamais']:
+            canonical='Ne crains '+marker+'.'
+            self.assertFalse(polarity_compatible('Crains.',canonical),canonical)
+            self.assertTrue(polarity_compatible(canonical,canonical))
+        self.assertTrue(polarity_compatible('Un pas devant lui.','Un pas devant lui.'))
+    def test_review_negation_does_not_become_a_quote(self):
+        f=Finder(self.index)
+        for text in ['Le salaire du péché ne mène pas à la mort et le don gratuit de Dieu ne donne pas la vie éternelle en Jésus-Christ notre Seigneur.', 'Car le salaire du péché, ce n’est pas la mort ; et le don gratuit de Dieu, ce n’est pas la vie éternelle en Jésus-Christ notre Seigneur.', 'Mais chacun n’est pas tenté quand il est attiré et amorcé par sa propre convoitise.', 'La chair n’a pas des désirs contraires à ceux de l’esprit et l’esprit n’en a pas de contraires à ceux de la chair.']:
+            with self.subTest(text=text):self.assertIsNone(f.find(text))
+        for text in ['Un bon arbre ne peut pas produire de mauvais fruits.', 'Pour entrer dans le royaume des cieux, il ne suffit…']:
+            self.assertIsNotNone(f.find(text),text)
+        for key in [('lsg',59,1,14),('lsg',48,5,17),('lsg',62,2,15)]:
+            self.assertIsNotNone(f.find(self.index.texts[key]),key)
+    def test_bare_names_are_not_a_model_confirmed_quote(self):
+        called=[]
+        def choose(text,candidates):
+            called.append(True)
+            for i,r in enumerate(candidates):
+                if (r['bookId'],r['chapter'],r['verse'])==(1,17,15):
+                    return {'index':i,'confidence':.99}
+        f=Finder(self.index,disambiguate=choose)
+        for text in ['De quoi ? De Saraï à Sarah.', 'Saraï et Sarah.', 'sarai, sarah']:
+            self.assertIsNone(f.find(text),text)
+        self.assertTrue(called,'le refus ne dépend pas de la prudence du modèle')
     def test_spoken_number_labels(self):
         p=ReferenceParser(self.index)
         for text in ['Jean chapitre numéro trois verset numéro seize','Jean chapitre trois, au seizième verset','Jean chapitre trois verset seizième']:

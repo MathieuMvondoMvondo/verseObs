@@ -103,10 +103,16 @@ class ReferenceParser:
         numeric = r'(?:\d+|' + NUMBER + r')'
         # Une hésitation/correction ne dépend pas des virgules choisies par l'ASR.
         plain = re.sub(r'^[\s.,;:!?]+', '', tail)
-        correction = r'^(?:non|pardon|plutot|je veux dire)\b\s*[,;:]?\s*(?:(?:le|au)\s+)?(?:versets?\s+)?'
-        if re.match(correction + numeric, plain):
+        labels = r'(?:(?:le|la|les|au|du|versets?|chapitre|numero)\s+)*'
+        hesitations = r'(?:(?:non|pardon|plutot|je veux dire|ou(?: bien)?)\b[\s,;:.]*)+'
+        prefix = r'^(?:(?:je crois|je pense|enfin)\b[\s,;:.]*)?'
+        if re.match(prefix + hesitations + labels + numeric, plain):
             return True
-        if re.match(r'^ou\b\s*(?:$|' + numeric + r')', plain):
+        if re.match(r'^ou\b\s*$', plain):
+            return True
+        if re.match(r'^(?:et|a|au|jusqu au)\s+' + labels + numeric, plain):
+            return True
+        if re.match(r'^(?:ans|personnes|minutes|heures|euros|remarques)\b', plain):
             return True
         if re.match(r'^\s*[,;]\s*' + numeric, tail):
             return True  # liste supplémentaire, pas une plage continue
@@ -131,9 +137,10 @@ class ReferenceParser:
             # Ne pas lire « Jean » à l'intérieur d'un numéro de livre inconnu.
             if re.search(r'\b(?:[123]|un|une|premier|deuxieme|troisieme)\s+$', text[:m.start()]):
                 continue
-            if m[1] in {'nombres', 'juges', 'actes', 'rois', 'job', 'cantique'} and re.search(r'\b(?:les|des|ces|un|une)\s+$', text[:m.start()]):
-                continue
             rest = text[m.end():]
+            if m[1] in {'nombres', 'juges', 'actes', 'rois', 'job', 'cantique'} and re.search(r'\b(?:les|des|ces|un|une)\s+$', text[:m.start()]):
+                if not re.match(r'^\s*(?:\d|chapitre\b)', rest):
+                    continue
             inverse = self.before.search(text[max(0, m.start() - 70):m.start()])
             ch_match = self.after.match(rest)
             # « c'est un… », « tu es un… » ne sont pas Est 1 / Es 1.
@@ -164,6 +171,8 @@ class ReferenceParser:
                         return [], True
                 elif re.match(r'^\s*[,;:]?\s*(?:versets?|[:])', rest[used:]):
                     return [], True  # pas de repli lexical après une référence explicitement invalide
+            if not v and self._uncertain_tail(rest[used:], False):
+                return [], True  # ne pas contourner la garde par « Jean 3 ou 4 » sans « chapitre »
             if not v and ch_match and not ch_match[1].isdigit() and 'chapitre' not in ch_match[0]:
                 # « Jean un jour » n'est pas Jean 1. Un livre explicitement
                 # numéroté (« premier Corinthiens treize ») reste déterministe.
@@ -182,8 +191,8 @@ class ReferenceParser:
                     used += rm.end()
                 elif re.match(r'^\s*[-:]|^\s+(?:a|au)\s+\d', rest[used:]):
                     return [], True
-                if self._uncertain_tail(rest[used:], unmarked):
-                    return [], True
+            if self._uncertain_tail(rest[used:], unmarked):
+                return [], True
             if re.match(r'^\s*(?:[-:]|(?:a|au|jusqu au|et)\b)\s*(?:versets?\s+)?(?:\d|' + NUMBER + r')', rest[used:]):
                 return [], True  # plage invalide ou liste supplémentaire
             if re.match(r'^\s+(?:cents?|mille|vingts?|trente|quarante|cinquante|soixante|dix)\b', rest[used:]):
@@ -310,6 +319,62 @@ class BibleIndex:
         return [self.proposal(*key, key[-1], 'lexical', min(.99, score), text) for score, key, _ in ordered[:8 if relaxed else 5]]
 
 
+def polarity_compatible(heard, canonical):
+    """Comparer la négation autour des mots réellement alignés.
+
+    « ne peut produire » et « ne peut pas produire » ont la même polarité.
+    Les mots d'une autre clause ne contaminent pas un fragment identique.
+    Portée bornée à deux mots de contenu : ce n'est pas une analyse sémantique.
+    """
+    markers = {'ne', 'n', 'pas', 'point', 'jamais', 'ni', 'rien', 'personne', 'aucun', 'aucune'}
+    boundaries = {'.',',',';',':','!','?','…','mais','car'}
+    articles = {'le','un','des','les','ces','mes','tes','ses','nos','vos','leurs'}
+    def annotated(text):
+        words = re.findall(r'[a-z]+|[.,;:!?…]', fold(text))
+        negative = set()
+        for i,w in enumerate(words):
+            if w not in markers or (w in {'pas','point','personne'} and i and words[i-1] in articles):
+                continue
+            # « pas/point » complète le même « ne », sans décaler sa portée.
+            prefix = []
+            for before in reversed(words[max(0,i-6):i]):
+                if before in boundaries: break
+                prefix.append(before)
+            if w not in {'ne','n','ni'} and any(x in {'ne','n'} for x in prefix):
+                continue
+            if w in {'pas','point'} and i and tokens(words[i-1]):
+                negative.add(i-1)  # oral : « crains pas »
+            marked = 0
+            for j in range(i+1,len(words)):
+                if words[j] in boundaries: break
+                if words[j] not in markers and tokens(words[j]):
+                    negative.add(j)
+                    marked += 1
+                    if marked == 2: break
+        return words,negative
+    a,an = annotated(heard); b,bn = annotated(canonical)
+    for block in SequenceMatcher(None,a,b,autojunk=False).get_matching_blocks():
+        for j in range(block.size):
+            ai,bi = block.a+j,block.b+j
+            if tokens(a[ai]) and a[ai] not in markers and ((ai in an) != (bi in bn)):
+                return False
+    return True
+
+
+def bare_name_fragment(heard, canonical):
+    """Une liste de personnages n'est pas, à elle seule, une citation précise.
+
+    Ne pas dépendre de la confiance du modèle pour publier deux noms propres.
+    La casse vient du texte biblique local, jamais de l'ASR ; pas de livre ou
+    personnage codé en dur. « quoi/oui/amen » n'ajoute aucune identité de passage.
+    """
+    meaningful = set(tokens(heard)) - {'quoi','oui','amen'}
+    names = set()
+    for word in re.findall(r"\b[A-ZÀ-ÖØ-Þ][A-Za-zÀ-ÖØ-öø-ÿ’'-]*", canonical):
+        names.update(tokens(word))
+    return bool(meaningful) and meaningful <= names
+
+
 class Finder:
     def __init__(self, index, disambiguate=None):
         self.index, self.parser, self.disambiguate = index, ReferenceParser(index), disambiguate
@@ -325,7 +390,7 @@ class Finder:
         if ranked and ranked[0]['confidence'] >= THRESHOLD:
             margin = ranked[0]['confidence'] - (ranked[1]['confidence'] if len(ranked) > 1 else 0)
             if margin >= .075:
-                return ranked[0]
+                return ranked[0] if polarity_compatible(text, ranked[0]['text']) else None
         if self.disambiguate and allow_model:
             ranked = self.index.rank(text, relaxed=True)
             if not ranked:
@@ -337,6 +402,8 @@ class Finder:
                 if type(idx) is int and 0 <= idx < len(ranked) and type(conf) in (int, float) and .98 <= conf <= 1:
                     # Le modèle ne rend jamais le texte/la référence publiés.
                     # Son score est une décision de seuil, pas une probabilité calibrée.
+                    if bare_name_fragment(text, ranked[idx]['text']):
+                        return None
                     return dict(ranked[idx], method='model', confidence=conf)
             except Exception:
                 pass  # délai/API/JSON invalide : abstention, jamais texte inventé

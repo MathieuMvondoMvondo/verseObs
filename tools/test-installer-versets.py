@@ -30,6 +30,34 @@ class InstallerTest(unittest.TestCase):
             for relative,data in before.items():self.assertEqual((target/relative).read_bytes(),data)
             self.assertEqual(list(target.rglob('*.tmp')),[])
 
+    def test_interrupted_rollback_can_resume_and_rejects_unknown_edit(self):
+        with tempfile.TemporaryDirectory(dir=os.environ.get('TMPDIR')) as tmp:
+            root=Path(tmp);target=root/'VerseObs';pkg=root/'paquet'
+            (target/'tools').mkdir(parents=True);(pkg/'payload/tools').mkdir(parents=True)
+            old={'control_panel.html':b'OLD-CONTROL','new.js':None,'tools/server.js':b'OLD-SERVER'}
+            entries=[]
+            for relative,before in old.items():
+                if before is not None:(target/relative).write_bytes(before)
+                data=b'NEW-'+relative.encode();(pkg/'payload'/relative).write_bytes(data)
+                entries.append(dict(path=relative,sha256=m.sha(data),accepted_before=[m.sha(before) if before is not None else None]))
+            (pkg/'manifest.json').write_text(json.dumps(dict(commit='fixture-test',files=entries)))
+            backup=Path(m.apply(pkg,target,True)['backup']);write=m.atomic_write
+            def fail_second(dest,data):
+                if dest.name=='server.js':raise PermissionError('Panne de retour')
+                return write(dest,data)
+            with mock.patch.object(m,'atomic_write',fail_second):
+                with self.assertRaises(PermissionError):m.rollback(backup,True)
+            self.assertEqual((target/'control_panel.html').read_bytes(),old['control_panel.html'])
+            self.assertFalse((target/'new.js').exists())
+            # Une édition étrangère reste refusée même pendant une reprise.
+            (target/'control_panel.html').write_bytes(b'UNKNOWN')
+            with self.assertRaises(ValueError):m.rollback(backup,True)
+            (target/'control_panel.html').write_bytes(old['control_panel.html'])
+            m.rollback(backup,True)
+            m.rollback(backup,True)  # idempotence après succès
+            for relative,before in old.items():
+                self.assertEqual((target/relative).read_bytes() if (target/relative).exists() else None,before)
+
     def test_inspect_apply_rollback_and_refuse_local_edit(self):
         with tempfile.TemporaryDirectory(dir=os.environ.get('TMPDIR')) as tmp:
             root=Path(tmp);target=root/'VerseObs';pkg=root/'paquet'

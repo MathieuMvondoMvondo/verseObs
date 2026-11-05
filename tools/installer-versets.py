@@ -91,11 +91,13 @@ def rollback(backup,approved=False):
     target=Path(journal['target']).resolve();plan=[]
     for entry in journal['files']:
         dest=child(target,entry['path'])
-        if not dest.is_file() or sha(dest.read_bytes())!=entry['installed']:
+        current=sha(dest.read_bytes()) if dest.is_file() else None
+        if (dest.exists() and not dest.is_file()) or current not in (entry['installed'],entry['before']):
             raise ValueError('Fichier modifié depuis l’installation : '+entry['path'])
         before=child(backup/'files',entry['path']).read_bytes() if entry['before'] else None
         if before is not None and sha(before)!=entry['before']:raise ValueError('Sauvegarde altérée')
-        plan.append((dest,before))
+        if current!=entry['before']:
+            plan.append((dest,before))  # reprise licite des fichiers déjà restaurés
     if approved:
         for dest,before in plan:
             if before is None:dest.unlink()

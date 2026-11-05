@@ -21,7 +21,10 @@ const link = new w.VerseObs.HeardVerse({workingVersion:()=>working,channel:{onMe
 function receive(x){callbacks.forEach(cb=>cb(x));}
 link.setRelay(true);
 receive({type:'caption_status',engine:true,state:{status:'listening'},session:'one'});
+receive({type:'caption_status',engine:true,state:{status:'listening',verses:'Départage modèle désactivé : plafond configuré.'}});
+assert.match(w.document.getElementById('heard-source').textContent,/plafond/,'avertissement visible dans la carte');
 receive({type:'heard_verse',proposal:p,session:'one',ts:Date.now()});
+assert.match(w.document.getElementById('heard-meta').textContent,/dite/,'type de reconnaissance immédiatement visible');
 assert.equal(w.document.getElementById('heard-reference').textContent, 'Jean 3:16');
 assert.equal(loaded.length,0,'La réception ne touche jamais la sélection');
 assert.equal(sent.length,0,'La carte ne dispose d’aucune commande d’antenne');
