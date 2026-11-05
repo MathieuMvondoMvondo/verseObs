@@ -61,6 +61,9 @@ try {
   ws.terminate();
   await page.waitForFunction(() => !document.querySelector('#captions-voice-alert').hidden);
   assert.match(await page.textContent('#captions-voice-alert'), /10 s/);
+  assert.deepEqual(await page.locator('#captions-voice-alert').evaluate(el => {
+    const s = getComputedStyle(el); return { color:s.color, border:s.borderLeftWidth };
+  }), {color:'rgb(241, 166, 155)', border:'3px'});
   await page.locator('#captions-card').screenshot({ path: 'artifacts/voix/studio-voix-alerte.png' });
   assert.deepEqual(errors, []);
   fs.writeFileSync('artifacts/voix/browser-resultat.json', JSON.stringify({ commandes: commands.length, erreurs: errors,

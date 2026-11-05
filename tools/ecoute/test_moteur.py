@@ -209,7 +209,10 @@ class EngineTest(unittest.TestCase):
             calls.append(len(a))
             return "phrase %d" % len(calls)
 
-        e, caps = self.run_engine(audio, transcribe)
+        # Ce contrat exige une légende par phrase : le banc accéléré à ×10
+        # ne doit pas regrouper les segments lors d'un retard d'ordonnancement.
+        # Le rattrapage réel est éprouvé séparément dans test_slow_engine_batches.
+        e, caps = self.run_engine(audio, transcribe, catchup=False)
         self.assertEqual([c["en"] for c in caps], ["EN:phrase 1", "EN:phrase 2", "EN:phrase 3"])
         self.assertEqual([c["seq"] for c in caps], [1, 2, 3])
         for c in caps:

@@ -3526,6 +3526,18 @@ body {
 }
 
 /* ---- Live English captions (Connexions) ---------------------------------- */
+#captions-voice-alert:not([hidden]) {
+  display: block;
+  margin: 14px 0;
+  padding: 12px;
+  border: 1px solid #74413a;
+  border-left-width: 3px;
+  border-radius: 7px;
+  background: #3a2522;
+  color: #f1a69b;
+  font-size: 14px;
+  line-height: 1.5;
+}
 .captions-card .captions-engine {
   margin: 16px 0 0;
   font-size: 14px;
