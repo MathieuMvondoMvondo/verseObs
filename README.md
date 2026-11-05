@@ -103,11 +103,28 @@ La télécommande demande le serveur local : elle ne fonctionne pas avec la vers
 2. Scannez le QR code affiché dans **Connexions** avec l’appareil photo du téléphone. Gardez la page ouverte pendant le culte : elle se reconnecte seule et signale clairement une connexion perdue.
 3. Après le culte, cliquez **Désactiver le mode réseau** (ou arrêtez le serveur).
 
+### Choisir un passage (2.93)
+
+**Choisir un verset** ouvre un panneau adapté au téléphone. Saisissez le livre
+(noms français sans accents acceptés, débuts de noms, abréviations `Jn`, `1 Co`),
+puis choisissez le chapitre et un verset ou une plage (`16-18`). Une référence
+complète comme **`Jean 3:16-18`** remplit les champs. **Lire le passage** montre
+le texte entier de la **version active dans la régie**, indiquée en haut.
+
+Après vérification, **Envoyer dans l’aperçu régie** prépare la plage exacte dans
+l’onglet Bible de la régie. **Cela ne diffuse pas**, même si « Enchaîner » est
+actif, et ne modifie pas le conducteur. La régie doit cliquer **Diffuser** pour
+la passer à l’antenne. Le bouton historique du téléphone **Diffuser la sélection**
+reste réservé à la sélection du **conducteur**, pas au passage Bible préparé.
+Un changement de version dans la régie invalide la lecture du téléphone : relire
+avant d’envoyer. Une plage inversée, absente ou incomplète est refusée, jamais
+tronquée silencieusement. Les plages restent dans un seul chapitre.
+
 Sécurité :
 
 - Le serveur écoute alors sur les adresses privées de l’ordinateur (Wi-Fi/Ethernet), sur le même port que le Studio, ou un port libre s’il est pris. L’avertissement reste visible tant que le mode est actif. Sur Mac, autorisez Node.js dans la demande du pare-feu si elle apparaît.
 - Le QR code contient un code d’appairage aléatoire (144 bits), différent à chaque activation et jamais écrit dans la console. **Révoquer et changer le code** coupe immédiatement les télécommandes connectées. Ne montrez pas le QR code à l’écran.
-- Sans code valide, la connexion est refusée ; les échecs répétés sont bloqués temporairement. Une télécommande ne peut envoyer que les quatre commandes, avec une limite de débit ; elle ne peut ni modifier le texte ni l’habillage, ni ouvrir le Studio. Les adresses réseau ne servent que la page de télécommande.
+- Sans code valide, la connexion est refusée ; les échecs répétés sont bloqués temporairement. Une télécommande ne peut envoyer que les quatre commandes du conducteur et les deux demandes Bible (lire/préparer), avec les mêmes limites de débit et le même code d’appairage. Les sélections sont bornées et reconstruites par le relais ; le texte est résolu dans la régie, jamais fourni par le téléphone. La réponse Bible ne revient qu’au demandeur. Aucun endpoint HTTP Bible n’est ajouté. Le téléphone ne peut ni modifier le texte ni l’habillage, ni ouvrir le Studio. Les adresses réseau ne servent que la page de télécommande et ses ressources statiques.
 - Le trafic du réseau local n’est pas chiffré (HTTP) : utilisez un Wi-Fi de confiance.
 - Si plusieurs fenêtres du Studio sont ouvertes, la première reçoit les commandes ; **Piloter cette fenêtre** transfère la main.
 

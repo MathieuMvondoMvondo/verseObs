@@ -63,6 +63,7 @@
         index = position.current - 1,
         output = options.output();
       return {
+        bible: options.bible ? options.bible.catalog() : null,
         session: (el("session-name").value || "Ma célébration").slice(0, 100),
         position: { index: items.length ? position.current : 0, total: items.length },
         current: excerpt(items[index], EXCERPT_SELECTION),
@@ -158,7 +159,13 @@
       }
       self.changed();
     }
-    function onCommand(command) {
+    function onCommand(command, msg) {
+      if (command === "bible_preview" || command === "bible_prepare") {
+        var result = options.bible ? options.bible.resolve(msg.selection, command === "bible_prepare") : {ok:false,reason:"bible_unavailable"};
+        options.channel.sendRelay(Object.assign({type:"remote_bible_result", request:msg.request}, result));
+        self.changed();
+        return;
+      }
       var action = options.commands[command];
       if (typeof action !== "function") return;
       action();
@@ -172,7 +179,7 @@
 
     options.channel.onMessage(function (msg) {
       if (msg.type === "remote_status") onStatus(msg);
-      else if (msg.type === "remote_command") onCommand(msg.command);
+      else if (msg.type === "remote_command") onCommand(msg.command, msg);
     });
     self.setRelay = function (connected) {
       relay = connected;

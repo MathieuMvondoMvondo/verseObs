@@ -1,0 +1,101 @@
+// Téléphone Chromium tactile → relais appairé → régie réelle → sortie isolée.
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import {createRequire} from 'node:module';
+import {WebSocket} from 'ws';
+const require=createRequire(import.meta.url),{createServer}=require('../tools/server');
+if(!process.env.PLAYWRIGHT_CORE || !process.env.CHROMIUM)throw Error('PLAYWRIGHT_CORE et CHROMIUM requis');
+const {chromium}=await import(process.env.PLAYWRIGHT_CORE);
+const port=18784,base=`http://127.0.0.1:${port}`,out=path.resolve('artifacts/v293');fs.mkdirSync(out,{recursive:true});
+const server=createServer(port,{lan:{addresses:['127.0.0.2'],port:0}});
+await new Promise(r=>server.listen(port,'127.0.0.1',r));
+const browser=await chromium.launch({executablePath:process.env.CHROMIUM,args:['--no-sandbox']});
+const studioCtx=await browser.newContext({viewport:{width:1280,height:1000}}),obsCtx=await browser.newContext({viewport:{width:1920,height:1080}}),phoneCtx=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+const studio=await studioCtx.newPage(),obs=await obsCtx.newPage(),phone=await phoneCtx.newPage();
+const errors=[],commands=[],results=[];
+for(const p of [studio,obs,phone])p.on('pageerror',e=>errors.push(e.message));
+const monitor=new WebSocket(`ws://127.0.0.1:${port}/verseobs-relay`,{headers:{Origin:base}});
+await new Promise(r=>monitor.once('open',r));
+monitor.on('message',raw=>{const m=JSON.parse(raw);if(['show_verse','show_text','hide'].includes(m.type))commands.push(m);});
+try {
+  await obs.goto(base+'/browser_source.html');await studio.goto(base+'/control_panel.html');await studio.waitForSelector('.chapter-verse');
+  await studio.locator('#tab-btn-5').click();await studio.locator('#remote-enable').click();
+  await studio.waitForFunction(()=>document.querySelector('#remote-url').value.includes('code='));
+  const pairing=await studio.locator('#remote-url').inputValue(),lan=new URL(pairing).origin;
+  const refusedCtx=await browser.newContext();const refused=await refusedCtx.newPage();
+  await refused.goto(lan+'/remote.html');await refused.waitForFunction(()=>document.body.dataset.link==='nocode');
+  assert.equal(await refused.locator('#btn-bible').isDisabled(),true);
+  assert.equal(await refused.evaluate(async()=>{return new Promise(resolve=>{const s=new WebSocket(location.origin.replace('http','ws')+'/verseobs-remote');s.onerror=()=>resolve('refusé');s.onopen=()=>resolve('ouvert');});}),'refusé');
+  assert.equal((await refused.request.get(lan+'/data/bibles/lsg.json')).status(),404);
+  await refusedCtx.close();results.push('sans code : UI désactivée, WebSocket refusé, aucun accès HTTP aux Bibles');
+  await phone.goto(pairing);await phone.waitForFunction(()=>!document.querySelector('#btn-bible').disabled);
+  assert.equal(new URL(phone.url()).search,'');
+  await phone.locator('#btn-bible').tap();
+  await phone.locator('#bible-query').fill('Jn 3:16-18');
+  assert.equal(await phone.locator('#bible-book').inputValue(),'43');
+  assert.equal(await phone.locator('#bible-chapter').inputValue(),'3');
+  await phone.locator('#bible-read').tap();
+  await phone.waitForFunction(()=>!document.querySelector('#bible-send').disabled);
+  const lsg=await phone.locator('#bible-text').textContent();assert.match(lsg,/déjà jugé/);
+  assert.equal(await studio.locator('#preview-ref').textContent(),'Jean 3:16');assert.equal(commands.length,0);
+  await phone.locator('#bible-send').tap();
+  await phone.waitForFunction(()=>document.querySelector('#bible-status').textContent.startsWith('Préparé'));
+  await studio.waitForFunction(()=>document.querySelector('#preview-ref').textContent==='Jean 3:16-18');
+  assert.equal(commands.length,0);assert.equal(await obs.locator('.verse-card.visible').count(),0);
+  results.push('Jn 3:16-18 : texte complet LSG, envoi en aperçu régie seulement');
+  // Diffusion explicitement depuis la régie, puis préparation pendant une antenne occupée.
+  await studio.locator('#btn-show').click();await obs.waitForFunction(()=>document.querySelector('#verse-container')?.textContent.includes('Dieu a tant aimé'));
+  const program=commands.length;
+  await phone.locator('#bible-query').fill('1 Co');
+  assert.equal(await phone.locator('#bible-book').inputValue(),'46');
+  await phone.locator('#bible-chapter').selectOption('13');await phone.locator('#bible-verses').fill('4-7');
+  await phone.locator('#bible-read').tap();await phone.waitForFunction(()=>!document.querySelector('#bible-send').disabled);
+  assert.match(await phone.locator('#bible-text').textContent(),/charité/);
+  await phone.locator('#bible-send').tap();await phone.waitForFunction(()=>document.querySelector('#bible-status').textContent.startsWith('Préparé'));
+  assert.equal(await studio.locator('#preview-ref').textContent(),'1 Corinthiens 13:4-7');
+  assert.equal(commands.length,program);assert.match(await obs.locator('#verse-container').textContent(),/Dieu a tant aimé/);
+  results.push('1 Co + chapitre + plage : préparation sans remplacer l’antenne occupée');
+  // Un clic manuel a programmé un SHOW bilingue ; le téléphone l’annule.
+  let delayed;
+  await studio.route('**/sem.json',route=>{delayed=route;});
+  await studio.locator('#secondary-version').selectOption('sem');await studio.locator('#bilingual-toggle').click();
+  for(let i=0;i<100&&!delayed;i++)await new Promise(r=>setTimeout(r,20));
+  assert.ok(delayed,'chargement secondaire réellement retenu');
+  await studio.locator('.chapter-verse[data-verse="8"]').click();
+  await phone.locator('#bible-send').tap();await phone.waitForFunction(()=>document.querySelector('#bible-status').textContent.startsWith('Préparé'));
+  await delayed.continue();await studio.waitForFunction(()=>!document.querySelector('#btn-show').disabled);
+  await new Promise(r=>setTimeout(r,300));assert.equal(commands.length,program,'aucun SHOW différé après préparation téléphone');
+  await studio.locator('#bilingual-toggle').click();
+  results.push('enchaînement et version secondaire retardée : aucun SHOW différé du passage téléphone');
+  await phone.screenshot({path:path.join(out,'telephone-390.png')});await studio.screenshot({path:path.join(out,'regie-1280.png')});
+  await studio.locator('#version-select').selectOption('nbs');
+  await phone.waitForFunction(()=>document.querySelector('#bible-version').textContent.includes('Nouvelle Bible Segond'));
+  assert.equal(await phone.locator('#bible-send').isDisabled(),true);assert.equal(await phone.locator('#bible-text').textContent(),'');
+  await phone.locator('#bible-query').fill('Jean 3:16-18');await phone.locator('#bible-read').tap();
+  await phone.waitForFunction(()=>!document.querySelector('#bible-send').disabled);
+  assert.notEqual(await phone.locator('#bible-text').textContent(),lsg);
+  await phone.locator('#bible-send').tap();await phone.waitForFunction(()=>document.querySelector('#bible-status').textContent.startsWith('Préparé'));
+  assert.equal(await studio.locator('#version-select').inputValue(),'nbs');assert.equal(commands.length,program);
+  results.push('changement NBS : aperçu téléphone invalidé, nouvelle lecture obligatoire, version régie conservée');
+  for(const [width,height] of [[320,568],[390,844],[430,932]]) {
+    await phone.setViewportSize({width,height});
+    for(const id of ['bible-query','bible-book','bible-chapter','bible-verses','bible-read','bible-send','bible-close']) {
+      const target=phone.locator('#'+id);await target.scrollIntoViewIfNeeded();
+      assert.equal(await target.evaluate(e=>{const r=e.getBoundingClientRect();return r.height>=48 && r.width>=48 && e.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));}),true,`${width} ${id} accessible au pouce`);
+    }
+    assert.equal(await phone.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
+    await phone.screenshot({path:path.join(out,`telephone-${width}x${height}.png`)});
+  }
+  results.push('320/390/430 px : contrôles 48 px, hit-tests et aucun débordement horizontal');
+  await phone.locator('#bible-verses').fill('18-16');assert.equal(await phone.locator('#bible-send').isDisabled(),true);
+  await phone.locator('#bible-read').tap();assert.match(await phone.locator('#bible-status').textContent(),/invalide/);
+  await phone.locator('#bible-verses').fill('35-40');await phone.locator('#bible-read').tap();assert.match(await phone.locator('#bible-status').textContent(),/invalide/);
+  assert.equal(commands.length,program);results.push('plages inversées ou hors chapitre : refus, aucune diffusion');
+  await phone.locator('#bible-close').tap();await studio.locator('#tab-btn-5').click();await studio.locator('#remote-revoke').click();
+  await phone.waitForFunction(()=>document.body.dataset.link==='refused');assert.equal(await phone.locator('#btn-bible').isDisabled(),true);
+  assert.equal(await phone.locator('#bible-text').textContent(),'');results.push('révocation : commandes désactivées, texte effacé');
+  assert.deepEqual(errors,[]);
+  fs.writeFileSync(path.join(out,'browser-remote-bible.json'),JSON.stringify({chromium:browser.version(),results,errors,program:commands.map(m=>m.type)},null,2));
+  console.log(results.map(x=>'ok   '+x).join('\n'));
+} finally {monitor.terminate();await browser.close();await new Promise(r=>server.close(r));}

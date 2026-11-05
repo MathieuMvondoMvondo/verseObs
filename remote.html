@@ -14,7 +14,7 @@
     <meta name="apple-mobile-web-app-title" content="VerseObs" />
     <title>Télécommande · VerseObs</title>
     <link rel="icon" href="assets/icons/radio.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="assets/css/remote.css?v=2.92" />
+    <link rel="stylesheet" href="assets/css/remote.css?v=2.93" />
   </head>
   <body data-link="connecting">
     <main class="remote" aria-labelledby="session-name">
@@ -42,6 +42,8 @@
       </header>
 
       <p class="banner" id="banner" role="alert" hidden></p>
+
+      <button class="bible-button" id="btn-bible" type="button" disabled>Choisir un verset</button>
 
       <section class="slot slot-current" aria-labelledby="current-title">
         <div class="slot-head">
@@ -80,6 +82,38 @@
         <span>Masquer</span>
       </button>
     </footer>
-    <script src="assets/js/remote/remote.js?v=2.92"></script>
+    <dialog id="bible-dialog" class="bible-dialog" aria-labelledby="bible-title">
+      <header class="bible-heading">
+        <div><h2 id="bible-title">Choisir un verset</h2><p id="bible-version">Bible indisponible</p></div>
+        <button id="bible-close" class="bible-button" type="button">Fermer</button>
+      </header>
+      <div class="bible-scroll">
+      <form id="bible-form">
+        <fieldset id="bible-fields" disabled>
+          <label for="bible-query">Livre ou référence complète</label>
+          <input id="bible-query" type="search" placeholder="Jn, 1 Co, Jean 3:16-18" maxlength="100" autocomplete="off" enterkeyhint="search" />
+          <label for="bible-book">Livre</label>
+          <select id="bible-book"></select>
+          <div class="bible-numbers">
+            <div><label for="bible-chapter">Chapitre</label><select id="bible-chapter"></select></div>
+            <div><label for="bible-verses">Verset ou plage</label><input id="bible-verses" type="text" placeholder="16-18" value="1" maxlength="9" autocomplete="off" enterkeyhint="go" /></div>
+          </div>
+        </fieldset>
+        <button class="bible-button" id="bible-read" type="submit" disabled>Lire le passage</button>
+      </form>
+      <p id="bible-status" role="status" aria-live="polite"></p>
+      <section id="bible-preview" hidden aria-labelledby="bible-ref">
+        <h3 id="bible-ref"></h3><p id="bible-text"></p>
+      </section>
+      </div>
+      <div class="bible-send-zone">
+        <button class="bible-button" id="bible-send" type="button" disabled>Envoyer dans l’aperçu régie</button>
+        <p>Jamais à l’antenne automatiquement. Diffusion depuis la régie.</p>
+      </div>
+    </dialog>
+    <script src="assets/js/shared/books.js?v=2.93"></script>
+    <script src="assets/js/shared/remote-bible.js?v=2.93"></script>
+    <script src="assets/js/remote/bible-picker.js?v=2.93"></script>
+    <script src="assets/js/remote/remote.js?v=2.93"></script>
   </body>
 </html>

@@ -28,7 +28,8 @@
     stopped = false,
     stopMessage = "",
     seq = 0,
-    pending = {};
+    pending = {},
+    biblePicker = null;
 
   function haptic(pattern) {
     try {
@@ -243,6 +244,7 @@
     );
     // One colour per state, as in the Studio (red program, amber pending).
     document.body.dataset.output = outState;
+    if (biblePicker) biblePicker.state(online ? s.bible : null);
     $("btn-prev").disabled = !online || index <= 1;
     $("btn-next").disabled = !online || !total || index >= total;
     $("btn-show").disabled = !online || !total;
@@ -343,7 +345,7 @@
           );
         else if (link === "online") banner("");
         render();
-      } else if (msg.type === "ack" || msg.type === "error") settle(msg);
+      } else if (msg.type === "ack" || msg.type === "error" || msg.type === "bible_result") settle(msg);
     };
     socket.onclose = function (event) {
       if (ws !== socket) return;
@@ -379,6 +381,7 @@
     if (!entry) return;
     delete pending[msg.ref];
     clearTimeout(entry.timer);
+    if (entry.callback) { entry.callback(msg); return; }
     entry.button.classList.remove("is-pending");
     entry.button.removeAttribute("aria-busy");
     if (msg.type === "ack") {
@@ -428,6 +431,14 @@
     ws.send(JSON.stringify({ type: "command", command: command, ref: ref }));
   }
 
+  biblePicker = new window.VerseObs.RemoteBiblePicker(function (command, selection, callback) {
+    if (stopped || !ws || ws.readyState !== 1 || link !== "online") {
+      callback({type:"error",reason:"closed"}); return;
+    }
+    var ref="b"+ ++seq;
+    pending[ref]={callback:callback,timer:setTimeout(function(){settle({type:"error",ref:ref,reason:"timeout"});},ACK_MS)};
+    ws.send(JSON.stringify({type:"command",command:command,selection:selection,ref:ref}));
+  });
   document.querySelectorAll("[data-command]").forEach(function (button) {
     button.addEventListener("click", function () {
       if (!button.disabled) press(button);

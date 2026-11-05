@@ -176,6 +176,7 @@
     remoteLink = new window.VerseObs.RemoteLink({
       channel: channel,
       queue: queue,
+      bible: {catalog: _remoteBibleCatalog, resolve: _remoteBibleResolve},
       notify: _notify,
       output: function () {
         return _output;
@@ -203,6 +204,46 @@
       remoteLink.changed();
       if (document.body.dataset.tab === "2") _sendPreview();
     };
+  }
+  var _remoteCatalogData = null, _remoteCatalog = null;
+  function _remoteBibleCatalog() {
+    if (!currentBibleData || dom.versionSelect.disabled) return null;
+    if (_remoteCatalogData !== currentBibleData) {
+      var books = currentBibleData.books || currentBibleData;
+      _remoteCatalog = {version:currentBibleId, name:_currentVersionName(), books:Object.keys(books).map(function (key) {
+        var book=books[key], chapters=book.chapters || book;
+        var numbers=Object.keys(chapters).map(Number).filter(function (n) { return Number.isInteger(n) && n>0 && n<=200; });
+        var counts=[];
+        for (var c=1; c<=Math.max.apply(null,numbers); c++) {
+          var verses=Object.keys(chapters[c] || {}).map(Number).filter(function (v) { return Number.isInteger(v) && v>0; });
+          counts.push(verses.length ? Math.max.apply(null,verses) : 0);
+        }
+        return {id:Number(key),name:book.name || key,chapters:counts};
+      })};
+      _remoteCatalogData = currentBibleData;
+    }
+    return _remoteCatalog;
+  }
+  function _remoteBibleResolve(raw, prepare) {
+    var s = window.VerseObs.RemoteBible.selection(raw);
+    if (!s) return {ok:false,reason:"invalid_selection"};
+    if (dom.versionSelect.disabled || !currentBibleData) return {ok:false,reason:"bible_unavailable"};
+    if (s.version !== currentBibleId || dom.versionSelect.value !== currentBibleId) return {ok:false,reason:"version_changed"};
+    // getRange tolère les trous : ici, le téléphone demande une plage exacte.
+    for (var v=s.verseStart;v<=s.verseEnd;v++) {
+      if (!bibleLoader.getVerse(currentBibleId,s.bookId,s.chapter,v)) return {ok:false,reason:"invalid_selection"};
+    }
+    var passage=bibleLoader.getRange(currentBibleId,s.bookId,s.chapter,s.verseStart,s.verseEnd);
+    if (!passage || passage.text.length>60000) return {ok:false,reason:"invalid_selection"};
+    if (prepare) {
+      // Même discipline que Verset entendu : invalider tout enchaînement différé.
+      _chainGeneration++; clearTimeout(_chainTimer); _chainTimer=null;
+      navigation.setSelection(String(s.bookId),s.chapter,s.verseStart);
+      _setPendingRange({bookId:String(s.bookId),chapter:s.chapter,verseStart:s.verseStart,verseEnd:s.verseEnd});
+      _switchTab(0); _updatePreview();
+      _notify("Télécommande : " + passage.reference + " préparé, sans diffusion.", "info");
+    }
+    return {ok:true,passage:{reference:passage.reference,text:passage.text}};
   }
   function _outputChanged() {
     if (remoteLink) remoteLink.changed();
@@ -1867,6 +1908,7 @@
   }
 
   function _setLoading(loading) {
+    if (remoteLink) remoteLink.changed();
     if (dom.versionLoading) dom.versionLoading.hidden = !loading;
     if (dom.versionSelect) dom.versionSelect.disabled = loading;
   }

@@ -6,6 +6,7 @@ const path = require("node:path");
 const crypto = require("node:crypto");
 const { WebSocketServer, WebSocket } = require("ws");
 const { createCaptions } = require("./captions");
+const RemoteBible = require("../assets/js/shared/remote-bible");
 const ROOT = path.resolve(__dirname, "..");
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -31,11 +32,12 @@ const TYPES = new Set([
 ]);
 
 // ---- Phone remote (optional local-network mode) ----
-// A remote may only send these four commands; the server builds the message
+// Le relais reconstruit chaque commande autorisée, sans reprendre le texte reçu.
+// A remote may only send the whitelisted commands; the server builds the message
 // delivered to the Studio itself, so nothing else from the network is relayed.
-const REMOTE_COMMANDS = new Set(["prev", "next", "show", "hide"]);
+const REMOTE_COMMANDS = new Set(["prev", "next", "show", "hide", "bible_preview", "bible_prepare"]);
 const REMOTE_FILES =
-  /^\/(remote\.html|assets\/css\/remote\.css|assets\/js\/remote\/remote\.js|assets\/icons\/[a-z0-9-]+\.svg)$/;
+  /^\/(remote\.html|assets\/css\/remote\.css|assets\/js\/remote\/(remote|bible-picker)\.js|assets\/js\/shared\/(books|remote-bible)\.js|assets\/icons\/[a-z0-9-]+\.svg)$/;
 const REMOTE_LIMITS = {
   windowMs: 5000,
   // A flood guard no hand reaches (28/10: the former 10 per window refused
@@ -131,6 +133,7 @@ function sanitizeState(state) {
     state.output && typeof state.output === "object" ? state.output : {};
   const int = (n) => (Number.isInteger(n) && n >= 0 && n <= 1000 ? n : 0);
   return {
+    bible: RemoteBible.catalog(state.bible),
     session: text(state.session, 100),
     position: { index: int(position.index), total: int(position.total) },
     // The selection's text may fill the phone above its thumb zone.
@@ -193,6 +196,12 @@ function createRemote(port, options, studios) {
   const remotes = new WebSocketServer({ noServer: true, maxPayload: 1024 });
   const boot = crypto.randomBytes(4).toString("hex");
   const failures = new Map();
+  const bibleRequests = new Map();
+  function forgetBible(test) {
+    for (const [key, request] of bibleRequests) {
+      if (!test || test(request)) { clearTimeout(request.timer); bibleRequests.delete(key); }
+    }
+  }
   let token = null,
     listeners = [],
     hosts = new Set(),
@@ -385,6 +394,7 @@ function createRemote(port, options, studios) {
     toRemotes(stateMessage());
   }
   remotes.on("connection", (ws) => {
+    const pairedToken = token;
     const counter = { start: Date.now(), commands: 0, messages: 0 };
     ws.isAlive = true;
     ws.on("pong", () => {
@@ -392,6 +402,7 @@ function createRemote(port, options, studios) {
     });
     ws.on("error", () => {});
     ws.on("message", (raw) => {
+      if (!token || token !== pairedToken || ws.readyState !== WebSocket.OPEN) return;
       if (!allow(counter, "messages", REMOTE_LIMITS.messages)) {
         ws.close(CLOSE_FLOOD, "Trop de messages");
         return;
@@ -422,6 +433,23 @@ function createRemote(port, options, studios) {
         return answer("error", { reason: "rate_limited" });
       if (!controller || controller.readyState !== WebSocket.OPEN)
         return answer("error", { reason: "studio_absent" });
+      if (msg.command === "bible_preview" || msg.command === "bible_prepare") {
+        const selection = RemoteBible.selection(msg.selection);
+        if (!selection) return answer("error", {reason:"invalid_selection"});
+        if (!state || !state.bible) return answer("error", {reason:"bible_unavailable"});
+        if (selection.version !== state.bible.version) return answer("error", {reason:"version_changed"});
+        // Au plus une demande en vol par téléphone ; pas de cache inter-appairages.
+        if (Array.from(bibleRequests.values()).some(r => r.ws === ws))
+          return answer("error", {reason:"busy"});
+        const request = id();
+        const timer = setTimeout(() => {
+          bibleRequests.delete(request); answer("error", {reason:"timeout"});
+        }, 3500);
+        timer.unref();
+        bibleRequests.set(request, {ws, ref, selection, command:msg.command, timer});
+        toStudios({type:"remote_command", command:msg.command, selection, request, id:request, ts:Date.now()}, controller);
+        return;
+      }
       toStudios(
         {
           type: "remote_command",
@@ -433,7 +461,7 @@ function createRemote(port, options, studios) {
       );
       answer("ack", { command: msg.command });
     });
-    ws.on("close", publish);
+    ws.on("close", () => { forgetBible(r => r.ws === ws); publish(); });
     toRemotes(stateMessage(), ws);
     publish();
   });
@@ -505,6 +533,7 @@ function createRemote(port, options, studios) {
   }
   async function disable() {
     generation++;
+    forgetBible();
     const closing = listeners;
     clearInterval(heartbeat);
     heartbeat = null;
@@ -538,6 +567,7 @@ function createRemote(port, options, studios) {
   }
   function revoke() {
     if (!token) return status();
+    forgetBible();
     token = crypto.randomBytes(18).toString("base64url");
     buildUrls();
     for (const ws of remotes.clients) {
@@ -553,6 +583,22 @@ function createRemote(port, options, studios) {
    * commands; another window takes over only on an explicit "claim".
    */
   function fromStudio(ws, msg) {
+    if (msg.type === "remote_bible_result") {
+      if (!token || ws !== controller) return true;
+      const request = bibleRequests.get(msg.request);
+      if (!request) return true;
+      clearTimeout(request.timer); bibleRequests.delete(msg.request);
+      if (request.ws.readyState !== WebSocket.OPEN) return true;
+      const reasons = new Set(["invalid_selection", "version_changed", "bible_unavailable"]);
+      const p = msg.passage;
+      if (msg.ok !== true || !p || typeof p.text !== "string" || !p.text || p.text.length > 60000) {
+        toRemotes({type:"error",ref:request.ref,reason:reasons.has(msg.reason) ? msg.reason : "invalid_selection"}, request.ws);
+      } else {
+        toRemotes({type:"bible_result",ref:request.ref,prepared:request.command === "bible_prepare",
+          passage:{...request.selection,reference:text(p.reference,140),text:p.text}}, request.ws);
+      }
+      return true;
+    }
     if (msg.type === "remote_admin") {
       const action = msg.action;
       if (action === "status") toStudios(status(ws), ws);
@@ -560,6 +606,7 @@ function createRemote(port, options, studios) {
       else if (action === "disable") disable();
       else if (action === "revoke") revoke();
       else if (action === "claim" && token) {
+        forgetBible();
         controller = ws;
         state = null;
         publish();
@@ -580,6 +627,7 @@ function createRemote(port, options, studios) {
   }
   function studioGone(ws) {
     if (controller !== ws) return;
+    forgetBible();
     controller = null;
     state = null;
     toRemotes(stateMessage());

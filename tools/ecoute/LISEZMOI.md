@@ -21,6 +21,65 @@ Whisper et OPUS-MT restent chargés en secours et reprennent seuls, sans délai,
    installe les bibliothèques dans ce dossier seulement, télécharge les modèles
    (environ 650 Mo, une seule fois) et affiche les entrées audio.
 
+## Sur Mac (installation et lancement)
+
+1. Installer **Python 3.10 à 3.13** depuis python.org ; `python3 --version`
+   doit annoncer cette version. Les modèles tournent sur le processeur, sans
+   OpenVINO (option Intel/Windows, pas le chemin par défaut sur Mac).
+2. Double-cliquer **`tools/ecoute/installer-mac.command`**. Il se place dans
+   son propre dossier (espaces acceptés), crée `.venv` avec `python3 -m venv`,
+   installe `requirements.txt`, prépare les modèles et liste les entrées audio.
+   Internet est nécessaire une première fois. Une `.venv` Windows ne se réutilise
+   pas : la renommer et laisser l’installateur recréer celle du Mac.
+   Si macOS bloque le fichier, clic droit › Ouvrir, après avoir vérifié sa source.
+   Si le droit d’exécution a été perdu lors d’une copie, dans Terminal :
+   `bash /chemin/vers/verseobs/tools/ecoute/installer-mac.command`.
+3. Lancer VerseObs (`npm start` à la racine), puis double-cliquer
+   **`lancer-ecoute-mac.command`** et garder Terminal ouvert.
+4. Autoriser le **Microphone pour Terminal** dans Réglages Système ›
+   Confidentialité et sécurité › Microphone, puis relancer Terminal/Écoute si
+   nécessaire. La demande peut n’apparaître qu’au premier démarrage de l’écoute.
+5. Dans **Studio › Connexions › Sous-titres anglais**, choisir l’entrée (micro
+   intégré ou carte USB/table de mixage), puis **Démarrer l’écoute**.
+   Pour vérifier les numéros depuis `tools/ecoute` :
+   `.venv/bin/python ecoute.py --liste`. Le chemin audio utilise `sounddevice`
+   et Core Audio ; si PortAudio est introuvable, installer PortAudio (par exemple
+   `brew install portaudio` si Homebrew est déjà installé), puis relancer.
+
+Toutes les options d’`ecoute.py` sont conservées, par exemple :
+`./lancer-ecoute-mac.command --entree 0 --tout-local` ou
+`./lancer-ecoute-mac.command --fichier "/chemin/culte du dimanche.m4a"`.
+Le lanceur ajoute `--priorite-basse`, comme celui de Windows.
+
+### Clés facultatives sur Mac : trousseau, pas de fichier
+
+Lancer **`configurer-cles-mac.command`** : saisie masquée (`read -s`), Entrée
+seule pour conserver/ignorer une clé. Les valeurs vont dans le **trousseau macOS**
+avec `security`, via son entrée standard (pas dans les arguments de processus).
+La lecture de contrôle confirme l’écriture sans afficher la clé. Aucun fichier
+`.env`, profil shell ou fichier du dépôt n’est créé pour les secrets.
+
+Les entrées du trousseau ont le service `org.verseobs.ecoute.` suivi du nom
+`VERSEOBS_ECOUTE_ANTHROPIC_CLE`, `VERSEOBS_ECOUTE_OPENAI_CLE` ou
+`VERSEOBS_ECOUTE_API_CLE` (API personnalisée facultative). Le compte est votre
+nom d’utilisateur macOS. Le lanceur les lit dans ces **seules variables dédiées**,
+uniquement pour le processus Écoute ; une variable dédiée déjà définie reste
+prioritaire. Il n’utilise aucune variable API générique d’autres outils.
+Autoriser l’accès au trousseau s’il le demande. En cas de trousseau inaccessible,
+les clés manquantes restent absentes et Écoute peut fonctionner en local.
+
+Relancer le lanceur après configuration. **`--tout-local` ne lit pas le trousseau
+et efface ces variables pour la séance.** Pour supprimer durablement les clés,
+ouvrir Trousseaux d’accès, chercher `org.verseobs.ecoute`, supprimer les entrées
+concernées et retirer toute variable dédiée que vous auriez définie manuellement.
+Les mêmes conditions d’envoi Internet et de facturation que ci-dessous s’appliquent.
+
+Validation de cette version : syntaxe Bash, exécution des lanceurs avec trousseau
+simulé, chemins contenant des espaces, options inchangées, test du service avec
+Core Audio simulé et priorité POSIX. **Le microphone, l’autorisation macOS, le
+vrai trousseau et l’installation des dépendances sur Mac restent à essayer sur
+le Mac cible** ; ces essais Linux ne valent pas une validation matérielle.
+
 ## Le jour du culte
 
 1. Lancer VerseObs comme d’habitude (`npm start`).
