@@ -59,7 +59,7 @@ try {
   // Un clic manuel a programmé un SHOW bilingue ; le téléphone l’annule.
   let delayed;
   await studio.route('**/sem.json',route=>{delayed=route;});
-  await studio.locator('#secondary-version').selectOption('sem');await studio.locator('#bilingual-toggle').click();
+  await studio.locator('#bilingual-toggle').click();await studio.locator('#secondary-version').selectOption('sem');
   for(let i=0;i<100&&!delayed;i++)await new Promise(r=>setTimeout(r,20));
   assert.ok(delayed,'chargement secondaire réellement retenu');
   await studio.locator('.chapter-verse[data-verse="8"]').click();

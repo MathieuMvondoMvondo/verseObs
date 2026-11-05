@@ -2,7 +2,30 @@
 
 Une régie biblique pour OBS : préparez un passage, organisez votre conducteur et diffusez au moment choisi. Interface en français, douze traductions locales, aucun compte requis.
 
-## Démarrer en local
+## Pour les bénévoles : Mac et Windows, sans commande
+
+Utiliser le **zip Mac ou Windows** fabriqué pour cette version. Après extraction,
+ouvrir **GUIDE-MAC.pdf** ou **GUIDE-WINDOWS.pdf**, puis double-cliquer sur
+**Installer VerseObs**, une seule fois, et **Lancer VerseObs** à chaque séance.
+Aucun Node, Python, Git ou outil Xcode n’est à installer manuellement. Les moteurs
+portables restent dans le dossier VerseObs ; les téléchargements sont vérifiés
+par SHA-256. Windows crée aussi un raccourci **VerseObs** sur le Bureau.
+
+L’installation demande Internet et de l’espace libre (prévoir 4 Go). L’écoute
+locale n’exige aucune clé payante. Fermer la fenêtre VerseObs arrête le serveur
+et l’écoute ; fermer seulement l’onglet du navigateur ne les arrête pas.
+Mac : autoriser Terminal à accéder au micro. Les guides expliquent Gatekeeper
+et SmartScreen sans désactiver les protections du système.
+
+**Limite de cette branche :** téléchargements, empreintes, parcours simulés et
+arrêt du gestionnaire sont vérifiés sur Linux ; l’installation, les autorisations,
+le microphone et la fenêtre Windows doivent encore être essayés sur le Mac/PC
+cible par Math. Un ordinateur géré peut bloquer les programmes non signés.
+Les anciens lanceurs de `tools/ecoute` restent disponibles pour la régie actuelle.
+
+Fabrication mainteneur et option `.app` gratuite : [distribution](tools/distribution/LISEZMOI.md).
+
+## Démarrer en local (développement)
 
 Avec Node.js 18 ou plus récent :
 

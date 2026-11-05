@@ -7,7 +7,7 @@ if [[ "$(uname -s)" != Darwin ]]; then
   printf '%s\n' 'Ce lanceur est réservé à macOS.' >&2; exit 1
 fi
 if [[ ! -x .venv/bin/python ]]; then
-  printf '%s\n' 'Lancez d’abord installer-mac.command.' >&2; exit 1
+  printf '%s\n' "Lancez d’abord installer-mac.command." >&2; exit 1
 fi
 local_only=false
 for arg in "$@"; do [[ "$arg" != --tout-local ]] || local_only=true; done

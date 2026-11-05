@@ -24,7 +24,7 @@ for name in VERSEOBS_ECOUTE_ANTHROPIC_CLE VERSEOBS_ECOUTE_OPENAI_CLE VERSEOBS_EC
   # security -i peut quitter à zéro malgré un échec : lecture de contrôle obligatoire.
   saved="$(security find-generic-password -a "$USER" -s "$service" -w 2>/dev/null || true)"
   if [[ "$saved" != "$key" ]]; then
-    printf '%s\n' 'La clé n’a pas été confirmée dans le trousseau. Réessayez.' >&2; exit 1
+    printf '%s\n' "La clé n’a pas été confirmée dans le trousseau. Réessayez." >&2; exit 1
   fi
   unset key escaped saved
   printf '%s\n' 'Clé enregistrée dans le trousseau.'

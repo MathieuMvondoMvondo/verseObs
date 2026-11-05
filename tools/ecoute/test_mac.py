@@ -98,6 +98,15 @@ else:sys.exit(1)
             self.assertNotRegex(p.read_text(),r"\b(?:OPENAI_API_KEY|ANTHROPIC_API_KEY)\b")
 
 class MacPythonPortability(unittest.TestCase):
+    def test_fermeture_parent_arrete_les_taches(self):
+        import asyncio
+        import ecoute
+        for entree in ("ARRETER\n", ""):
+            service=ecoute.Service(ecoute.parse(["--arret-stdin","--sans-relais","--tout-local"]))
+            with patch.object(service,"load"),patch.object(service,"stop") as stop,patch.object(sys,"stdin",io.StringIO(entree)):
+                asyncio.run(asyncio.wait_for(service.main(),2))
+                stop.assert_called_once()
+
     def test_service_coreaudio_and_posix_priority(self):
         import ecoute
         import moteur

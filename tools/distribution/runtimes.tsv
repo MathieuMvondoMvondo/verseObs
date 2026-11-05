@@ -1,0 +1,7 @@
+kind|target|folder|url|sha256
+node|darwin-arm64|node-v22.23.4-darwin-arm64|https://nodejs.org/dist/v22.23.4/node-v22.23.4-darwin-arm64.tar.gz|c9e1dbc748b33ed2d14f42445191ecaf14c56259c7a9a26d0042c49ec2b66428
+node|darwin-x64|node-v22.23.4-darwin-x64|https://nodejs.org/dist/v22.23.4/node-v22.23.4-darwin-x64.tar.gz|efcc2b0db6f94bf53eddb038fe2b370277a042bd29e4f19b8f8e23598795b819
+node|win32-x64|node-v22.23.4-win-x64|https://nodejs.org/dist/v22.23.4/node-v22.23.4-win-x64.zip|cbc74b5e0982c9dbb41525fd8fb5dcd32fbee237863f7829072f4639a1ce5f20
+python|darwin-arm64|python|https://github.com/astral-sh/python-build-standalone/releases/download/20261026/cpython-3.12.16%2B20261026-aarch64-apple-darwin-install_only.tar.gz|fbf4afef53c2a6b72bb741bc06d5671a9dfaf87bd84e5aa73ac9b3d0d589f14e
+python|darwin-x64|python|https://github.com/astral-sh/python-build-standalone/releases/download/20261026/cpython-3.12.16%2B20261026-x86_64-apple-darwin-install_only.tar.gz|a962e47df522889eaa7ff0d6a56203f1079f68aabb65ffdbe8455f362bc769f3
+python|win32-x64|python|https://github.com/astral-sh/python-build-standalone/releases/download/20261026/cpython-3.12.16%2B20261026-x86_64-pc-windows-msvc-install_only.tar.gz|590dfcbe3a34c07301e6332e13e2188b98655cd072b08afa45a7998dc4c22bc5

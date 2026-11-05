@@ -21,7 +21,14 @@ Whisper et OPUS-MT restent chargés en secours et reprennent seuls, sans délai,
    installe les bibliothèques dans ce dossier seulement, télécharge les modèles
    (environ 650 Mo, une seule fois) et affiche les entrées audio.
 
-## Sur Mac (installation et lancement)
+## Parcours conseillé aux bénévoles (Mac et Windows)
+
+Utiliser le zip de sa plateforme et les deux fichiers **Installer VerseObs** et
+**Lancer VerseObs** à sa racine. Le guide PDF d’une page explique le parcours,
+sans commande à saisir et sans logiciel préalable. Ces fichiers démarrent aussi
+le Studio : ne pas utiliser les instructions de développement ci-dessous.
+
+## Sur Mac (lanceurs techniques historiques, facultatifs)
 
 1. Installer **Python 3.10 à 3.13** depuis python.org ; `python3 --version`
    doit annoncer cette version. Les modèles tournent sur le processeur, sans

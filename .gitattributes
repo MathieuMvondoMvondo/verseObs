@@ -1,0 +1,2 @@
+# Les lanceurs Windows conservent leurs fins de ligne natives.
+*.cmd whitespace=cr-at-eol

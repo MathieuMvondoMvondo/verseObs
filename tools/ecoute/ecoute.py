@@ -470,13 +470,33 @@ class Service:
         tasks = [asyncio.create_task(self.heartbeat())]
         if not self.args.sans_relais:
             tasks.append(asyncio.create_task(self.relay()))
-        await asyncio.gather(*tasks)
+        if not self.args.arret_stdin:
+            await asyncio.gather(*tasks)
+            return
+        arret = asyncio.Event()
+        def surveiller_parent():
+            for ligne in sys.stdin:
+                if ligne.strip() == "ARRETER":
+                    break
+            try:
+                self.loop.call_soon_threadsafe(arret.set)
+            except RuntimeError:
+                pass  # la boucle a déjà été arrêtée par un signal
+        threading.Thread(target=surveiller_parent, name="ecoute-parent", daemon=True).start()
+        try:
+            await arret.wait()
+            self.stop()
+        finally:
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
 
 
 def parse(argv=None):
     p = argparse.ArgumentParser(description="VerseObs Écoute : sous-titres anglais en direct")
     p.add_argument("--relais", default="ws://127.0.0.1:8080/verseobs-relay")
     p.add_argument("--liste", action="store_true", help="lister les entrées audio et quitter")
+    p.add_argument("--arret-stdin", action="store_true", help=argparse.SUPPRESS)
     p.add_argument("--preparer", action="store_true", help="télécharger les modèles et quitter")
     p.add_argument("--entree", help="numéro ou nom de l'entrée audio (sinon : celle du système)")
     p.add_argument("--fichier", help="simulation : lire ce fichier au rythme du direct")

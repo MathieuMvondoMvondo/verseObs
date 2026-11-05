@@ -1298,7 +1298,7 @@ group("dock OBS 28/10: file versions, Bible spaces, one colour");
     px = require("path"),
     rootx = px.join(__dirname, ".."),
     seen = [];
-  ["control_panel.html", "browser_source.html", "remote.html"].forEach(function (p) {
+  fsx.readdirSync(rootx).filter(function (p) { return p.endsWith(".html"); }).forEach(function (p) {
     var html = fsx.readFileSync(px.join(rootx, p), "utf8");
     (html.match(/[?&]v=[^"'&\s>]+/g) || []).forEach(function (m) {
       seen.push(p + " " + m.slice(3));
